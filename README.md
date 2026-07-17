@@ -9,9 +9,9 @@ App mobile de suivi multi-sport (anciennement « SportTracker ») — Phase 1 : 
 | `StrackDoc/` | Vault Obsidian : `raw/docs/` = PRD, ARCHITECTURE, PLAN (source de vérité) ; `wiki/` = notes compilées — **hors git** |
 | `USE_CASES.md` | Cas d'utilisation Phase 1 et leur statut d'implémentation |
 
-> Note de nommage : le package Java backend reste `com.sporttracker` et certains documents
-> historiques (PRD, wiki) utilisent encore l'ancien nom — identifiants internes, sans impact
-> fonctionnel. Le nom produit est **StrackS** partout où l'utilisateur le voit (app, API, docs).
+> Note de nommage : renommé en profondeur le 2026-07-17 — package Java `com.stracks`,
+> groupId Maven `com.stracks`, identifiants d'app mobile `com.stracks.app`. Seuls les
+> documents historiques (PRD, wiki) conservent l'ancien nom « SportTracker ».
 
 Design system : projet Claude Design `d8a01989-0514-45c1-9a9c-fe1015bb2ffc` (source de vérité visuelle).
 

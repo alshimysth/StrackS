@@ -1,0 +1,21 @@
+# --- Vault de documentation (hors git, demandé explicitement)
+/StrackDoc/
+
+# --- macOS
+.DS_Store
+
+# --- Backend (Quarkus / Maven)
+backend/target/
+# Clés JWT dev — à générer localement (voir README) ; jamais dans le repo
+backend/src/main/resources/privateKey.pem
+backend/src/main/resources/publicKey.pem
+
+# --- Mobile (Expo / Node)
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/*.log
+
+# --- Divers
+*.log

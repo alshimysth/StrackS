@@ -96,6 +96,14 @@ Le terminal affiche un QR code et un menu interactif :
 | `a` | Émulateur Android | Android Studio installé |
 | Scanner le QR code | Téléphone physique via Expo Go | App Expo Go installée, même réseau Wi-Fi que le Mac |
 
+> **Pourquoi le projet est sur Expo SDK 54 et non la dernière version (2026-07-17)** : Apple
+> n'avait pas encore validé la build Expo Go SDK 57 au moment du test — Expo Go disponible sur
+> l'App Store restait figé sur SDK 54. Scanner le QR code d'un projet SDK 57 avec cet Expo Go
+> déclenche le message trompeur *« Download the latest version of Expo Go »*, alors que
+> l'app est déjà à jour : c'est le **projet** qui est trop récent pour l'Expo Go du store, pas
+> l'inverse. Rester sur SDK 54 jusqu'à ce qu'Expo Go SDK 57+ soit publié sur l'App Store (sinon,
+> passer par une build de développement EAS, qui n'a pas cette contrainte).
+
 ### Adresse de l'API selon la cible
 
 Le client mobile appelle `http://localhost:8080` par défaut. Cette adresse ne fonctionne que

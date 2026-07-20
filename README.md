@@ -120,6 +120,11 @@ EXPO_PUBLIC_API_URL=http://192.168.1.23:8080 npx expo start
 
 Trouver l'IP locale du Mac : `ipconfig getifaddr en0`.
 
+> Le backend écoute sur `0.0.0.0` (toutes les interfaces, pas seulement `localhost`) —
+> `quarkus.http.host=0.0.0.0` dans `application.properties`. C'est ce qui rend l'IP du Mac
+> joignable depuis un téléphone sur le même Wi-Fi ; sans ça, même avec la bonne
+> `EXPO_PUBLIC_API_URL`, la connexion échoue silencieusement côté téléphone (voir §6).
+
 **Vérifications statiques** (sans lancer l'app) :
 
 ```bash
@@ -198,6 +203,7 @@ par vous-même pour une confirmation complète du geste.
 | `pause`/`resume` renvoient 415 | Client envoie un `Content-Type` inattendu sur une requête sans corps | Non applicable si vous utilisez l'app mobile ou les exemples `curl` ci-dessus |
 | L'app mobile n'affiche aucun sport à l'accueil | Le backend n'est pas joignable depuis la cible choisie | Vérifier `EXPO_PUBLIC_API_URL` (§3) et que `./mvnw quarkus:dev` tourne toujours |
 | Émulateur Android : `ECONNREFUSED` vers `localhost` | `localhost` sur Android émulé pointe vers l'émulateur lui-même, pas le Mac | Utiliser `10.0.2.2` (§3) |
+| Téléphone physique (Expo Go) : « Serveur injoignable » sur l'écran de connexion | Deux causes possibles, à vérifier dans l'ordre : **(1)** `EXPO_PUBLIC_API_URL` pas défini avant `expo start` — le client tape alors sur `localhost`, qui sur le téléphone désigne le téléphone lui-même, pas le Mac. **(2)** Le backend n'écoute que sur `localhost` côté Mac (vérifier que les logs affichent `Listening on: http://0.0.0.0:8080`, pas `http://localhost:8080`) — dans ce cas même la bonne IP ne suffit pas | Relancer avec `EXPO_PUBLIC_API_URL=http://<IP-du-Mac>:8080 npx expo start` **et** vérifier que `application.properties` contient `quarkus.http.host=0.0.0.0` (déjà présent dans ce repo). Vérifier aussi que le téléphone est sur le **même réseau Wi-Fi** que le Mac (pas de VPN actif, pas d'isolation clients sur le routeur) |
 | Écran blanc/noir en mode web | Bundler encore en cours de compilation au premier chargement | Rafraîchir après quelques secondes |
 | `quarkus:dev` boucle sur `WARN ... Can not connect to Ryuk at localhost:PORT: Connection refused` | Le conteneur Ryuk (nettoyeur de conteneurs de Testcontainers) met parfois plus de temps que prévu à démarrer/publier son port — race condition avec Docker Desktop, pas un problème de config. Le backend ne finit jamais de démarrer tant que ça boucle, d'où une « erreur de connexion » côté app mobile (elle tape simplement dans le vide, il n'y a rien à `localhost:8080`) | `Ctrl+C`, relancer `./mvnw quarkus:dev` — repart généralement proprement en quelques secondes. Si ça persiste : vérifier `docker ps` (pas de conteneur `ryuk` bloqué), redémarrer Docker Desktop. En dernier recours, désactiver Ryuk : `TESTCONTAINERS_RYUK_DISABLED=true ./mvnw quarkus:dev` (les conteneurs ne seront alors plus auto-nettoyés à l'arrêt — `docker rm` manuel si besoin) |
 

@@ -199,6 +199,7 @@ par vous-même pour une confirmation complète du geste.
 | L'app mobile n'affiche aucun sport à l'accueil | Le backend n'est pas joignable depuis la cible choisie | Vérifier `EXPO_PUBLIC_API_URL` (§3) et que `./mvnw quarkus:dev` tourne toujours |
 | Émulateur Android : `ECONNREFUSED` vers `localhost` | `localhost` sur Android émulé pointe vers l'émulateur lui-même, pas le Mac | Utiliser `10.0.2.2` (§3) |
 | Écran blanc/noir en mode web | Bundler encore en cours de compilation au premier chargement | Rafraîchir après quelques secondes |
+| `quarkus:dev` boucle sur `WARN ... Can not connect to Ryuk at localhost:PORT: Connection refused` | Le conteneur Ryuk (nettoyeur de conteneurs de Testcontainers) met parfois plus de temps que prévu à démarrer/publier son port — race condition avec Docker Desktop, pas un problème de config. Le backend ne finit jamais de démarrer tant que ça boucle, d'où une « erreur de connexion » côté app mobile (elle tape simplement dans le vide, il n'y a rien à `localhost:8080`) | `Ctrl+C`, relancer `./mvnw quarkus:dev` — repart généralement proprement en quelques secondes. Si ça persiste : vérifier `docker ps` (pas de conteneur `ryuk` bloqué), redémarrer Docker Desktop. En dernier recours, désactiver Ryuk : `TESTCONTAINERS_RYUK_DISABLED=true ./mvnw quarkus:dev` (les conteneurs ne seront alors plus auto-nettoyés à l'arrêt — `docker rm` manuel si besoin) |
 
 ---
 

@@ -18,7 +18,7 @@ Design system : projet Claude Design `d8a01989-0514-45c1-9a9c-fe1015bb2ffc` (sou
 > **État vérifié le 2026-07-14** : backend et mobile démarrent tous les deux sans erreur ;
 > le parcours inscription → connexion → profil a été testé en conditions réelles (API HTTP
 > directe + écrans de connexion/inscription affichés dans un navigateur, thème et police du
-> design system correctement appliqués). Voir §5 pour reproduire ce test.
+> design system correctement appliqués). Voir §4 pour reproduire ce test.
 
 ---
 
@@ -123,7 +123,7 @@ Trouver l'IP locale du Mac : `ipconfig getifaddr en0`.
 > Le backend écoute sur `0.0.0.0` (toutes les interfaces, pas seulement `localhost`) —
 > `quarkus.http.host=0.0.0.0` dans `application.properties`. C'est ce qui rend l'IP du Mac
 > joignable depuis un téléphone sur le même Wi-Fi ; sans ça, même avec la bonne
-> `EXPO_PUBLIC_API_URL`, la connexion échoue silencieusement côté téléphone (voir §6).
+> `EXPO_PUBLIC_API_URL`, la connexion échoue silencieusement côté téléphone (voir §7).
 
 **Vérifications statiques** (sans lancer l'app) :
 
@@ -173,7 +173,37 @@ curl -s -X POST http://localhost:8080/api/v1/auth/login \
 
 ---
 
-## 5. Ce qui a été vérifié le 2026-07-14
+## 5. Voir les logs de l'app sur un téléphone physique (Expo Go)
+
+Trois niveaux, du plus simple au plus complet :
+
+1. **Terminal `npx expo start`** — c'est le premier réflexe. Tout `console.log` /
+   `console.warn` / `console.error` exécuté dans l'app, y compris sur un téléphone physique,
+   est automatiquement renvoyé vers le terminal où tourne le bundler Metro/Expo. Aucune
+   configuration nécessaire : il suffit de regarder ce terminal pendant que l'app tourne sur
+   le téléphone.
+
+2. **Menu développeur dans l'app** — secouer le téléphone (geste physique) fait apparaître le
+   menu développeur Expo. Il donne accès à **« Open JS Debugger »**, qui ouvre une session
+   Chrome DevTools connectée au moteur JS de l'app *en cours d'exécution sur le téléphone* —
+   avec un onglet **Console** (identique à ce que vous avez utilisé pour le web) et un onglet
+   **Network** qui montre chaque appel `fetch` fait par l'app, ses en-têtes, son statut, sa
+   réponse. C'est l'équivalent exact du screenshot que vous venez de partager, mais pour l'app
+   réelle sur le téléphone plutôt que pour le preview web.
+
+3. **Logs réseau au niveau backend** — le terminal `quarkus:dev` affiche chaque requête HTTP
+   reçue si le niveau de log est augmenté : ajouter temporairement
+   `quarkus.http.access-log.enabled=true` dans `application.properties` (nécessite un
+   redémarrage complet, propriété build-time) pour voir défiler chaque appel entrant, utile
+   pour confirmer côté serveur qu'une requête depuis le téléphone arrive bien.
+
+En pratique pour déboguer une connexion qui échoue depuis le téléphone : ouvrir le menu
+développeur → **Open JS Debugger** → onglet Network → relancer la tentative de connexion dans
+l'app → observer si la requête part, vers quelle URL, et ce qu'elle reçoit en retour.
+
+---
+
+## 6. Ce qui a été vérifié le 2026-07-14
 
 | Vérification | Méthode | Résultat |
 |---|---|---|
@@ -194,7 +224,7 @@ par vous-même pour une confirmation complète du geste.
 
 ---
 
-## 6. Dépannage
+## 7. Dépannage
 
 | Symptôme | Cause probable | Solution |
 |---|---|---|
@@ -204,19 +234,20 @@ par vous-même pour une confirmation complète du geste.
 | L'app mobile n'affiche aucun sport à l'accueil | Le backend n'est pas joignable depuis la cible choisie | Vérifier `EXPO_PUBLIC_API_URL` (§3) et que `./mvnw quarkus:dev` tourne toujours |
 | Émulateur Android : `ECONNREFUSED` vers `localhost` | `localhost` sur Android émulé pointe vers l'émulateur lui-même, pas le Mac | Utiliser `10.0.2.2` (§3) |
 | Téléphone physique (Expo Go) : « Serveur injoignable » sur l'écran de connexion | Deux causes possibles, à vérifier dans l'ordre : **(1)** `EXPO_PUBLIC_API_URL` pas défini avant `expo start` — le client tape alors sur `localhost`, qui sur le téléphone désigne le téléphone lui-même, pas le Mac. **(2)** Le backend n'écoute que sur `localhost` côté Mac (vérifier que les logs affichent `Listening on: http://0.0.0.0:8080`, pas `http://localhost:8080`) — dans ce cas même la bonne IP ne suffit pas | Relancer avec `EXPO_PUBLIC_API_URL=http://<IP-du-Mac>:8080 npx expo start` **et** vérifier que `application.properties` contient `quarkus.http.host=0.0.0.0` (déjà présent dans ce repo). Vérifier aussi que le téléphone est sur le **même réseau Wi-Fi** que le Mac (pas de VPN actif, pas d'isolation clients sur le routeur) |
+| Mode **web** (`npx expo start --web`) : requête bloquée dans l'onglet Network de Chrome, réponse vide/0 B, aucune erreur claire | CORS — le preview web tourne sur un port différent de l'API (ex. `localhost:8081` vs `localhost:8080`) : c'est cross-origin du point de vue du navigateur, qui bloque la requête sans en-têtes `Access-Control-Allow-*`. **Ne concerne pas** l'app native sur simulateur/téléphone (le `fetch` React Native n'applique pas CORS) | Déjà corrigé dans ce repo (`quarkus.http.cors.enabled=true` + origines `localhost:*` autorisées dans `application.properties`). Si l'erreur revient après une modification de cette config, redémarrer complètement `quarkus:dev` (`quarkus.http.cors.enabled` est une propriété *build-time*, non rechargée à chaud) |
 | Écran blanc/noir en mode web | Bundler encore en cours de compilation au premier chargement | Rafraîchir après quelques secondes |
 | `quarkus:dev` boucle sur `WARN ... Can not connect to Ryuk at localhost:PORT: Connection refused` | Le conteneur Ryuk (nettoyeur de conteneurs de Testcontainers) met parfois plus de temps que prévu à démarrer/publier son port — race condition avec Docker Desktop, pas un problème de config. Le backend ne finit jamais de démarrer tant que ça boucle, d'où une « erreur de connexion » côté app mobile (elle tape simplement dans le vide, il n'y a rien à `localhost:8080`) | `Ctrl+C`, relancer `./mvnw quarkus:dev` — repart généralement proprement en quelques secondes. Si ça persiste : vérifier `docker ps` (pas de conteneur `ryuk` bloqué), redémarrer Docker Desktop. En dernier recours, désactiver Ryuk : `TESTCONTAINERS_RYUK_DISABLED=true ./mvnw quarkus:dev` (les conteneurs ne seront alors plus auto-nettoyés à l'arrêt — `docker rm` manuel si besoin) |
 
 ---
 
-## 7. Règles d'architecture (résumé)
+## 8. Règles d'architecture (résumé)
 
 - Aucun `switch (sportType)` hors des registres (`SportRegistry` backend, `sports/registry.ts` mobile). Ajouter un sport = ajouter un module, zéro modification du socle.
 - Métriques par sport dans `activities.metrics` (JSONB), schéma validé par le module des deux côtés.
 - Styles uniquement via `mobile/src/design-system/` (tokens Claude Design) — pas de valeurs en dur.
 - Détails : `StrackDoc/raw/docs/ARCHITECTURE.md`.
 
-## 8. Ce qui n'est pas encore fonctionnel
+## 9. Ce qui n'est pas encore fonctionnel
 
 L'écran de tracking live (carte + métriques pendant une séance) est un placeholder textuel :
 le moteur de séance (`core/session`) et le moteur GPS (`core/gps`, Epic 3) restent à

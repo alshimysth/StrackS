@@ -4,6 +4,8 @@ name: Backend CI
 # Testcontainers / Dev Services fonctionnent tels quels : le runner ubuntu-latest a Docker préinstallé.
 
 on:
+  # Réutilisable par backend-deploy.yml (job `test`) pour ne pas dupliquer les étapes.
+  workflow_call:
   push:
     paths:
       - "backend/**"

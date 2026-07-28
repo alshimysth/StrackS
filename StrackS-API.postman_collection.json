@@ -1,0 +1,714 @@
+{
+  "info": {
+    "name": "StrackS API — Backend Phase 1",
+    "description": "Collection de test du backend Quarkus StrackS (auth JWT, sport-types, cycle de vie des activités, tracé GPS idempotent, stats).\n\n**Démarrage rapide**\n1. Lancer le backend : `cd backend && ./mvnw quarkus:dev` (Postgres via Dev Services/Testcontainers).\n2. Exécuter `1. Auth → Register` : crée un compte jetable et stocke le token automatiquement.\n3. Dérouler le dossier `4. Cycle de vie d'une séance` dans l'ordre (Start → Upload GPS → Pause → Resume → Stop → Détail).\n\nToutes les requêtes protégées héritent du Bearer `{{token}}` posé au niveau collection. Les variables `activityId`, `startedAt`, etc. sont remplies par les scripts de test — rien à copier-coller.\n\nErreurs au format RFC 7807 (`application/problem+json`).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "activityId", "value": "" },
+    { "key": "userEmail", "value": "" },
+    { "key": "userPassword", "value": "S3cret!Passw0rd" },
+    { "key": "startedAt", "value": "" },
+    { "key": "endedAt", "value": "" },
+    { "key": "trackPointsBody", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Email jetable unique : Register est rejouable à volonté",
+                  "pm.collectionVariables.set('userEmail', `runner+${Date.now()}@stracks.test`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created + token JWT', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.user.email).to.eql(pm.collectionVariables.get('userEmail'));",
+                  "  pm.collectionVariables.set('token', body.token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\",\n  \"displayName\": \"Testeur Postman\"\n}"
+            },
+            "description": "Crée un compte et renvoie `{ token, user }`. Le token est stocké dans `{{token}}` pour toute la collection. Mot de passe : 8 caractères minimum."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK + token JWT', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "  pm.collectionVariables.set('token', body.token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+            },
+            "description": "Reconnexion avec le compte créé par Register (variables `{{userEmail}}` / `{{userPassword}}`). Rafraîchit `{{token}}`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Utilisateur",
+      "item": [
+        {
+          "name": "Mon profil",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK + profil', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.have.keys('id', 'email', 'displayName', 'createdAt');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/users/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "users", "me"] },
+            "description": "Profil de l'utilisateur du token."
+          }
+        },
+        {
+          "name": "Modifier mon nom",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK + displayName modifié', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().displayName).to.eql('Coureur du dimanche');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/users/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "users", "me"] },
+            "body": { "mode": "raw", "raw": "{\n  \"displayName\": \"Coureur du dimanche\"\n}" },
+            "description": "Met à jour le nom affiché (80 caractères max)."
+          }
+        },
+        {
+          "name": "⚠️ Supprimer mon compte",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/users/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "users", "me"] },
+            "description": "**Destructif** : supprime le compte, ses activités et ses track points (cascade SQL — droit à l'effacement). Répond 204. À lancer en dernier, ou rejouer Register ensuite."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Sports disponibles",
+      "item": [
+        {
+          "name": "Lister les sport-types",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK + running et walking enregistrés', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const codes = pm.response.json().map(s => s.code);",
+                  "  pm.expect(codes).to.include.members(['running', 'walking']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/sport-types", "host": ["{{baseUrl}}"], "path": ["api", "v1", "sport-types"] },
+            "description": "Sports exposés par le registre de plugins backend — c'est cette liste qui pilote l'accueil mobile (jamais de liste en dur). Chaque descripteur : `{ code, label, usesGps, schemaVersion }`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Cycle de vie d'une séance",
+      "description": "À dérouler dans l'ordre : Start → Upload GPS → (rejeu idempotent) → Pause → Resume → Stop → Détail. Simule une sortie course de ~25 minutes au Parc de la Villette.",
+      "item": [
+        {
+          "name": "4.1 Démarrer une séance (running)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Séance démarrée il y a 30 min : laisse la place aux points GPS puis au stop",
+                  "pm.collectionVariables.set('startedAt', new Date(Date.now() - 30 * 60 * 1000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created + statut in_progress', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql('in_progress');",
+                  "  pm.collectionVariables.set('activityId', body.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/activities", "host": ["{{baseUrl}}"], "path": ["api", "v1", "activities"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sportType\": \"running\",\n  \"startedAt\": \"{{startedAt}}\"\n}"
+            },
+            "description": "Crée l'activité (statut `in_progress`). L'id est stocké dans `{{activityId}}`. Un sport inconnu répond 422 (voir dossier Cas d'erreur)."
+          }
+        },
+        {
+          "name": "4.2 Uploader le tracé GPS (300 points)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sortie simulée : 300 points à 5 s d'intervalle (25 min), ~3 m/s (allure ~5'30\"/km),",
+                  "// cap nord-est depuis le Parc de la Villette, altitude ondulante, précision 5-12 m.",
+                  "const t0 = new Date(pm.collectionVariables.get('startedAt')).getTime();",
+                  "const points = [];",
+                  "let lat = 48.8890, lng = 2.3908, alt = 52;",
+                  "for (let i = 0; i < 300; i++) {",
+                  "  points.push({",
+                  "    seq: i,",
+                  "    recordedAt: new Date(t0 + i * 5000).toISOString(),",
+                  "    lat: +lat.toFixed(6),",
+                  "    lng: +lng.toFixed(6),",
+                  "    altitudeM: +alt.toFixed(1),",
+                  "    accuracyM: +(5 + Math.random() * 7).toFixed(1)",
+                  "  });",
+                  "  lat += 0.000128;                 // ~14 m nord / 5 s",
+                  "  lng += 0.00004;                  // légère dérive est",
+                  "  alt += Math.sin(i / 18) * 0.6;   // vallonnement doux → D+/D- réalistes",
+                  "}",
+                  "pm.collectionVariables.set('trackPointsBody', JSON.stringify({ points }, null, 2));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created + 300 points reçus', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.received).to.eql(300);",
+                  "});",
+                  "pm.test('Idempotence : au 2e envoi, inserted = 0', () => {",
+                  "  // Premier envoi : inserted = 300. Rejouer la requête : received = 300, inserted = 0",
+                  "  pm.expect(pm.response.json().inserted).to.be.oneOf([0, 300]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/activities/{{activityId}}/track-points",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "activities", "{{activityId}}", "track-points"]
+            },
+            "body": { "mode": "raw", "raw": "{{trackPointsBody}}" },
+            "description": "Le corps est généré par le script pre-request (300 points GPS réalistes, ~4,3 km). Idempotent par `(activity_id, seq)` : **rejouer cette requête** montre `inserted: 0` — le retry réseau du mobile ne duplique jamais rien.\n\nFormat d'un point : `{ seq, recordedAt, lat, lng, altitudeM, accuracyM }`."
+          }
+        },
+        {
+          "name": "4.3 Mettre en pause",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK + statut paused', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().status).to.eql('paused');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/activities/{{activityId}}/pause",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "activities", "{{activityId}}", "pause"]
+            },
+            "description": "POST sans corps. Depuis `in_progress` uniquement — sinon 409 Transition invalide."
+          }
+        },
+        {
+          "name": "4.4 Reprendre",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK + statut in_progress', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().status).to.eql('in_progress');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/activities/{{activityId}}/resume",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "activities", "{{activityId}}", "resume"]
+            },
+            "description": "POST sans corps. Le temps de pause est cumulé côté serveur (`pausedTotalS`). Depuis `paused` uniquement."
+          }
+        },
+        {
+          "name": "4.5 Terminer la séance",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.collectionVariables.set('endedAt', new Date().toISOString());"]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK + statut completed', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().status).to.eql('completed');",
+                  "});",
+                  "pm.test('Métriques recalculées serveur depuis le tracé brut', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(Number(body.distanceM)).to.be.greaterThan(0);",
+                  "  pm.expect(body.metrics).to.have.property('avgPaceSecPerKm');",
+                  "  pm.expect(body.metrics).to.have.property('splits');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/activities/{{activityId}}/stop",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "activities", "{{activityId}}", "stop"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"endedAt\": \"{{endedAt}}\",\n  \"durationS\": 1500,\n  \"notes\": \"Sortie test Postman — Parc de la Villette\"\n}"
+            },
+            "description": "`durationS` = temps actif mesuré par le client (pauses exclues), prioritaire s'il est fourni. Le serveur **recalcule** distance, allure, D+/D- et splits depuis les track points bruts (source de vérité) — les métriques renvoyées viennent du serveur, pas du client."
+          }
+        },
+        {
+          "name": "4.6 Détail de l'activité",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK + métriques présentes', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().metrics.schemaVersion).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/activities/{{activityId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "activities", "{{activityId}}"]
+            },
+            "description": "Détail complet : statut, durée, distance, `metrics` JSONB du plugin (allure moyenne, dénivelé, splits kilométriques). L'activité d'un autre utilisateur répond 404 (anti-IDOR), jamais 403."
+          }
+        },
+        {
+          "name": "4.7 Relire le tracé GPS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK + points ordonnés par seq', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const points = pm.response.json();",
+                  "  pm.expect(points.length).to.be.at.least(1);",
+                  "  pm.expect(points[0].seq).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/activities/{{activityId}}/track-points",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "activities", "{{activityId}}", "track-points"]
+            },
+            "description": "Tracé brut stocké — celui que le détail d'activité mobile affichera sur la carte (M4)."
+          }
+        },
+        {
+          "name": "4.8 Modifier les notes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK + notes modifiées', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().notes).to.include('négatif');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/activities/{{activityId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "activities", "{{activityId}}"]
+            },
+            "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Bonne séance, split négatif sur la fin.\"\n}" },
+            "description": "Édition a posteriori : notes et/ou `metrics` (re-validées par le plugin du sport)."
+          }
+        },
+        {
+          "name": "4.9 ⚠️ Supprimer l'activité",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/activities/{{activityId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "activities", "{{activityId}}"]
+            },
+            "description": "**Destructif** : supprime l'activité et son tracé (cascade SQL). Répond 204. À lancer en dernier — après, 4.6/4.7 répondent 404."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Historique & stats",
+      "item": [
+        {
+          "name": "Historique paginé",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK + page d\\'activités', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.have.keys('items', 'page', 'size', 'total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/activities?page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "activities"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" },
+                { "key": "sport", "value": "running", "disabled": true },
+                { "key": "from", "value": "2026-07-01T00:00:00Z", "disabled": true },
+                { "key": "to", "value": "2026-08-01T00:00:00Z", "disabled": true }
+              ]
+            },
+            "description": "Tri : plus récentes d'abord. Filtres optionnels (décochés) : `sport`, `from`/`to` (ISO 8601, borne haute exclusive). `size` max 100."
+          }
+        },
+        {
+          "name": "Stats de la semaine",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK + agrégats par sport', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('bySport');",
+                  "  pm.expect(body).to.have.property('totalSessions');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stats/summary?period=week",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "stats", "summary"],
+              "query": [{ "key": "period", "value": "week" }]
+            },
+            "description": "Agrégats depuis lundi (UTC) : sessions, durée, distance, D+ — globaux et par sport (calculés par chaque plugin). Seules les activités `completed` comptent."
+          }
+        },
+        {
+          "name": "Stats du mois — running seulement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stats/summary?period=month&sport=running",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "stats", "summary"],
+              "query": [
+                { "key": "period", "value": "month" },
+                { "key": "sport", "value": "running" }
+              ]
+            },
+            "description": "`period` : `week` (défaut) ou `month` ; `from` (ISO) pour une borne personnalisée ; `sport` pour filtrer (422 si inconnu)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Cas d'erreur (RFC 7807)",
+      "item": [
+        {
+          "name": "401 — sans token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/users/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "users", "me"] },
+            "description": "Toute route protégée sans Bearer répond 401."
+          }
+        },
+        {
+          "name": "401 — mauvais mot de passe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 + problème RFC 7807', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.json().title).to.eql('Identifiants invalides');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"mauvais-mot-de-passe\"\n}" }
+          }
+        },
+        {
+          "name": "422 — sport inconnu",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 + Sport inconnu', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().title).to.eql('Sport inconnu');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/activities", "host": ["{{baseUrl}}"], "path": ["api", "v1", "activities"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sportType\": \"tennis\",\n  \"startedAt\": \"2026-07-21T10:00:00Z\"\n}"
+            },
+            "description": "`tennis` n'a pas de plugin enregistré → 422. Ajouter un sport = ajouter un plugin backend, aucune modif du socle."
+          }
+        },
+        {
+          "name": "409 — transition invalide (re-stop)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 + Transition invalide', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().title).to.eql('Transition invalide');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/activities/{{activityId}}/stop",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "activities", "{{activityId}}", "stop"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"endedAt\": \"2026-07-21T11:00:00Z\"\n}"
+            },
+            "description": "À lancer **après** 4.5 (activité déjà `completed`) : stopper deux fois répond 409."
+          }
+        },
+        {
+          "name": "404 — activité d'un autre utilisateur ou inexistante",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('404 Not Found (anti-IDOR)', () => pm.response.to.have.status(404));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/activities/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "activities", "00000000-0000-0000-0000-000000000000"]
+            },
+            "description": "Un id inconnu — ou appartenant à un autre compte — répond toujours 404, jamais 403 : impossible d'énumérer les activités d'autrui."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -60,6 +60,11 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="tracking"
+          options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
+        />
+        <Stack.Screen name="summary/[id]" options={{ gestureEnabled: false }} />
       </Stack>
     </QueryClientProvider>
   );

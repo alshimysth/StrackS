@@ -1,15 +1,19 @@
 /**
- * Module course à pied. TrackingScreen/SummaryPanel sont des placeholders
- * jusqu'aux Epics 3/4 (moteur de séance + carte) — le manifeste et les
- * métriques dérivées sont, eux, définitifs.
+ * Module course à pied. TrackingScreen = écran partagé du moteur de séance
+ * (transposé de screens/tracking-running.html) configuré mental model
+ * coureur : allure en héro, grille distance/durée/allure moy./dénivelé.
  */
 import React from 'react';
 import { Text, View } from 'react-native';
 import { z } from 'zod';
 
-import { formatPace } from './format';
+import { formatDuration, formatKm, formatPace } from './format';
+import { SessionTrackingScreen } from '../../core/session/SessionTrackingScreen';
 import type { Activity } from '../../types/api';
 import type { LiveMetric, SessionState, SportModule } from '../types';
+
+/** Miroir de RunningPlugin.MAX_SPEED_KMH (backend). */
+const MAX_GPS_SPEED_KMH = 25;
 
 const metricsSchema = z.object({
   schemaVersion: z.literal(1),
@@ -19,11 +23,32 @@ const metricsSchema = z.object({
   splits: z.array(z.object({ km: z.number(), paceSecPerKm: z.number() })).optional(),
 });
 
+function instantPace(session: SessionState): string {
+  return session.smoothedSpeedMs > 0.3 ? formatPace(1000 / session.smoothedSpeedMs) : '—';
+}
+
+function averagePace(session: SessionState): string {
+  return session.distanceM > 50 && session.elapsedS > 0
+    ? formatPace(session.elapsedS / (session.distanceM / 1000))
+    : '—';
+}
+
 function TrackingScreen() {
   return (
-    <View>
-      <Text>Tracking course — Epic 3/4 (carte + métriques live)</Text>
-    </View>
+    <SessionTrackingScreen
+      sportCode="running"
+      hero={(s) => ({ label: 'Allure', value: instantPace(s), unit: '/km' })}
+      grid={(s) => [
+        { label: 'Distance', value: formatKm(s.distanceM), unit: 'km' },
+        { label: 'Durée', value: formatDuration(s.elapsedS) },
+        { label: 'Allure moy.', value: averagePace(s), unit: '/km' },
+        {
+          label: 'Dénivelé',
+          value: `▲${Math.round(s.elevationGainM)} ▼${Math.round(s.elevationLossM)}`,
+          unit: 'm',
+        },
+      ]}
+    />
   );
 }
 
@@ -51,6 +76,7 @@ export const runningModule: SportModule = {
   code: 'running',
   label: 'Course à pied',
   usesGps: true,
+  maxGpsSpeedKmh: MAX_GPS_SPEED_KMH,
   TrackingScreen,
   SummaryPanel,
   deriveLiveMetrics,

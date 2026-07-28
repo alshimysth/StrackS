@@ -1,0 +1,69 @@
+# Déploiement production StrackS sur le VPS (Ubuntu + Docker).
+#
+# Intégration au reverse proxy EXISTANT du VPS : Traefik, sur le réseau Docker
+# externe `root_default` (même pattern que budget-app). Traefik termine le TLS
+# (certresolver `mytlschallenge` = Let's Encrypt) et route
+# https://stracks.alshimysth.cloud vers ce backend. AUCUN port n'est publié sur
+# l'hôte : Traefik atteint le conteneur par le réseau partagé.
+#
+# Secrets/valeurs (DATABASE_PASSWORD, clés JWT) : fichier `.env` + dossier de clés
+# créés UNE SEULE FOIS sur le VPS, jamais commités (cf. deploy/.env.example).
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: stracks-postgres
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-stracks}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD manquant dans .env}
+      POSTGRES_DB: stracks
+    volumes:
+      - stracks_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-stracks} -d stracks"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    image: ghcr.io/alshimysth/stracks-backend:latest
+    container_name: stracks-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Profil %prod : lit ces variables (cf. application.properties).
+      DATABASE_URL: ${DATABASE_URL:-jdbc:postgresql://postgres:5432/stracks}
+      DATABASE_USER: ${DATABASE_USER:-stracks}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD manquant dans .env}
+      # Clés JWT montées en lecture seule — jamais dans l'image (design §5).
+      MP_JWT_VERIFY_PUBLICKEY_LOCATION: /deployments/keys/publicKey.pem
+      SMALLRYE_JWT_SIGN_KEY_LOCATION: /deployments/keys/privateKey.pem
+    volumes:
+      - ${JWT_KEYS_DIR:-./keys}:/deployments/keys:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/q/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.stracks.rule=Host(`stracks.alshimysth.cloud`)"
+      - "traefik.http.routers.stracks.entrypoints=websecure"
+      - "traefik.http.routers.stracks.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.stracks.loadbalancer.server.port=8080"
+      - "traefik.docker.network=root_default"
+    networks:
+      - default
+      - root_default
+    restart: unless-stopped
+
+networks:
+  default:
+  root_default:
+    external: true
+
+volumes:
+  stracks_pgdata:

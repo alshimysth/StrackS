@@ -1,0 +1,49 @@
+name: Backend CI
+
+# Build + tests du backend Quarkus sur chaque push et pull request touchant backend/**.
+# Testcontainers / Dev Services fonctionnent tels quels : le runner ubuntu-latest a Docker préinstallé.
+
+on:
+  # Réutilisable par backend-deploy.yml (job `test`) pour ne pas dupliquer les étapes.
+  workflow_call:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Le pom cible maven.compiler.release=25 et le Dockerfile.jvm utilise openjdk-25 :
+      # la CI DOIT utiliser JDK 25, pas 21 (sinon échec de compilation).
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      # Les clés JWT (*.pem) sont volontairement gitignorées (une paire par environnement,
+      # cf. README §2). Sur un clone à froid elles sont absentes → on génère une paire
+      # ÉPHÉMÈRE, propre à ce run, jamais commitée. Sans elle, le boot Quarkus des tests
+      # d'auth (signature/vérification JWT) échouerait.
+      - name: Generate ephemeral JWT keys
+        run: |
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
+            -out src/main/resources/privateKey.pem
+          openssl rsa -pubout -in src/main/resources/privateKey.pem \
+            -out src/main/resources/publicKey.pem
+
+      - name: Run tests
+        run: ./mvnw -B test

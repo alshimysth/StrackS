@@ -4,11 +4,8 @@
  * par les hooks de core/.
  */
 import { useAuthStore } from '../auth/use-auth-store';
+import { API_BASE_URL } from './config';
 import type { Problem } from '../../types/api';
-
-// iOS simulateur : localhost. Android émulateur : lancer avec
-// EXPO_PUBLIC_API_URL=http://10.0.2.2:8080 (cf. README).
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -38,7 +35,7 @@ export async function api<T>(
     }
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,

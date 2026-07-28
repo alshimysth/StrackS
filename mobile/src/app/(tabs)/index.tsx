@@ -3,11 +3,14 @@
  * (GET /sport-types) croisée avec le registre local : jamais de liste en dur.
  * Le bouton Démarrer ouvrira l'écran de tracking du module (Epic 3/4).
  */
+import { useRouter } from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useSportTypes } from '../../core/api/use-sport-types';
 import { useAuthStore } from '../../core/auth/use-auth-store';
+import { useSessionStore } from '../../core/session/use-session-store';
+import { Button } from '../../design-system/components/Button';
 import { SportBadge } from '../../design-system/components/SportBadge';
 import { radius, shadows, spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
@@ -15,9 +18,27 @@ import { sportRegistry } from '../../sports/registry';
 
 export default function HomeScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const sportTypes = useSportTypes();
+  const sessionStatus = useSessionStore((s) => s.status);
   const [selected, setSelected] = React.useState<string | null>(null);
+
+  const handleStart = async () => {
+    const module = selected != null ? sportRegistry[selected] : undefined;
+    if (module == null) {
+      return;
+    }
+    try {
+      await useSessionStore.getState().start(module.code, module.maxGpsSpeedKmh ?? 25);
+      router.push('/tracking');
+    } catch (error) {
+      Alert.alert(
+        'Impossible de démarrer',
+        error instanceof Error ? error.message : 'Erreur inattendue.',
+      );
+    }
+  };
 
   return (
     <ScrollView
@@ -70,12 +91,15 @@ export default function HomeScreen() {
       </View>
 
       {selected != null && (
-        <View style={[styles.startHint, { backgroundColor: theme.surfaceSunken }]}>
-          <Text style={[typography.body, { color: theme.textSecondary }]}>
-            Écran de tracking {sportRegistry[selected]?.label} : Epic 3/4 (moteur de séance + GPS +
-            carte). Le socle rendra sportRegistry['{selected}'].TrackingScreen.
-          </Text>
-        </View>
+        <Button
+          size="lg"
+          fullWidth
+          disabled={sessionStatus !== 'idle'}
+          onPress={() => void handleStart()}
+          style={{ marginTop: spacing.lg }}
+        >
+          {sessionStatus === 'starting' ? 'Démarrage…' : 'Démarrer la séance'}
+        </Button>
       )}
     </ScrollView>
   );
@@ -89,10 +113,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     padding: spacing.lg,
     gap: spacing.sm,
-  },
-  startHint: {
-    marginTop: spacing.lg,
-    borderRadius: radius.md,
-    padding: spacing.base,
   },
 });

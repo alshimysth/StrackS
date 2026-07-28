@@ -7,6 +7,11 @@ export function formatPace(secPerKm: number): string {
   return `${minutes}'${String(seconds).padStart(2, '0')}"`;
 }
 
+/** 4213 m → « 4,21 » (km, virgule décimale — convention des maquettes). */
+export function formatKm(meters: number): string {
+  return (meters / 1000).toFixed(2).replace('.', ',');
+}
+
 /** 3724 s → « 1:02:04 » ; 754 s → « 12:34 ». */
 export function formatDuration(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);

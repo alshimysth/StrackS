@@ -36,7 +36,14 @@
         }
       ],
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "StrackS utilise ta position pour tracer tes séances (distance, allure, carte)."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

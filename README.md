@@ -106,11 +106,18 @@ Le terminal affiche un QR code et un menu interactif :
 
 ### Adresse de l'API selon la cible
 
-Le client mobile appelle `http://localhost:8080` par défaut. Cette adresse ne fonctionne que
-pour le simulateur iOS et le mode web (ils partagent le réseau local du Mac). Pour les autres
-cibles, définir la variable d'environnement `EXPO_PUBLIC_API_URL` **avant** de lancer `expo start` :
+Par défaut, l'app pointe **vers le backend de production déployé sur le VPS**
+(`https://stracks.alshimysth.cloud`) — plus besoin de rien configurer pour utiliser l'API
+distante, quelle que soit la cible (simulateur, émulateur, téléphone physique, web). Cette
+valeur est définie à un **seul endroit** : `mobile/src/core/api/config.ts` (`API_BASE_URL`).
+
+Pour cibler un **backend local** en développement (`./mvnw quarkus:dev` sur le Mac), surcharger
+via `EXPO_PUBLIC_API_URL` **avant** de lancer `expo start` :
 
 ```bash
+# Simulateur iOS / mode web (partagent le réseau local du Mac)
+EXPO_PUBLIC_API_URL=http://localhost:8080 npx expo start
+
 # Émulateur Android (10.0.2.2 = alias spécial vers le localhost du Mac)
 EXPO_PUBLIC_API_URL=http://10.0.2.2:8080 npx expo start
 

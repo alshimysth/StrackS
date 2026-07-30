@@ -41,8 +41,10 @@ services:
       DATABASE_USER: ${DATABASE_USER:-stracks}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD manquant dans .env}
       # Clés JWT montées en lecture seule — jamais dans l'image (design §5).
-      MP_JWT_VERIFY_PUBLICKEY_LOCATION: /deployments/keys/publicKey.pem
-      SMALLRYE_JWT_SIGN_KEY_LOCATION: /deployments/keys/privateKey.pem
+      # Préfixe file: obligatoire : SmallRye résout ces locations comme des URL
+      # (un chemin absolu nu → MalformedURLException "no protocol").
+      MP_JWT_VERIFY_PUBLICKEY_LOCATION: file:/deployments/keys/publicKey.pem
+      SMALLRYE_JWT_SIGN_KEY_LOCATION: file:/deployments/keys/privateKey.pem
     volumes:
       - ${JWT_KEYS_DIR:-./keys}:/deployments/keys:ro
     healthcheck:

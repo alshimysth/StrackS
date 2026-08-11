@@ -24,16 +24,39 @@ public class AuthResource {
     @POST
     @Path("/register")
     public Response register(@Valid RegisterRequest request) {
-        AuthService.AuthResult result = authService.register(request);
-        return Response.status(201)
-                .entity(new AuthResponse(result.token(), UserResponse.of(result.user())))
-                .build();
+        return Response.status(201).entity(toResponse(authService.register(request))).build();
     }
 
     @POST
     @Path("/login")
     public AuthResponse login(@Valid LoginRequest request) {
-        AuthService.AuthResult result = authService.login(request);
-        return new AuthResponse(result.token(), UserResponse.of(result.user()));
+        return toResponse(authService.login(request));
+    }
+
+    /**
+     * Renouvelle la session. Volontairement {@code @PermitAll} : l'appelant arrive
+     * précisément parce que son JWT d'accès est expiré — exiger un Bearer valide ici
+     * rendrait l'endpoint inutile.
+     */
+    @POST
+    @Path("/refresh")
+    public AuthResponse refresh(@Valid RefreshRequest request) {
+        return toResponse(authService.refresh(request.refreshToken()));
+    }
+
+    /**
+     * Déconnexion : révoque la famille du jeton présenté côté serveur. Également
+     * {@code @PermitAll}, pour qu'une déconnexion aboutisse même avec un JWT déjà expiré —
+     * sinon un jeton de renouvellement resterait vivant sans moyen de le tuer.
+     */
+    @POST
+    @Path("/logout")
+    public Response logout(@Valid RefreshRequest request) {
+        authService.logout(request.refreshToken());
+        return Response.noContent().build();
+    }
+
+    private static AuthResponse toResponse(AuthService.AuthResult result) {
+        return new AuthResponse(result.token(), result.refreshToken(), UserResponse.of(result.user()));
     }
 }

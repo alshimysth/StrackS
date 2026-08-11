@@ -1,7 +1,7 @@
 name: Mobile CI
 
-# Vérification statique du mobile (pas de déploiement) : typecheck + bundle web,
-# sur chaque push et pull request touchant mobile/**.
+# Vérification du mobile (pas de déploiement) : typecheck + tests unitaires +
+# bundle web, sur chaque push et pull request touchant mobile/**.
 
 on:
   push:
@@ -23,11 +23,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Node 20 LTS : supporté par Expo SDK 54 (le projet ne fige pas d'engines).
-      - name: Set up Node 20
+      # Node 22 LTS : supporté par Expo SDK 54 (le projet ne fige pas d'engines).
+      # Passé de 20 à 22 avec l'arrivée des tests (#40) : Node 20 est en fin de
+      # vie depuis avril 2026, et better-sqlite3 — utilisé par les tests du
+      # buffer pour exécuter du vrai SQL — ne publie plus de binaire précompilé
+      # pour l'ABI de Node 20, ce qui forcerait une compilation node-gyp.
+      - name: Set up Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: mobile/package-lock.json
 
@@ -36,6 +40,12 @@ jobs:
 
       - name: Typecheck
         run: npx tsc --noEmit
+
+      # Tests unitaires (#40). En tête de liste des vérifications qui peuvent
+      # échouer sur du métier : `metrics.ts` doit rester le miroir exact de
+      # GpsComputations.java, une dérive de seuil casse ici.
+      - name: Unit tests
+        run: npm test -- --ci
 
       # Vérifie seulement que l'app bundle sans erreur — ne déploie rien.
       - name: Static web bundle

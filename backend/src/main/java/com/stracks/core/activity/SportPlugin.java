@@ -1,8 +1,10 @@
 package com.stracks.core.activity;
 
 import java.util.List;
+import java.util.OptionalInt;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.stracks.core.user.AthleteProfile;
 
 /**
  * Contrat d'un module de sport. Le socle ne connaît aucun sport : toute logique
@@ -26,6 +28,21 @@ public interface SportPlugin {
 
     /** Agrège les stats de ce sport sur une liste d'activités (pour /stats). */
     SportStats computeStats(List<ActivityEntity> activities);
+
+    /**
+     * Estime la dépense énergétique de l'activité, en kilocalories.
+     *
+     * <p>Le socle ne sait pas ce que coûte un effort : seul le module du sport
+     * connaît le MET qui correspond au sien. Un sport qui ne sait pas estimer ne
+     * renvoie rien — {@code activities.calories} reste alors {@code null} et
+     * l'interface n'affiche pas de valeur, plutôt qu'un chiffre inventé.
+     *
+     * @param athlete profil physique, éventuellement vide (champs facultatifs)
+     */
+    default OptionalInt estimateCalories(ActivityEntity activity, List<TrackPointEntity> track,
+            AthleteProfile athlete) {
+        return OptionalInt.empty();
+    }
 
     /**
      * Vitesse plafond (km/h) pour le filtre de plausibilité GPS de ce sport.

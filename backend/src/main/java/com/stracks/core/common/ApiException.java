@@ -42,6 +42,10 @@ public class ApiException extends RuntimeException {
         return new ApiException(422, "Métriques invalides", detail);
     }
 
+    public static ApiException invalidPreference(String detail) {
+        return new ApiException(422, "Préférence invalide", detail);
+    }
+
     public static ApiException invalidTransition(String from, String action) {
         return new ApiException(409, "Transition invalide",
                 "Impossible d'appliquer '" + action + "' à une activité au statut '" + from + "'.");

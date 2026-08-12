@@ -16,6 +16,9 @@ import com.stracks.core.activity.ActivityDtos.TrackPointBatchRequest;
 import com.stracks.core.activity.ActivityDtos.TrackPointDto;
 import com.stracks.core.activity.ActivityDtos.UpdateActivityRequest;
 import com.stracks.core.common.ApiException;
+import com.stracks.core.user.AthleteProfile;
+import com.stracks.core.user.PreferencesService;
+import com.stracks.core.user.UserEntity;
 
 import io.quarkus.panache.common.Page;
 import io.quarkus.panache.common.Sort;
@@ -54,6 +57,9 @@ public class ActivityResource {
 
     @Inject
     SportRegistry registry;
+
+    @Inject
+    PreferencesService preferences;
 
     @Inject
     EntityManager em;
@@ -148,6 +154,16 @@ public class ActivityResource {
             double distance = GpsComputations.compute(track, plugin.maxGpsSpeedKmh()).distanceM();
             activity.distanceM = BigDecimal.valueOf(distance).setScale(1, RoundingMode.HALF_UP);
         }
+
+        // Calories : APRÈS la distance, dont dépend la vitesse moyenne. Le socle
+        // ne fait que transmettre le profil physique — c'est le module du sport
+        // qui sait ce que coûte son effort. Sans poids renseigné, rien n'est
+        // écrit : mieux vaut aucune valeur qu'une valeur inventée (#33).
+        UserEntity user = UserEntity.findById(UUID.fromString(jwt.getSubject()));
+        AthleteProfile athlete = preferences.athleteProfile(user);
+        plugin.estimateCalories(activity, track, athlete)
+                .ifPresent(kcal -> activity.calories = kcal);
+
         activity.status = ActivityEntity.STATUS_COMPLETED;
         return ActivityResponse.of(activity);
     }

@@ -3,17 +3,20 @@ package com.stracks.sports.walking;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.stracks.core.activity.ActivityEntity;
+import com.stracks.core.activity.CalorieEstimator;
 import com.stracks.core.activity.GpsComputations;
 import com.stracks.core.activity.SportPlugin;
 import com.stracks.core.activity.SportStats;
 import com.stracks.core.activity.SportTypeDescriptor;
 import com.stracks.core.activity.TrackPointEntity;
 import com.stracks.core.common.ApiException;
+import com.stracks.core.user.AthleteProfile;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -77,6 +80,39 @@ public class WalkingPlugin implements SportPlugin {
             metrics.put("avgSpeedKmh", Math.round((r.distanceM() / 1000.0) / hours * 10.0) / 10.0);
         }
         return metrics;
+    }
+
+    /**
+     * MET de la marche selon la vitesse (Compendium of Physical Activities).
+     * Table propre à ce sport : marcher vite coûte bien moins que courir
+     * doucement à la même vitesse, d'où deux tables distinctes.
+     */
+    private static double met(double speedKmh) {
+        if (speedKmh < 3.2) {
+            return 2.0;
+        } else if (speedKmh < 4.0) {
+            return 2.8;
+        } else if (speedKmh < 4.8) {
+            return 3.5;
+        } else if (speedKmh < 5.6) {
+            return 4.3;
+        } else if (speedKmh < 6.4) {
+            return 5.0;
+        }
+        return 7.0;
+    }
+
+    @Override
+    public OptionalInt estimateCalories(ActivityEntity activity, List<TrackPointEntity> track,
+            AthleteProfile athlete) {
+        double distance = activity.distanceM != null
+                ? activity.distanceM.doubleValue()
+                : GpsComputations.compute(track, MAX_SPEED_KMH).distanceM();
+        double speed = CalorieEstimator.averageSpeedKmh(distance, activity.durationS);
+        if (speed <= 0) {
+            return OptionalInt.empty();
+        }
+        return CalorieEstimator.estimate(met(speed), athlete, activity.durationS);
     }
 
     @Override

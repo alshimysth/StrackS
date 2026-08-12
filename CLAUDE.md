@@ -28,6 +28,16 @@ vault. Ne pas dupliquer ce contenu ici.
 - Migrations Flyway dans `src/main/resources/db/migration` — jamais d'`ALTER TYPE` ni de
   migration spécifique à un sport (le `sport_type` est un TEXT validé par le registre
   applicatif, pas un ENUM SQL).
+- ⚠️ **L'ORDRE DE FUSION DES MIGRATIONS EST CONTRAIGNANT.** `quarkus.flyway.migrate-at-start=true`
+  et aucune clé `out-of-order` : Flyway **refuse** une migration de version inférieure à celle
+  déjà appliquée. Or `backend-deploy` part sur chaque push vers `main` touchant `backend/**`.
+  Deux branches portant `V(n)` et `V(n+1)` doivent donc être fusionnées **dans l'ordre croissant**,
+  en attendant que le déploiement de la première aboutisse. Fusionner `V(n+1)` d'abord fait
+  monter la production à `n+1`, puis refuser `V(n)` : **le backend ne démarre plus**. Ce n'est
+  pas une dégradation, c'est une panne. Réserver les numéros à l'avance ne protège de rien —
+  seul l'ordre de fusion le fait. Vérifier après coup avec
+  `SELECT installed_rank, version, success FROM flyway_schema_history ORDER BY installed_rank`
+  (`installed_rank` doit suivre `version`).
 
 ## Déploiement (`deploy/`)
 

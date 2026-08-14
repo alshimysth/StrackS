@@ -1,0 +1,24 @@
+meta {
+  name: 4.7 Relire le tracé GPS
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/activities/{{activityId}}/track-points
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 OK + points ordonnés par seq", function () {
+    expect(res.getStatus()).to.equal(200);
+    const points = res.getBody();
+    expect(points.length).to.be.at.least(1);
+    expect(points[0].seq).to.equal(0);
+  });
+}
+
+docs {
+  Tracé brut stocké — celui que le détail d'activité mobile affichera sur la carte (M4).
+}

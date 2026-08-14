@@ -1,0 +1,32 @@
+meta {
+  name: Modifier mon nom
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/users/me
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "displayName": "Coureur du dimanche"
+  }
+}
+
+tests {
+  test("200 OK + displayName modifié", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().displayName).to.equal("Coureur du dimanche");
+  });
+}
+
+docs {
+  Met à jour le nom affiché (80 caractères max).
+}

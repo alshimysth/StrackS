@@ -1,0 +1,22 @@
+meta {
+  name: 4.3 Mettre en pause
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/activities/{{activityId}}/pause
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 OK + statut paused", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().status).to.equal("paused");
+  });
+}
+
+docs {
+  POST sans corps. Depuis `in_progress` uniquement — sinon 409 Transition invalide.
+}

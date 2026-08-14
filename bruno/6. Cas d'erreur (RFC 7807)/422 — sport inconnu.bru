@@ -1,0 +1,34 @@
+meta {
+  name: 422 — sport inconnu
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/activities
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "sportType": "tennis",
+    "startedAt": "2026-07-21T10:00:00Z"
+  }
+}
+
+tests {
+  test("422 + Sport inconnu", function () {
+    expect(res.getStatus()).to.equal(422);
+    expect(res.getBody().title).to.equal("Sport inconnu");
+  });
+}
+
+docs {
+  `tennis` n'a pas de plugin enregistré → 422. Ajouter un sport = ajouter un plugin
+  backend, aucune modif du socle.
+}

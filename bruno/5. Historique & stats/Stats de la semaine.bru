@@ -1,0 +1,29 @@
+meta {
+  name: Stats de la semaine
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/stats/summary?period=week
+  body: none
+  auth: inherit
+}
+
+params:query {
+  period: week
+}
+
+tests {
+  test("200 OK + agrégats par sport", function () {
+    expect(res.getStatus()).to.equal(200);
+    const body = res.getBody();
+    expect(body).to.have.property("bySport");
+    expect(body).to.have.property("totalSessions");
+  });
+}
+
+docs {
+  Agrégats depuis lundi (UTC) : sessions, durée, distance, D+ — globaux et par sport
+  (calculés par chaque plugin). Seules les activités `completed` comptent.
+}

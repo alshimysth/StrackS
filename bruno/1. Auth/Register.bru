@@ -1,0 +1,43 @@
+meta {
+  name: Register
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{userEmail}}",
+    "password": "{{userPassword}}",
+    "displayName": "Testeur Bruno"
+  }
+}
+
+script:pre-request {
+  // Email jetable unique : Register est rejouable à volonté
+  bru.setVar("userEmail", `runner+${Date.now()}@stracks.test`);
+}
+
+tests {
+  test("201 Created + token JWT", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+  const body = res.getBody();
+  expect(body.token).to.be.a("string").and.not.empty;
+  expect(body.user.email).to.equal(bru.getVar("userEmail"));
+  bru.setVar("token", body.token);
+}
+
+docs {
+  Crée un compte et renvoie `{ token, user }`. Le token est stocké dans `{{token}}` pour
+  toute la collection. Mot de passe : 8 caractères minimum.
+}

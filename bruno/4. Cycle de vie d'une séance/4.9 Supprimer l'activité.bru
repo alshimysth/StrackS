@@ -1,0 +1,16 @@
+meta {
+  name: 4.9 Supprimer l'activité (destructif)
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/activities/{{activityId}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  **Destructif** : supprime l'activité et son tracé (cascade SQL). Répond 204. À lancer
+  en dernier — après, 4.6/4.7 répondent 404.
+}

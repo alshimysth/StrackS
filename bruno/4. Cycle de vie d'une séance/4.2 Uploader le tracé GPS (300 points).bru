@@ -1,0 +1,60 @@
+meta {
+  name: 4.2 Uploader le tracé GPS (300 points)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/activities/{{activityId}}/track-points
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {{trackPointsBody}}
+}
+
+script:pre-request {
+  // Sortie simulée : 300 points à 5 s d'intervalle (25 min), ~3 m/s (allure ~5'30"/km),
+  // cap nord-est depuis le Parc de la Villette, altitude ondulante, précision 5-12 m.
+  const t0 = new Date(bru.getVar("startedAt")).getTime();
+  const points = [];
+  let lat = 48.8890, lng = 2.3908, alt = 52;
+  for (let i = 0; i < 300; i++) {
+    points.push({
+      seq: i,
+      recordedAt: new Date(t0 + i * 5000).toISOString(),
+      lat: +lat.toFixed(6),
+      lng: +lng.toFixed(6),
+      altitudeM: +alt.toFixed(1),
+      accuracyM: +(5 + Math.random() * 7).toFixed(1),
+    });
+    lat += 0.000128; // ~14 m nord / 5 s
+    lng += 0.00004; // légère dérive est
+    alt += Math.sin(i / 18) * 0.6; // vallonnement doux → D+/D- réalistes
+  }
+  bru.setVar("trackPointsBody", JSON.stringify({ points }, null, 2));
+}
+
+tests {
+  test("201 Created + 300 points reçus", function () {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody().received).to.equal(300);
+  });
+  test("Idempotence : au 2e envoi, inserted = 0", function () {
+    // Premier envoi : inserted = 300. Rejouer la requête : received = 300, inserted = 0
+    expect(res.getBody().inserted).to.be.oneOf([0, 300]);
+  });
+}
+
+docs {
+  Le corps est généré par le script pre-request (300 points GPS réalistes, ~4,3 km).
+  Idempotent par `(activity_id, seq)` : **rejouer cette requête** montre `inserted: 0` —
+  le retry réseau du mobile ne duplique jamais rien.
+
+  Format d'un point : `{ seq, recordedAt, lat, lng, altitudeM, accuracyM }`.
+}

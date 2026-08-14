@@ -1,0 +1,47 @@
+meta {
+  name: 4.5 Terminer la séance
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/activities/{{activityId}}/stop
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "endedAt": "{{endedAt}}",
+    "durationS": 1500,
+    "notes": "Sortie test Bruno — Parc de la Villette"
+  }
+}
+
+script:pre-request {
+  bru.setVar("endedAt", new Date().toISOString());
+}
+
+tests {
+  test("200 OK + statut completed", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().status).to.equal("completed");
+  });
+  test("Métriques recalculées serveur depuis le tracé brut", function () {
+    const body = res.getBody();
+    expect(Number(body.distanceM)).to.be.greaterThan(0);
+    expect(body.metrics).to.have.property("avgPaceSecPerKm");
+    expect(body.metrics).to.have.property("splits");
+  });
+}
+
+docs {
+  `durationS` = temps actif mesuré par le client (pauses exclues), prioritaire s'il est
+  fourni. Le serveur **recalcule** distance, allure, D+/D- et splits depuis les track
+  points bruts (source de vérité) — les métriques renvoyées viennent du serveur, pas du
+  client.
+}

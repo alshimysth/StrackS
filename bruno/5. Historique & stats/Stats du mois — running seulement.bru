@@ -1,0 +1,27 @@
+meta {
+  name: Stats du mois — running seulement
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/stats/summary?period=month&sport=running
+  body: none
+  auth: inherit
+}
+
+params:query {
+  period: month
+  sport: running
+}
+
+tests {
+  test("200 OK", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  `period` : `week` (défaut) ou `month` ; `from` (ISO) pour une borne personnalisée ;
+  `sport` pour filtrer (422 si inconnu).
+}

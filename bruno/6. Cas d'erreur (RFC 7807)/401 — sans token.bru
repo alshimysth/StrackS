@@ -1,0 +1,21 @@
+meta {
+  name: 401 — sans token
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/users/me
+  body: none
+  auth: none
+}
+
+tests {
+  test("401 Unauthorized", function () {
+    expect(res.getStatus()).to.equal(401);
+  });
+}
+
+docs {
+  Toute route protégée sans Bearer répond 401.
+}

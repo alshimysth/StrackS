@@ -1,0 +1,41 @@
+meta {
+  name: 4.1 Démarrer une séance (running)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/activities
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "sportType": "running",
+    "startedAt": "{{startedAt}}"
+  }
+}
+
+script:pre-request {
+  // Séance démarrée il y a 30 min : laisse la place aux points GPS puis au stop
+  bru.setVar("startedAt", new Date(Date.now() - 30 * 60 * 1000).toISOString());
+}
+
+tests {
+  test("201 Created + statut in_progress", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+  const body = res.getBody();
+  expect(body.status).to.equal("in_progress");
+  bru.setVar("activityId", body.id);
+}
+
+docs {
+  Crée l'activité (statut `in_progress`). L'id est stocké dans `{{activityId}}`. Un sport
+  inconnu répond 422 (voir dossier Cas d'erreur).
+}

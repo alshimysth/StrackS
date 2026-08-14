@@ -1,0 +1,25 @@
+meta {
+  name: Lister les sport-types
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/sport-types
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 OK + running et walking enregistrés", function () {
+    expect(res.getStatus()).to.equal(200);
+    const codes = res.getBody().map((s) => s.code);
+    expect(codes).to.include.members(["running", "walking"]);
+  });
+}
+
+docs {
+  Sports exposés par le registre de plugins backend — c'est cette liste qui pilote
+  l'accueil mobile (jamais de liste en dur). Chaque descripteur :
+  `{ code, label, usesGps, schemaVersion }`.
+}

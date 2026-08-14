@@ -1,0 +1,27 @@
+meta {
+  name: Mon profil
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/users/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+tests {
+  test("200 OK + profil", function () {
+    expect(res.getStatus()).to.equal(200);
+    const body = res.getBody();
+    expect(body).to.have.all.keys("id", "email", "displayName", "createdAt");
+  });
+}
+
+docs {
+  Profil de l'utilisateur du token.
+}

@@ -1,0 +1,32 @@
+meta {
+  name: 409 — transition invalide (re-stop)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/activities/{{activityId}}/stop
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "endedAt": "2026-07-21T11:00:00Z"
+  }
+}
+
+tests {
+  test("409 + Transition invalide", function () {
+    expect(res.getStatus()).to.equal(409);
+    expect(res.getBody().title).to.equal("Transition invalide");
+  });
+}
+
+docs {
+  À lancer **après** 4.5 (activité déjà `completed`) : stopper deux fois répond 409.
+}

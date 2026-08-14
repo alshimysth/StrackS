@@ -1,0 +1,24 @@
+meta {
+  name: 4.6 Détail de l'activité
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/activities/{{activityId}}
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 OK + métriques présentes", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().metrics.schemaVersion).to.equal(1);
+  });
+}
+
+docs {
+  Détail complet : statut, durée, distance, `metrics` JSONB du plugin (allure moyenne,
+  dénivelé, splits kilométriques). L'activité d'un autre utilisateur répond 404
+  (anti-IDOR), jamais 403.
+}

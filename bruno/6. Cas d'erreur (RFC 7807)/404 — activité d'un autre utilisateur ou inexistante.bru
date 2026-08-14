@@ -1,0 +1,22 @@
+meta {
+  name: 404 — activité d'un autre utilisateur ou inexistante
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/activities/00000000-0000-0000-0000-000000000000
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("404 Not Found (anti-IDOR)", function () {
+    expect(res.getStatus()).to.equal(404);
+  });
+}
+
+docs {
+  Un id inconnu — ou appartenant à un autre compte — répond toujours 404, jamais 403 :
+  impossible d'énumérer les activités d'autrui.
+}

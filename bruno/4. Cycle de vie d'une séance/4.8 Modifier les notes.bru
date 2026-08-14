@@ -1,0 +1,32 @@
+meta {
+  name: 4.8 Modifier les notes
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/activities/{{activityId}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "notes": "Bonne séance, split négatif sur la fin."
+  }
+}
+
+tests {
+  test("200 OK + notes modifiées", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().notes).to.include("négatif");
+  });
+}
+
+docs {
+  Édition a posteriori : notes et/ou `metrics` (re-validées par le plugin du sport).
+}

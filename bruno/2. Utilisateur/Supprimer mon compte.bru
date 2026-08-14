@@ -1,0 +1,16 @@
+meta {
+  name: Supprimer mon compte (destructif)
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/users/me
+  body: none
+  auth: inherit
+}
+
+docs {
+  **Destructif** : supprime le compte, ses activités et ses track points (cascade SQL —
+  droit à l'effacement). Répond 204. À lancer en dernier, ou rejouer Register ensuite.
+}

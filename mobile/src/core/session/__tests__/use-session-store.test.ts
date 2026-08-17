@@ -47,6 +47,7 @@ function activity(overrides: Partial<Activity> = {}): Activity {
     durationS: null,
     distanceM: null,
     calories: null,
+    title: null,
     notes: null,
     metrics: {},
     ...overrides,

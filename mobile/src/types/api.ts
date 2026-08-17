@@ -30,6 +30,8 @@ export interface Activity {
   durationS: number | null;
   distanceM: number | null;
   calories: number | null;
+  /** Titre libre (#25). Null = titre dérivé du sport et de la date à l'affichage. */
+  title: string | null;
   notes: string | null;
   metrics: Record<string, unknown>;
 }

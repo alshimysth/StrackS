@@ -50,6 +50,9 @@ public class ActivityEntity extends PanacheEntityBase {
 
     public Integer calories;
 
+    /** Titre libre saisi par l'utilisateur (#25). Null = titre dérivé à l'affichage. */
+    public String title;
+
     public String notes;
 
     @JdbcTypeCode(SqlTypes.JSON)

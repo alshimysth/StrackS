@@ -36,6 +36,7 @@ function activity(id: string, startedAt = '2026-08-12T08:00:00.000Z'): Activity 
     durationS: 1800,
     distanceM: 5000,
     calories: null,
+    title: null,
     notes: null,
     metrics: {},
   };
@@ -54,17 +55,29 @@ function respond(handler: (path: string) => unknown) {
   });
 }
 
+/**
+ * Client gardé pour être vidé après chaque test : react-query planifie des timers de
+ * notification et de garbage-collection qui, laissés en vol, retiennent le worker jest
+ * en fin de suite et provoquent des mises à jour hors `act` sur un écran démonté.
+ */
+let client: QueryClient;
+
 function Wrapper({ children }: { children: ReactNode }) {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
-  });
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
 const renderScreen = () => render(<HistoryScreen />, { wrapper: Wrapper });
 
 beforeEach(() => {
+  client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0, staleTime: 0 } },
+  });
   onlineManager.setOnline(true);
+});
+
+afterEach(() => {
+  client.unmount();
+  client.clear();
 });
 
 describe('Historique — états système', () => {

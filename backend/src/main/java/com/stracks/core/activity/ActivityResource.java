@@ -220,8 +220,15 @@ public class ActivityResource {
     @PATCH
     @Path("/{id}")
     @Transactional
-    public ActivityResponse update(@PathParam("id") UUID id, UpdateActivityRequest request) {
+    public ActivityResponse update(@PathParam("id") UUID id, @Valid UpdateActivityRequest request) {
         ActivityEntity activity = owned(id);
+        // Chaîne vide = effacement explicite ; absent = champ non touché. Le titre est
+        // rogné pour qu'une saisie d'espaces ne produise pas un titre « présent mais vide »,
+        // que l'affichage traiterait comme un titre alors qu'il n'y a rien à montrer.
+        if (request.title() != null) {
+            String trimmed = request.title().trim();
+            activity.title = trimmed.isEmpty() ? null : trimmed;
+        }
         if (request.notes() != null) {
             activity.notes = request.notes();
         }

@@ -5,12 +5,14 @@
  */
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useSportTypes } from '../../core/api/use-sport-types';
 import { useAuthStore } from '../../core/auth/use-auth-store';
 import { useSessionStore } from '../../core/session/use-session-store';
 import { Button } from '../../design-system/components/Button';
+import { ErrorState } from '../../design-system/components/ErrorState';
+import { LoadingState } from '../../design-system/components/LoadingState';
 import { SportBadge } from '../../design-system/components/SportBadge';
 import { radius, shadows, spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
@@ -52,11 +54,9 @@ export default function HomeScreen() {
         Choisis ton sport et démarre.
       </Text>
 
-      {sportTypes.isLoading && <ActivityIndicator style={{ marginTop: spacing.xl }} />}
+      {sportTypes.isLoading && <LoadingState message="Récupération des sports" />}
       {sportTypes.isError && (
-        <Text style={[typography.body, { color: theme.textError, marginTop: spacing.xl }]}>
-          Impossible de charger les sports. Le backend tourne ? (voir README)
-        </Text>
+        <ErrorState error={sportTypes.error} onRetry={() => void sportTypes.refetch()} />
       )}
 
       <View style={styles.sportList}>

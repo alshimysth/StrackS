@@ -10,16 +10,16 @@ import {
   DMSans_700Bold,
 } from '@expo-google-fonts/dm-sans';
 import { Sora_600SemiBold, Sora_700Bold, useFonts } from '@expo-google-fonts/sora';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
+import { persistOptions, queryClient } from '../core/api/query-client';
 import { useAuthStore } from '../core/auth/use-auth-store';
+import { setupOnlineManager } from '../core/network/online';
 import { useTheme } from '../design-system/use-theme';
-
-const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const theme = useTheme();
@@ -39,6 +39,9 @@ export default function RootLayout() {
     void hydrate();
   }, [hydrate]);
 
+  // Sans ce câblage, react-query croit l'app toujours en ligne sous React Native.
+  React.useEffect(() => setupOnlineManager(), []);
+
   if (!fontsLoaded || !hydrated) {
     return (
       <View
@@ -55,7 +58,7 @@ export default function RootLayout() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
       <StatusBar style="auto" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
@@ -66,6 +69,6 @@ export default function RootLayout() {
         />
         <Stack.Screen name="summary/[id]" options={{ gestureEnabled: false }} />
       </Stack>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }

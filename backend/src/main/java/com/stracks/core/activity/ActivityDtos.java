@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 /** DTOs du cycle de vie d'activité — agnostiques au sport. */
 public final class ActivityDtos {
@@ -33,7 +34,15 @@ public final class ActivityDtos {
             String notes) {
     }
 
-    public record UpdateActivityRequest(String notes, JsonNode metrics) {
+    /**
+     * Édition partielle (#25). Un champ absent (`null`) n'est pas touché ; pour effacer
+     * un titre, le client envoie une chaîne vide, que la ressource convertit en `null`.
+     * Sans cette convention, « ne pas modifier » et « vider » seraient indiscernables.
+     */
+    public record UpdateActivityRequest(
+            @Size(max = 120, message = "Le titre ne peut pas dépasser 120 caractères.") String title,
+            String notes,
+            JsonNode metrics) {
     }
 
     public record ActivityResponse(
@@ -45,12 +54,13 @@ public final class ActivityDtos {
             Integer durationS,
             BigDecimal distanceM,
             Integer calories,
+            String title,
             String notes,
             JsonNode metrics) {
 
         public static ActivityResponse of(ActivityEntity a) {
             return new ActivityResponse(a.id, a.sportType, a.status, a.startedAt, a.endedAt,
-                    a.durationS, a.distanceM, a.calories, a.notes, a.metrics);
+                    a.durationS, a.distanceM, a.calories, a.title, a.notes, a.metrics);
         }
     }
 

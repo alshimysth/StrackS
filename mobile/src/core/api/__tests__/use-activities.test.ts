@@ -22,6 +22,7 @@ function activity(id: string, startedAt: string): Activity {
     durationS: 600,
     distanceM: 2000,
     calories: null,
+    title: null,
     notes: null,
     metrics: {},
   };

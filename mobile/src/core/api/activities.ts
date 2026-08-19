@@ -44,6 +44,21 @@ export function getActivity(id: string): Promise<Activity> {
   return api<Activity>(`/api/v1/activities/${id}`);
 }
 
+/**
+ * Édition partielle (#25). Un champ omis n'est pas touché côté serveur ; une chaîne
+ * vide efface. Ne jamais envoyer `null` en croyant effacer — le backend l'ignorerait.
+ */
+export function updateActivity(
+  id: string,
+  patch: { title?: string; notes?: string },
+): Promise<Activity> {
+  return api<Activity>(`/api/v1/activities/${id}`, { method: 'PATCH', body: patch });
+}
+
+export function getTrackPoints(id: string): Promise<TrackPointPayload[]> {
+  return api<TrackPointPayload[]>(`/api/v1/activities/${id}/track-points`);
+}
+
 export function uploadTrackPoints(
   id: string,
   points: TrackPointPayload[],

@@ -8,9 +8,12 @@
  * reste des données en cache on les affiche en les datant ; l'écran d'erreur est
  * réservé au cas où il n'y a réellement rien à montrer.
  */
+import { useRouter } from 'expo-router';
 import React from 'react';
-import { RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
 
+import { activityTitle } from '../../core/activity/title';
+import { useDeleteActivity } from '../../core/api/use-activity';
 import { groupByMonth, useActivities, type PeriodFilter } from '../../core/api/use-activities';
 import { useSportTypes } from '../../core/api/use-sport-types';
 import { useIsOnline } from '../../core/network/online';
@@ -64,6 +67,34 @@ export default function HistoryScreen() {
     setPeriod('all');
   };
 
+  const router = useRouter();
+  const remove = useDeleteActivity();
+
+  // DoD #26 : aucune suppression sans confirmation explicite. Le libellé nomme la
+  // séance et dit ce qui part avec elle — « Supprimer ? » seul ne permet pas de
+  // vérifier qu'on vise la bonne ligne.
+  const confirmDelete = (activity: Activity) => {
+    Alert.alert(
+      'Supprimer cette séance ?',
+      `« ${activityTitle(activity)} » et son tracé GPS seront définitivement effacés.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () =>
+            remove.mutate(activity.id, {
+              onError: () =>
+                Alert.alert(
+                  'Suppression impossible',
+                  'La séance est toujours là. Vérifie ta connexion et réessaie.',
+                ),
+            }),
+        },
+      ],
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.surfaceApp }]}>
       <Text style={[typography.h2, { color: theme.textPrimary }]}>Historique</Text>
@@ -96,6 +127,8 @@ export default function HistoryScreen() {
         isFiltered={isFiltered}
         onResetFilters={resetFilters}
         theme={theme}
+        onOpen={(activity) => router.push(`/activity/${activity.id}`)}
+        onDelete={confirmDelete}
       />
     </View>
   );
@@ -110,9 +143,20 @@ interface BodyProps {
   isFiltered: boolean;
   onResetFilters: () => void;
   theme: ReturnType<typeof useTheme>;
+  onOpen: (activity: Activity) => void;
+  onDelete: (activity: Activity) => void;
 }
 
-function Body({ history, sections, isEmpty, isFiltered, onResetFilters, theme }: BodyProps) {
+function Body({
+  history,
+  sections,
+  isEmpty,
+  isFiltered,
+  onResetFilters,
+  theme,
+  onOpen,
+  onDelete,
+}: BodyProps) {
   // `isLoading` ne vaut vrai que sans aucune donnée : une réhydratation depuis le
   // cache disque affiche directement la liste, sans écran de chargement.
   if (history.isLoading) {
@@ -177,7 +221,14 @@ function Body({ history, sections, isEmpty, isFiltered, onResetFilters, theme }:
           {section.title}
         </Text>
       )}
-      renderItem={({ item }) => <ActivityCard activity={item} theme={theme} />}
+      renderItem={({ item }) => (
+        <ActivityCard
+          activity={item}
+          theme={theme}
+          onOpen={() => onOpen(item)}
+          onDelete={() => onDelete(item)}
+        />
+      )}
       ListFooterComponent={
         history.isFetchingNextPage ? <LoadingState title="" testID="loading-next-page" /> : null
       }
@@ -185,22 +236,45 @@ function Body({ history, sections, isEmpty, isFiltered, onResetFilters, theme }:
   );
 }
 
+/**
+ * Carte d'historique — cliquable (#6) et supprimable par appui long (#26).
+ *
+ * L'appui long plutôt qu'un swipe : le swipe demanderait `react-native-gesture-handler`
+ * sur une liste sectionnée, et surtout il se déclenche par accident en défilant — pour
+ * une action irréversible, c'est le mauvais geste.
+ */
 function ActivityCard({
   activity,
   theme,
+  onOpen,
+  onDelete,
 }: {
   activity: Activity;
   theme: ReturnType<typeof useTheme>;
+  onOpen: () => void;
+  onDelete: () => void;
 }) {
   return (
-    <View
-      style={[
+    <Pressable
+      testID={`activity-card-${activity.id}`}
+      accessibilityRole="button"
+      accessibilityLabel={`${activityTitle(activity)}, voir le détail`}
+      onPress={onOpen}
+      onLongPress={onDelete}
+      style={({ pressed }) => [
         styles.card,
         shadows.card,
-        { backgroundColor: theme.surfaceCard, borderColor: theme.borderSubtle },
+        {
+          backgroundColor: theme.surfaceCard,
+          borderColor: theme.borderSubtle,
+          opacity: pressed ? 0.7 : 1,
+        },
       ]}
     >
       <SportBadge sport={activity.sportType} size="sm" />
+      <Text style={[typography.bodyLg, { color: theme.textPrimary }]}>
+        {activityTitle(activity)}
+      </Text>
       <Text style={[typography.h3, { color: theme.textPrimary }]}>
         {activity.distanceM != null ? `${(activity.distanceM / 1000).toFixed(2)} km` : '—'}
         {activity.durationS != null ? `  ·  ${formatDuration(activity.durationS)}` : ''}
@@ -212,7 +286,7 @@ function ActivityCard({
           month: 'long',
         })}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 

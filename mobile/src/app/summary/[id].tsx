@@ -1,69 +1,105 @@
 /**
- * Résumé de fin de séance (version minimale Epic 3) : stats socle + panneau
- * spécifique du module de sport. L'écran designé complet (célébration volt,
- * carte du tracé, splits) arrive avec l'étape M4 du plan.
+ * Résumé de fin de séance (#22) — le premier écran après l'effort, moment le plus
+ * fort du produit.
+ *
+ * Partage son fond avec le détail d'archive via `ActivityDetailBody` ; ce qui lui est
+ * propre : la célébration volt et la sortie qui renvoie à l'accueil plutôt qu'en
+ * arrière (on ne « revient » pas dans un écran de tracking terminé).
  */
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { getActivity } from '../../core/api/activities';
+import { ActivityDetailBody } from '../../core/activity/ActivityDetailBody';
+import { activityTitle, derivedTitle, sportLabel } from '../../core/activity/title';
+import { api } from '../../core/api/client';
+import { useActivity, useUpdateActivity } from '../../core/api/use-activity';
+import { ActivityEditor } from '../../design-system/components/ActivityEditor';
 import { Button } from '../../design-system/components/Button';
+import { CelebrationBanner } from '../../design-system/components/CelebrationBanner';
+import { ErrorState } from '../../design-system/components/ErrorState';
+import { LoadingState } from '../../design-system/components/LoadingState';
 import { SportBadge } from '../../design-system/components/SportBadge';
-import { StatCard } from '../../design-system/components/StatCard';
 import { spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
-import { sportRegistry } from '../../sports/registry';
-import { formatDuration, formatKm } from '../../sports/running/format';
+import type { Activity, Page } from '../../types/api';
+
+/**
+ * Première séance du sport ? Une page de taille 1 suffit : seul `total` est lu.
+ *
+ * C'est la seule raison de célébrer qui soit **exacte** sans nouvel endpoint. Les
+ * records de distance et les objectifs hebdomadaires supposent une agrégation serveur
+ * qui n'existe pas (Epic 6 / lot H) — et célébrer un record incertain serait pire que
+ * ne rien célébrer.
+ */
+function useIsFirstSession(sportType: string | undefined) {
+  return useQuery({
+    queryKey: ['activities', sportType ?? 'all', 'first-session-probe'],
+    queryFn: () =>
+      api<Page<Activity>>(`/api/v1/activities?page=0&size=1&sport=${sportType as string}`),
+    enabled: sportType != null,
+    select: (page) => page.total === 1,
+  });
+}
 
 export default function SummaryScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const activityQuery = useQuery({
-    queryKey: ['activity', id],
-    queryFn: () => getActivity(id),
-    enabled: id != null,
-  });
+  const activityQuery = useActivity(id);
+  const update = useUpdateActivity(id as string);
+  const [editing, setEditing] = React.useState(false);
+
   const activity = activityQuery.data;
-  const module = activity != null ? sportRegistry[activity.sportType] : undefined;
+  const firstSession = useIsFirstSession(activity?.sportType);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.surfaceApp }} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={[typography.h2, { color: theme.textPrimary }]}>Séance terminée</Text>
 
-        {activityQuery.isLoading && <ActivityIndicator style={{ marginTop: spacing.xl }} />}
+        {activityQuery.isLoading && <LoadingState message="Calcul de tes métriques" />}
         {activityQuery.isError && (
-          <Text style={[typography.body, { color: theme.textError, marginTop: spacing.xl }]}>
-            Impossible de charger le résumé.
-          </Text>
+          <ErrorState error={activityQuery.error} onRetry={() => void activityQuery.refetch()} />
         )}
 
         {activity != null && (
           <>
-            <SportBadge sport={activity.sportType} />
-            <View style={styles.grid}>
-              <StatCard
-                label="Distance"
-                value={activity.distanceM != null ? formatKm(Number(activity.distanceM)) : '—'}
-                unit="km"
-                style={styles.gridCell}
+            {firstSession.data === true && (
+              <CelebrationBanner
+                reason="first-session"
+                sportLabel={sportLabel(activity.sportType)}
               />
-              <StatCard
-                label="Durée"
-                value={activity.durationS != null ? formatDuration(activity.durationS) : '—'}
-                style={styles.gridCell}
-              />
-            </View>
-            {module != null && (
-              <View style={[styles.panel, { backgroundColor: theme.surfaceSunken }]}>
-                <module.SummaryPanel activity={activity} />
-              </View>
             )}
+
+            <SportBadge sport={activity.sportType} />
+            <Text testID="activity-title" style={[typography.h3, { color: theme.textPrimary }]}>
+              {activityTitle(activity)}
+            </Text>
+
+            <ActivityDetailBody activity={activity} />
+
+            <View style={styles.actions}>
+              <Button variant="secondary" onPress={() => setEditing(true)}>
+                Renommer
+              </Button>
+            </View>
+
+            <ActivityEditor
+              visible={editing}
+              initialTitle={activity.title}
+              initialNotes={activity.notes}
+              titlePlaceholder={derivedTitle(activity.sportType, activity.startedAt)}
+              saving={update.isPending}
+              onCancel={() => setEditing(false)}
+              onSave={(patch) => {
+                update.mutate(patch);
+                setEditing(false);
+              }}
+            />
           </>
         )}
 
@@ -77,7 +113,5 @@ export default function SummaryScreen() {
 
 const styles = StyleSheet.create({
   container: { padding: spacing.layoutGutter, gap: spacing.base },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  gridCell: { flexGrow: 1, flexBasis: '45%' },
-  panel: { borderRadius: 10, padding: spacing.base },
+  actions: { flexDirection: 'row', justifyContent: 'flex-end' },
 });

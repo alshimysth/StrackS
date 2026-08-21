@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/v1/stats/summary?period=month&sport=running
+  url: {{baseUrl}}/api/v1/stats/summary?period=month&sport=running&tz=Europe/Paris
   body: none
   auth: inherit
 }
@@ -13,15 +13,26 @@ get {
 params:query {
   period: month
   sport: running
+  tz: Europe/Paris
 }
 
 tests {
   test("200 OK", function () {
     expect(res.getStatus()).to.equal(200);
   });
+
+  test("le filtre sport restreint bySport", function () {
+    const bySport = res.getBody().bySport;
+    expect(bySport.every((s) => s.sportType === "running")).to.equal(true);
+  });
 }
 
 docs {
-  `period` : `week` (défaut) ou `month` ; `from` (ISO) pour une borne personnalisée ;
-  `sport` pour filtrer (422 si inconnu).
+  `period` : `week` (défaut), `month` ou `year` — 400 sinon.
+  `sport` : code du registre, 422 si inconnu.
+  `tz` : identifiant IANA, 400 si invalide.
+
+  `from` désigne un instant **dans** la période voulue, pas sa borne basse : envoyer
+  n'importe quelle date de juillet ramène juillet entier. C'est ce qui fait marcher la
+  navigation de mois en mois de l'écran de statistiques.
 }

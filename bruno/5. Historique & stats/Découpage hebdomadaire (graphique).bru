@@ -1,0 +1,57 @@
+meta {
+  name: Découpage hebdomadaire (graphique)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/stats/timeline?period=month&tz=Europe/Paris
+  body: none
+  auth: inherit
+}
+
+params:query {
+  period: month
+  tz: Europe/Paris
+  ~sport: running
+  ~from: 2026-07-15T12:00:00Z
+}
+
+tests {
+  test("200 OK + intervalles", function () {
+    expect(res.getStatus()).to.equal(200);
+    const body = res.getBody();
+    expect(body.bucket).to.equal("week");
+    expect(body.buckets.length).to.be.at.least(4);
+  });
+
+  test("les intervalles vides sont présents, pas omis", function () {
+    // Un mois compte 4 à 6 semaines calendaires, qu'elles portent des séances ou non :
+    // au client, un trou dans la liste se lirait « données manquantes », et le
+    // graphique tasserait ses barres en mentant sur l'espacement du temps.
+    const body = res.getBody();
+    expect(body.buckets.every((b) => Array.isArray(b.bySport))).to.equal(true);
+  });
+
+  test("le découpage n'expose que des colonnes du socle", function () {
+    const values = res.getBody().buckets.flatMap((b) => b.bySport);
+    values.forEach((v) => {
+      expect(v).to.have.all.keys("sportType", "sessions", "durationS", "distanceM");
+    });
+  });
+}
+
+docs {
+  Alimente le graphique de l'écran Statistiques (#24). Maille automatique :
+  `period=week` → jours, `month` → semaines, `year` → mois.
+
+  Agrégé **en SQL**, contrairement à `/summary` : ce découpage ne trace que des colonnes
+  du socle (`duration_s`, `distance_m`), aucun plugin n'a son mot à dire et le JSONB
+  `metrics` n'est jamais ouvert. C'est ce qui évite de rapatrier une année de séances
+  pour en tirer douze nombres (#28).
+
+  Les bornes de semaine suivent le lundi ISO, comme `date_trunc('week', …)` côté
+  PostgreSQL. La première semaine d'un mois peut donc commencer le mois d'avant — seuls
+  ses jours du mois demandé sont comptés, pour que le total du graphique égale celui de
+  `/summary`.
+}

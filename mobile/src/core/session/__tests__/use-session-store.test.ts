@@ -32,6 +32,11 @@ jest.mock('../../api/activities', () => ({
 
 jest.mock('../../gps', () => ({
   startGpsWatch: jest.fn(),
+  // Ajoutés par #16 : le moteur les appelle systématiquement (démarrage et arrêt).
+  // `startBackgroundUpdates` renvoie false par défaut — c'est le cas dégradé, celui
+  // qui doit rester fonctionnel sans permission « toujours ».
+  startBackgroundUpdates: jest.fn().mockResolvedValue(false),
+  stopBackgroundUpdates: jest.fn().mockResolvedValue(undefined),
 }));
 
 const T0 = Date.parse('2026-08-11T08:00:00Z');

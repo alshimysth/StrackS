@@ -39,13 +39,17 @@ export function SessionTrackingScreen({ sportCode, hero, grid }: Props) {
   const status = useSessionStore((s) => s.status);
   const live = useSessionStore((s) => s.live);
   const gpsAccuracyM = useSessionStore((s) => s.gpsAccuracyM);
+  const signalLost = useSessionStore((s) => s.signalLost);
   const [finishing, setFinishing] = React.useState(false);
 
   const heroMetric = hero(live);
   const gridMetrics = grid(live);
 
-  const gpsColor =
-    gpsAccuracyM == null
+  // Le signal perdu prime sur la précision : un dernier fix parfait n'a plus de sens
+  // s'il date de trente secondes.
+  const gpsColor = signalLost
+    ? darkTheme.textError
+    : gpsAccuracyM == null
       ? darkTheme.textWarning
       : gpsAccuracyM <= 25
         ? darkTheme.textSuccess
@@ -89,9 +93,24 @@ export function SessionTrackingScreen({ sportCode, hero, grid }: Props) {
             <SportBadge sport={sportCode} variant="outline" />
             <View style={styles.gps}>
               <View style={[styles.gpsDot, { backgroundColor: gpsColor }]} />
-              <Text style={[typography.label, { color: gpsColor }]}>GPS</Text>
+              <Text style={[typography.label, { color: gpsColor }]}>
+                {signalLost ? 'GPS PERDU' : 'GPS'}
+              </Text>
             </View>
           </View>
+
+          {/* Explicite le silence : sans ça, l'utilisateur voit une distance qui
+              stagne sans comprendre pourquoi, et croit l'app plantée. Dire que la
+              distance n'est pas comptée est la moitié utile du message. */}
+          {signalLost && (
+            <View testID="gps-lost-banner" style={[styles.lostBanner, { borderColor: darkTheme.textError }]}>
+              <Text style={[typography.label, { color: darkTheme.textError }]}>SIGNAL GPS PERDU</Text>
+              <Text style={[typography.caption, { color: darkTheme.textSecondary }]}>
+                La séance continue. La distance reprendra au retour du signal — le trajet
+                parcouru sans signal n'est pas compté.
+              </Text>
+            </View>
+          )}
 
           <View style={styles.map}>
             <LiveMap />
@@ -137,6 +156,13 @@ export function SessionTrackingScreen({ sportCode, hero, grid }: Props) {
 }
 
 const styles = StyleSheet.create({
+  lostBanner: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    gap: 2,
+  },
   safe: { flex: 1, backgroundColor: darkTheme.surfaceApp },
   screen: {
     flex: 1,

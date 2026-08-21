@@ -106,6 +106,22 @@ export async function appendPoint(seq: number, fix: GpsFix): Promise<void> {
   );
 }
 
+/**
+ * Prochain numéro de séquence libre, lu depuis le buffer (#16).
+ *
+ * La tâche de localisation en arrière-plan vit dans un contexte JS séparé, créé et
+ * détruit au gré du système : elle ne peut pas s'appuyer sur un compteur en mémoire.
+ * `seq` étant la clé primaire de `points`, repartir du maximum garantit qu'on n'écrase
+ * rien — et l'`INSERT OR IGNORE` d'`appendPoint` absorbe une éventuelle course entre le
+ * premier plan et l'arrière-plan.
+ */
+export async function nextSeqAfterBuffer(): Promise<number> {
+  const row = await (await db()).getFirstAsync<{ maxSeq: number | null }>(
+    'SELECT MAX(seq) AS maxSeq FROM points',
+  );
+  return (row?.maxSeq ?? -1) + 1;
+}
+
 function toPoint(row: {
   seq: number;
   recorded_at_ms: number;

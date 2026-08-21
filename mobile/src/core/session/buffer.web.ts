@@ -42,6 +42,15 @@ export async function appendPoint(seq: number, fix: GpsFix): Promise<void> {
   points.push({ ...fix, seq, uploaded: false });
 }
 
+/**
+ * Miroir de `buffer.ts` (#16). Le suivi en arrière-plan n'existe pas sur le web, mais la
+ * fonction doit exister pour que les deux modules tiennent le même contrat — c'est le
+ * défaut que relève #52.
+ */
+export async function nextSeqAfterBuffer(): Promise<number> {
+  return points.reduce((max, p) => Math.max(max, p.seq), -1) + 1;
+}
+
 export async function pendingPoints(limit: number): Promise<BufferedPoint[]> {
   return points.filter((p) => !p.uploaded).slice(0, limit);
 }

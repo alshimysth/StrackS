@@ -11,6 +11,18 @@ export const MAX_ACCURACY_M = 50;
 const ELEVATION_HYSTERESIS_M = 2;
 const SMOOTHING_WINDOW = 5;
 const SPEED_WINDOW_MS = 15_000;
+/**
+ * Au-delà de ce trou entre deux fix acceptés, le signal est considéré comme perdu et
+ * le segment n'est PAS compté (#19). Sans cette règle, une traversée de tunnel ajoute
+ * la corde entre l'entrée et la sortie : le filtre de plausibilité ne l'attrape pas
+ * (1 km en 5 min = 12 km/h, plausible), et la distance parcourue en ligne droite est
+ * comptée alors qu'elle ne l'a pas été. Le ticket tranche explicitement : pas
+ * d'interpolation par défaut.
+ *
+ * MIROIR EXACT de GpsComputations.SIGNAL_LOST_MS — toute modification ici doit être
+ * répercutée côté serveur, sinon le live diverge du recalcul au stop (parité #40).
+ */
+export const SIGNAL_LOST_MS = 15_000;
 const EARTH_RADIUS_M = 6_371_000;
 
 export interface LatLng {
@@ -58,7 +70,8 @@ export class GpsAccumulator {
       return false;
     }
     if (this.prev != null) {
-      const seconds = (fix.recordedAtMs - this.prev.recordedAtMs) / 1000;
+      const gapMs = fix.recordedAtMs - this.prev.recordedAtMs;
+      const seconds = gapMs / 1000;
       if (seconds <= 0) {
         return false;
       }
@@ -66,7 +79,11 @@ export class GpsAccumulator {
       if (segmentM / seconds > this.maxSpeedMs) {
         return false;
       }
-      this.distanceM += segmentM;
+      // Trou trop long : le point est accepté (il rouvre le tracé) mais le segment
+      // n'est pas compté — on ne sait pas quel chemin a été suivi entre les deux.
+      if (gapMs < SIGNAL_LOST_MS) {
+        this.distanceM += segmentM;
+      }
     }
     this.prev = fix;
     this.lastAcceptedMs = fix.recordedAtMs;

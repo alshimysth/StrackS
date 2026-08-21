@@ -13,10 +13,26 @@ interface Props {
   value: string;
   unit?: string;
   emphasis?: 'xl' | 'lg';
+  /**
+   * Évolution par rapport à la période précédente (#24), déjà formatée et signée.
+   * Absente quand la comparaison n'a pas de sens — repartir de zéro n'est pas
+   * « +100 % » — auquel cas la carte n'affiche rien plutôt qu'un chiffre inventé.
+   */
+  delta?: string | null;
+  /** Une hausse est-elle une bonne nouvelle ? Faux pour un temps de récupération. */
+  deltaIsGood?: boolean;
   style?: ViewStyle;
 }
 
-export function StatCard({ label, value, unit, emphasis = 'lg', style }: Props) {
+export function StatCard({
+  label,
+  value,
+  unit,
+  emphasis = 'lg',
+  delta,
+  deltaIsGood = true,
+  style,
+}: Props) {
   const theme = useTheme();
   return (
     <View
@@ -41,8 +57,30 @@ export function StatCard({ label, value, unit, emphasis = 'lg', style }: Props) 
           <Text style={[styles.unit, { color: theme.textSecondary }]}>{unit}</Text>
         )}
       </View>
+      {delta != null && (
+        <Text style={[styles.delta, { color: deltaColor(delta, deltaIsGood, theme) }]}>
+          {delta}
+        </Text>
+      )}
     </View>
   );
+}
+
+/**
+ * La couleur dit la direction croisée avec ce qui est souhaitable — pas le signe
+ * seul. Une évolution nulle reste neutre : la teindre en vert ou en rouge
+ * suggérerait un jugement là où il n'y a rien à signaler.
+ */
+function deltaColor(
+  delta: string,
+  isGood: boolean,
+  theme: ReturnType<typeof useTheme>,
+): string {
+  if (delta === '=') {
+    return theme.textSecondary;
+  }
+  const rising = delta.startsWith('+');
+  return rising === isGood ? theme.textSuccess : theme.textSecondary;
 }
 
 const styles = StyleSheet.create({
@@ -58,4 +96,5 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   unit: { fontFamily: fonts.bodySemiBold, fontSize: 14 },
+  delta: { ...typography.caption, marginTop: 5 },
 });

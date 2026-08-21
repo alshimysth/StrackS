@@ -117,13 +117,14 @@ public class WalkingPlugin implements SportPlugin {
 
     @Override
     public SportStats computeStats(List<ActivityEntity> activities) {
+        // Distance et dénivelé sont nommés ici, par le sport, et non listés comme
+        // champs de SportStats : c'est ce qui permet à un sport sans GPS de n'en
+        // déclarer aucun sans que le socle ait à changer (#46).
         return new SportStats(
                 "walking",
                 "Marche",
                 activities.size(),
                 activities.stream().mapToLong(a -> a.durationS == null ? 0 : a.durationS).sum(),
-                activities.stream().mapToDouble(a -> a.distanceM == null ? 0 : a.distanceM.doubleValue()).sum(),
-                activities.stream().mapToDouble(a -> a.metrics != null && a.metrics.has("elevationGainM")
-                        ? a.metrics.get("elevationGainM").asDouble() : 0).sum());
+                GpsComputations.gpsTotals(activities));
     }
 }

@@ -78,14 +78,4 @@ public final class ActivityDtos {
 
     public record TrackPointBatchRequest(@NotEmpty List<@Valid TrackPointDto> points) {
     }
-
-    public record StatsSummaryResponse(
-            Instant from,
-            Instant to,
-            List<SportStats> bySport,
-            int totalSessions,
-            long totalDurationS,
-            double totalDistanceM,
-            double totalElevationGainM) {
-    }
 }

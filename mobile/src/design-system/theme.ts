@@ -16,6 +16,7 @@ export const colors = {
   primary100: '#e8f0fd',
 
   // Brand — accent (volt lime) — réservé aux célébrations
+  volt900: '#6f8f1e', // marques de données — voir dataSeries
   volt700: '#a9d63a',
   volt500: '#d9f36a', // base
   volt300: '#ecf7ae',
@@ -178,4 +179,30 @@ export const sportColors: Record<string, { label: string; color: string; tint: s
   walking: { label: 'Marche', color: colors.volt700, tint: colors.volt100 },
   strength: { label: 'Musculation', color: colors.neutral600, tint: colors.neutral100 },
   climbing: { label: 'Escalade', color: colors.warning600, tint: colors.warning100 },
+};
+
+/**
+ * Identité d'un sport dans un GRAPHIQUE — volontairement distincte de
+ * `sportColors`. Un badge repose sur sa propre teinte pâle ; une marque de
+ * données repose directement sur la surface de l'app, où le volt du badge
+ * devient illisible : `volt700` y mesure **1,61 : 1** de contraste, très en
+ * dessous du plancher de 3 : 1. `volt900` mesure 3,54 : 1.
+ *
+ * Une seule valeur par sport, identique dans les deux thèmes. Le design gardait
+ * `volt700` en sombre parce qu'il y passe le contraste (11,5 : 1) — mais le
+ * contraste était le seul contrôle qu'on lui avait appliqué. Sur la validation
+ * complète de palette, `volt700` échoue la bande de clarté en sombre (L 0,816
+ * pour une bande 0,48–0,67), et l'effet se voit : une marque à 11,5 : 1 à côté
+ * d'une autre à 4,7 : 1 se lit comme la série importante, quels que soient les
+ * chiffres. `volt900` mesure 5,2 : 1 en sombre — à côté du bleu plutôt qu'au
+ * dessus — et passe les six contrôles dans les deux modes.
+ *
+ * Séparation course/marche en protanopie : ΔE 29,3.
+ *
+ * Un sport absent de cette table n'a pas de barre colorée dédiée : l'écran
+ * retombe sur une neutre, comme `SportBadge` le fait déjà pour son pastille.
+ */
+export const dataSeriesColors: Record<string, string> = {
+  running: colors.primary500,
+  walking: colors.volt900,
 };

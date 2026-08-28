@@ -5,13 +5,16 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/v1/stats/summary?period=week
+  url: {{baseUrl}}/api/v1/stats/summary?period=week&tz=Europe/Paris
   body: none
   auth: inherit
 }
 
 params:query {
   period: week
+  tz: Europe/Paris
+  ~sport: running
+  ~from: 2026-07-15T12:00:00Z
 }
 
 tests {
@@ -21,9 +24,32 @@ tests {
     expect(body).to.have.property("bySport");
     expect(body).to.have.property("totalSessions");
   });
+
+  test("le socle ne nomme aucune métrique de sport", function () {
+    const body = res.getBody();
+    // Distance et dénivelé vivent sous `totals`, nommés par les plugins — jamais
+    // comme champs du socle. Un sport sans distance n'en déclare aucune.
+    expect(body).to.have.property("totals");
+    expect(body).to.not.have.property("totalDistanceM");
+    expect(body).to.not.have.property("totalElevationGainM");
+  });
+
+  test("la période précédente est fournie pour la comparaison", function () {
+    expect(res.getBody().previous).to.have.property("sessions");
+  });
 }
 
 docs {
-  Agrégats depuis lundi (UTC) : sessions, durée, distance, D+ — globaux et par sport
-  (calculés par chaque plugin). Seules les activités `completed` comptent.
+  Agrégats de la semaine courante : `sessions` et `totalDurationS` au niveau du socle,
+  puis `totals` — une carte clé/valeur que **chaque plugin remplit** (`distanceM`,
+  `elevationGainM`). Le socle somme clé à clé sans savoir ce qu'il somme : c'est ce qui
+  permet à un sport sans distance de n'en déclarer aucune.
+
+  La fenêtre est **fermée** et alignée sur le calendrier de `tz` (défaut : UTC). Sans
+  `tz`, une sortie du lundi 00h30 à Paris bascule dans la semaine précédente.
+
+  `previous` porte la même fenêtre décalée d'une période — comparer un mois entamé à un
+  mois complet donnerait une évolution toujours négative.
+
+  Seules les activités `completed` comptent.
 }

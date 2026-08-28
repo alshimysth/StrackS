@@ -48,6 +48,10 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: 'Accueil' }} />
       <Tabs.Screen name="history" options={{ title: 'Historique' }} />
+      {/* Onglet dédié plutôt qu'une section du profil (#24) : le PRD promet
+          « comprendre ta progression », l'enterrer dans les réglages la rendrait
+          invisible. La barre reste confortable à 4 ; au-delà il faudra revoir. */}
+      <Tabs.Screen name="stats" options={{ title: 'Stats' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profil' }} />
     </Tabs>
   );

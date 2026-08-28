@@ -2,7 +2,9 @@ package com.stracks.core.activity;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Moteur de calcul GPS partagé entre les sports géolocalisés (course, marche,
@@ -151,5 +153,34 @@ public final class GpsComputations {
             }
         }
         return new double[] { gain, loss };
+    }
+
+    /**
+     * Totaux d'un lot d'activités GPS, sous les clés attendues par {@link SportStats}.
+     *
+     * <p><strong>Outil, pas contrat.</strong> Le socle ne l'appelle jamais de lui-même :
+     * c'est le plugin d'un sport géolocalisé qui choisit de s'en servir, exactement
+     * comme il choisit {@link #compute}. Un sport sans GPS ne le voit pas et ne
+     * déclare donc ni distance ni dénivelé — ce qui est tout l'intérêt.
+     *
+     * <p>Les deux clés sont toujours présentes, y compris à zéro : le sport déclare
+     * ici ce qu'il <em>sait mesurer</em>, pas ce qu'il a mesuré cette semaine. Sans
+     * ça, une semaine sans dénivelé ferait disparaître la ligne « D+ » de l'écran.
+     */
+    public static Map<String, Double> gpsTotals(List<ActivityEntity> activities) {
+        double distanceM = 0;
+        double elevationGainM = 0;
+        for (ActivityEntity a : activities) {
+            if (a.distanceM != null) {
+                distanceM += a.distanceM.doubleValue();
+            }
+            if (a.metrics != null && a.metrics.hasNonNull("elevationGainM")) {
+                elevationGainM += a.metrics.get("elevationGainM").asDouble();
+            }
+        }
+        Map<String, Double> totals = new LinkedHashMap<>();
+        totals.put("distanceM", distanceM);
+        totals.put("elevationGainM", elevationGainM);
+        return totals;
     }
 }

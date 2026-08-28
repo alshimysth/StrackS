@@ -16,7 +16,8 @@ import {
   type PreferencesPatch,
 } from './schema';
 
-const QUERY_KEY = ['preferences'] as const;
+/** Exportée pour que les tests puissent préremplir le cache sans appel réseau. */
+export const QUERY_KEY = ['preferences'] as const;
 
 async function fetchPreferences(): Promise<Preferences> {
   const raw = await api<unknown>('/api/v1/users/me/preferences');

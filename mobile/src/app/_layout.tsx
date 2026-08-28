@@ -21,7 +21,26 @@ import { useAuthStore } from '../core/auth/use-auth-store';
 import { setupOnlineManager } from '../core/network/online';
 import { useTheme } from '../design-system/use-theme';
 
+/**
+ * Le provider react-query enveloppe TOUT, y compris l'écran de chargement.
+ *
+ * Depuis #31, `useTheme` lit la préférence de thème, donc react-query. L'appeler au-dessus
+ * du provider ferait planter l'app au lancement avec « No QueryClient set » — d'où la
+ * séparation en deux composants. Aucun test ne rend ce fichier : le piège ne se voit qu'à
+ * l'exécution.
+ */
 export default function RootLayout() {
+  // Sans ce câblage, react-query croit l'app toujours en ligne sous React Native.
+  React.useEffect(() => setupOnlineManager(), []);
+
+  return (
+    <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
+      <AppShell />
+    </PersistQueryClientProvider>
+  );
+}
+
+function AppShell() {
   const theme = useTheme();
   const hydrated = useAuthStore((s) => s.hydrated);
   const hydrate = useAuthStore((s) => s.hydrate);
@@ -39,9 +58,6 @@ export default function RootLayout() {
     void hydrate();
   }, [hydrate]);
 
-  // Sans ce câblage, react-query croit l'app toujours en ligne sous React Native.
-  React.useEffect(() => setupOnlineManager(), []);
-
   if (!fontsLoaded || !hydrated) {
     return (
       <View
@@ -58,7 +74,7 @@ export default function RootLayout() {
   }
 
   return (
-    <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
+    <>
       <StatusBar style="auto" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
@@ -69,6 +85,6 @@ export default function RootLayout() {
         />
         <Stack.Screen name="summary/[id]" options={{ gestureEnabled: false }} />
       </Stack>
-    </PersistQueryClientProvider>
+    </>
   );
 }

@@ -1,8 +1,15 @@
 /** Profil — infos du compte, déconnexion, suppression (droit à l'effacement). */
 import React from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useDeleteAccount, useProfile } from '../../core/api/use-auth';
+import { useFormat } from '../../core/format/use-format';
+import { DEFAULT_PREFERENCES, speedDisplayFor } from '../../core/preferences/schema';
+import { usePreferences, useUpdatePreferences } from '../../core/preferences/use-preferences';
+import { useSportTypes } from '../../core/api/use-sport-types';
+import { ErrorState } from '../../design-system/components/ErrorState';
+import { LoadingState } from '../../design-system/components/LoadingState';
+import { SettingRow } from '../../design-system/components/SettingRow';
 import { useAuthStore } from '../../core/auth/use-auth-store';
 import { Button } from '../../design-system/components/Button';
 import { spacing, typography } from '../../design-system/theme';
@@ -31,8 +38,13 @@ export default function ProfileScreen() {
     );
   };
 
+  // L'écran défile depuis #7 : avec les réglages, le contenu dépasse la hauteur
+  // disponible et les actions de compte sortaient de l'écran.
   return (
-    <View style={[styles.container, { backgroundColor: theme.surfaceApp }]}>
+    <ScrollView
+      style={{ backgroundColor: theme.surfaceApp }}
+      contentContainerStyle={styles.container}
+    >
       <Text style={[typography.h2, { color: theme.textPrimary }]}>Profil</Text>
 
       <View style={styles.info}>
@@ -46,6 +58,8 @@ export default function ProfileScreen() {
         <Text style={[typography.bodyLg, { color: theme.textPrimary }]}>{user?.email ?? '—'}</Text>
       </View>
 
+      <Preferences />
+
       <View style={styles.actions}>
         <Button variant="secondary" fullWidth onPress={logout}>
           Se déconnecter
@@ -54,12 +68,86 @@ export default function ProfileScreen() {
           Supprimer mon compte
         </Button>
       </View>
+    </ScrollView>
+  );
+}
+
+/**
+ * Section Préférences (#7, #30, #4, #31).
+ *
+ * Chaque changement part immédiatement en PATCH partiel : le socle (lot C) accepte un
+ * patch par clé, il n'y a donc rien à recomposer côté écran. Pas de bouton
+ * « Enregistrer » — un réglage d'affichage se juge en le voyant s'appliquer.
+ */
+function Preferences() {
+  const theme = useTheme();
+  const format = useFormat();
+  const preferences = usePreferences();
+  const update = useUpdatePreferences();
+  const sportTypes = useSportTypes();
+
+  if (preferences.isLoading) {
+    return <LoadingState message="Chargement de tes réglages" />;
+  }
+  if (preferences.isError) {
+    return <ErrorState error={preferences.error} onRetry={() => void preferences.refetch()} />;
+  }
+
+  const current = preferences.data ?? DEFAULT_PREFERENCES;
+
+  return (
+    <View style={styles.section} testID="preferences-section">
+      <Text style={[typography.h3, { color: theme.textPrimary }]}>Préférences</Text>
+
+      <SettingRow
+        testID="setting-units"
+        label="Unités"
+        helper={`Distances en ${format.distanceUnit}, dénivelé en ${format.elevationUnit}.`}
+        options={[
+          { value: 'metric', label: 'Métrique' },
+          { value: 'imperial', label: 'Impérial' },
+        ]}
+        value={current.units}
+        onChange={(units) => update.mutate({ units })}
+      />
+
+      <SettingRow
+        testID="setting-theme"
+        label="Thème"
+        helper="Le suivi de séance reste sombre : c'est le mode lisible en plein soleil."
+        options={[
+          { value: 'auto', label: 'Système' },
+          { value: 'light', label: 'Clair' },
+          { value: 'dark', label: 'Sombre' },
+        ]}
+        value={current.theme}
+        onChange={(next) => update.mutate({ theme: next })}
+      />
+
+      {/* Réglé PAR SPORT : un coureur lit une allure, un marcheur une vitesse. Un
+          réglage global forcerait l'un des deux à lire dans l'autre modèle mental. */}
+      {(sportTypes.data ?? []).map((sport) => (
+        <SettingRow
+          key={sport.code}
+          testID={`setting-display-${sport.code}`}
+          label={`Affichage — ${sport.label}`}
+          options={[
+            { value: 'pace', label: 'Allure' },
+            { value: 'speed', label: 'Vitesse' },
+          ]}
+          value={speedDisplayFor(current, sport.code)}
+          onChange={(display) =>
+            update.mutate({ sportDisplay: { ...current.sportDisplay, [sport.code]: display } })
+          }
+        />
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: spacing.layoutGutter },
+  container: { padding: spacing.layoutGutter, paddingBottom: spacing.xxl },
+  section: { marginTop: spacing.xl, gap: spacing.base },
   info: { marginTop: spacing.xl, gap: spacing.xs },
-  actions: { marginTop: 'auto', marginBottom: spacing.xl, gap: spacing.md },
+  actions: { marginTop: spacing.xl, gap: spacing.md },
 });

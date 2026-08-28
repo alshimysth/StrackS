@@ -5,7 +5,7 @@
  */
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useSportTypes } from '../../core/api/use-sport-types';
 import { useAuthStore } from '../../core/auth/use-auth-store';
@@ -26,20 +26,23 @@ export default function HomeScreen() {
   const sessionStatus = useSessionStore((s) => s.status);
   const [selected, setSelected] = React.useState<string | null>(null);
 
-  const handleStart = async () => {
+  /**
+   * Le démarrage effectif a lieu dans /tracking, pas ici (#3).
+   *
+   * Le compte à rebours doit s'écouler AVANT `start()` — sinon les trois premières
+   * secondes de tracé seraient enregistrées pendant que l'utilisateur range encore son
+   * téléphone. Et il doit s'afficher avant toute demande de permission, faute de quoi une
+   * popup système pendant le décompte donne l'impression que l'app est figée.
+   *
+   * Cet écran ne fait donc plus que naviguer : `start()` est appelé par l'écran de
+   * tracking à la fin du décompte.
+   */
+  const handleStart = () => {
     const module = selected != null ? sportRegistry[selected] : undefined;
     if (module == null) {
       return;
     }
-    try {
-      await useSessionStore.getState().start(module.code, module.maxGpsSpeedKmh ?? 25);
-      router.push('/tracking');
-    } catch (error) {
-      Alert.alert(
-        'Impossible de démarrer',
-        error instanceof Error ? error.message : 'Erreur inattendue.',
-      );
-    }
+    router.push({ pathname: '/tracking', params: { sport: module.code } });
   };
 
   return (

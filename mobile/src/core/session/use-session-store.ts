@@ -18,7 +18,7 @@ import {
   saveSession,
   updatePauseState,
 } from './buffer';
-import { GpsAccumulator, type LatLng } from './metrics';
+import { GpsAccumulator, SIGNAL_LOST_MS, type LatLng } from './metrics';
 import { ZERO_SESSION_STATE, type SessionState } from './types';
 import { flushTrackPoints } from './uploader';
 import {
@@ -29,7 +29,13 @@ import {
   stopActivity,
 } from '../api/activities';
 import { ApiError } from '../api/client';
-import { startGpsWatch, type GpsFix, type GpsSubscription } from '../gps';
+import {
+  startBackgroundUpdates,
+  startGpsWatch,
+  stopBackgroundUpdates,
+  type GpsFix,
+  type GpsSubscription,
+} from '../gps';
 
 export type SessionStatus = 'idle' | 'starting' | 'active' | 'paused' | 'stopping';
 
@@ -46,6 +52,16 @@ interface SessionStore {
   path: LatLng[];
   /** Précision du dernier fix reçu (indicateur signal GPS) ; null avant le premier. */
   gpsAccuracyM: number | null;
+  /**
+   * Aucun fix exploitable depuis SIGNAL_LOST_MS (#19). Distinct de `gpsAccuracyM` :
+   * une précision médiocre reste un signal, ici il n'y en a plus du tout.
+   */
+  signalLost: boolean;
+  /**
+   * Le suivi écran verrouillé est-il actif ? `false` = permission « toujours » refusée,
+   * la séance continue mais s'arrête si l'écran s'éteint (#16).
+   */
+  backgroundTracking: boolean;
 
   start(sportType: string, maxGpsSpeedKmh: number): Promise<void>;
   pause(): Promise<void>;
@@ -75,6 +91,9 @@ function elapsedS(now = Date.now()): number {
 function stopEngine(): void {
   gpsSub?.remove();
   gpsSub = null;
+  // Sans ça, la tâche d'arrière-plan survivrait à la séance et continuerait d'écrire
+  // dans le buffer — avec, sur Android, une notification persistante orpheline.
+  void stopBackgroundUpdates();
   if (tickTimer != null) {
     clearInterval(tickTimer);
     tickTimer = null;
@@ -96,6 +115,7 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
     const accepted = acc.add(fix);
     set({
       gpsAccuracyM: fix.accuracyM,
+      signalLost: false, // un fix reçu rétablit le signal, même s'il sera ensuite filtré
       live: acc.snapshot(elapsedS()),
       ...(accepted ? { path: [...acc.path] } : {}),
     });
@@ -106,9 +126,15 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
       if (get().status !== 'active' || acc == null) {
         return;
       }
-      const stale = acc.lastAcceptedMs == null || Date.now() - acc.lastAcceptedMs > SPEED_STALE_MS;
+      const sinceLastFixMs = acc.lastAcceptedMs == null ? null : Date.now() - acc.lastAcceptedMs;
+      const stale = sinceLastFixMs == null || sinceLastFixMs > SPEED_STALE_MS;
       const snapshot = acc.snapshot(elapsedS());
-      set({ live: stale ? { ...snapshot, smoothedSpeedMs: 0 } : snapshot });
+      // La perte de signal se détecte ici plutôt qu'à la réception d'un fix : par
+      // définition, quand le signal est perdu il n'arrive plus rien à écouter.
+      set({
+        live: stale ? { ...snapshot, smoothedSpeedMs: 0 } : snapshot,
+        signalLost: sinceLastFixMs != null && sinceLastFixMs >= SIGNAL_LOST_MS,
+      });
     }, TICK_MS);
     flushTimer = setInterval(() => {
       const { status, activityId } = get();
@@ -131,6 +157,8 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
       live: { ...ZERO_SESSION_STATE },
       path: [],
       gpsAccuracyM: null,
+      signalLost: false,
+      backgroundTracking: false,
     });
   }
 
@@ -141,6 +169,8 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
     live: { ...ZERO_SESSION_STATE },
     path: [],
     gpsAccuracyM: null,
+    signalLost: false,
+    backgroundTracking: false,
 
     async start(sportType, maxGpsSpeedKmh) {
       if (get().status !== 'idle') {
@@ -166,6 +196,11 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
           pausedAtMs: null,
         });
         gpsSub = await startGpsWatch(handleFix);
+        // Demandée APRÈS le démarrage, jamais au lancement de l'app : hors contexte,
+        // iOS la refuse en bloc. Un refus n'interrompt pas la séance — on reste en
+        // premier plan, ce que l'écran de tracking signale (dégradation, pas échec).
+        const background = await startBackgroundUpdates().catch(() => false);
+        set({ backgroundTracking: background });
         startTimers();
         set({
           status: 'active',
@@ -174,6 +209,8 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
           live: { ...ZERO_SESSION_STATE },
           path: [],
           gpsAccuracyM: null,
+          signalLost: false,
+          backgroundTracking: false,
         });
       } catch (error) {
         // GPS refusé ou buffer indisponible : on annule l'activité créée
@@ -290,6 +327,8 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
         live: acc.snapshot(elapsedS()),
         path: [...acc.path],
         gpsAccuracyM: null,
+        signalLost: false,
+        backgroundTracking: false,
       });
       return true;
     },

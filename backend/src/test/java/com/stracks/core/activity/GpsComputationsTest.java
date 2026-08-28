@@ -86,6 +86,45 @@ class GpsComputationsTest {
         assertTrue(gain > 24 && gain <= 30, "gain=" + gain);
     }
 
+    /**
+     * Miroir exact du test client `signal-loss.test.ts` (#19). Le filtre de plausibilité
+     * ne suffit pas : 1,1 km franchis en 5 minutes de tunnel donnent 13 km/h, plausible
+     * pour un coureur. Sans la règle de trou, cette corde jamais parcourue serait comptée.
+     */
+    @Test
+    void segment_spanning_a_signal_gap_is_not_counted() {
+        Instant t0 = Instant.now();
+        List<TrackPointEntity> track = new ArrayList<>();
+        track.add(point(0, t0, 45.0, 5.0, 200.0, 5.0));
+        track.add(point(1, t0.plusSeconds(300), 45.01, 5.0, 200.0, 5.0));
+
+        assertEquals(0.0, GpsComputations.compute(track, 25.0).distanceM(), 0.001);
+    }
+
+    @Test
+    void segment_below_the_gap_threshold_is_counted() {
+        Instant t0 = Instant.now();
+        List<TrackPointEntity> track = new ArrayList<>();
+        track.add(point(0, t0, 45.0, 5.0, 200.0, 5.0));
+        // 14 s : sous le seuil de 15 s, et ~55 m donnent 14 km/h — plausible.
+        track.add(point(1, t0.plusSeconds(14), 45.0005, 5.0, 200.0, 5.0));
+
+        assertTrue(GpsComputations.compute(track, 25.0).distanceM() > 50);
+    }
+
+    /** Le trou n'empoisonne pas la suite : on recompte normalement après la reprise. */
+    @Test
+    void counting_resumes_after_the_gap() {
+        Instant t0 = Instant.now();
+        List<TrackPointEntity> track = new ArrayList<>();
+        track.add(point(0, t0, 45.0, 5.0, 200.0, 5.0));
+        track.add(point(1, t0.plusSeconds(300), 45.01, 5.0, 200.0, 5.0));
+        track.add(point(2, t0.plusSeconds(314), 45.0105, 5.0, 200.0, 5.0));
+
+        double d = GpsComputations.compute(track, 25.0).distanceM();
+        assertTrue(d > 50 && d < 100, "distance=" + d);
+    }
+
     @Test
     void splits_every_km() {
         Instant t0 = Instant.now();

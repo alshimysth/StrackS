@@ -18,6 +18,18 @@ import java.util.List;
 public final class GpsComputations {
 
     public static final double MAX_ACCURACY_M = 50.0;
+
+    /**
+     * Au-delà de ce trou entre deux points retenus, le signal est considéré comme perdu et
+     * le segment n'est PAS compté (#19). Sans cette règle, une traversée de tunnel ajoute la
+     * corde entre l'entrée et la sortie : le filtre de plausibilité ne l'attrape pas (1 km en
+     * 5 min = 12 km/h, plausible pour un coureur), et une distance parcourue en ligne droite
+     * est comptée alors qu'elle ne l'a pas été.
+     *
+     * MIROIR EXACT de metrics.ts SIGNAL_LOST_MS — toute modification ici doit être répercutée
+     * côté client, sinon l'affichage live diverge du recalcul au stop (parité verrouillée #40).
+     */
+    public static final long SIGNAL_LOST_MS = 15_000L;
     public static final double ELEVATION_HYSTERESIS_M = 2.0;
     private static final int SMOOTHING_WINDOW = 5;
     private static final double EARTH_RADIUS_M = 6_371_000.0;
@@ -47,7 +59,12 @@ public final class GpsComputations {
         for (int i = 1; i < usable.size(); i++) {
             TrackPointEntity a = usable.get(i - 1);
             TrackPointEntity b = usable.get(i);
-            distance += haversineM(a.lat, a.lng, b.lat, b.lng);
+            long gapMs = b.recordedAt.toEpochMilli() - a.recordedAt.toEpochMilli();
+            // Trou trop long : le point rouvre le tracé mais le segment n'est pas compté —
+            // on ignore quel chemin a été suivi entre les deux.
+            if (gapMs < SIGNAL_LOST_MS) {
+                distance += haversineM(a.lat, a.lng, b.lat, b.lng);
+            }
 
             if (distance >= nextSplitAt) {
                 long elapsedMs = b.recordedAt.toEpochMilli() - splitStartMs;

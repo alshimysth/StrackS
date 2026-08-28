@@ -7,8 +7,9 @@
  * dont les segments débordent, ou une petite valeur écrasée à zéro sont des
  * défauts mesurables.
  */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react-native';
-import React from 'react';
+import React, { type ReactNode } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { DistanceBarChart } from '../DistanceBarChart';
@@ -45,6 +46,28 @@ function heightOf(testID: string): number {
 
 const localMidnight = (d: number) => new Date(2026, 6, d).toISOString();
 
+/**
+ * Le graphe formate ses distances via `useFormat`, donc lit les préférences via
+ * react-query (#30) : il lui faut un client. Aucune requête ne part réellement — le
+ * formateur retombe sur les défauts métriques tant que rien n'a chargé.
+ */
+let client: QueryClient;
+
+function Wrapper({ children }: { children: ReactNode }) {
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+}
+
+beforeEach(() => {
+  client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0, enabled: false } },
+  });
+});
+
+afterEach(() => {
+  client.unmount();
+  client.clear();
+});
+
 describe('géométrie du graphique', () => {
   it('donne toute la hauteur du tracé à l’intervalle le plus fort, et jamais plus', async () => {
     await render(
@@ -56,6 +79,7 @@ describe('géométrie du graphique', () => {
         ])}
         labels={LABELS}
       />,
+      { wrapper: Wrapper },
     );
 
     expect(heightOf('chart-stack-1')).toBeCloseTo(PLOT_HEIGHT);
@@ -77,6 +101,7 @@ describe('géométrie du graphique', () => {
         ])}
         labels={LABELS}
       />,
+      { wrapper: Wrapper },
     );
 
     // Deux colonnes de même total : même hauteur, malgré l'écart interne.
@@ -102,6 +127,7 @@ describe('géométrie du graphique', () => {
         ])}
         labels={LABELS}
       />,
+      { wrapper: Wrapper },
     );
 
     expect(heightOf('chart-stack-1')).toBeGreaterThanOrEqual(MIN_VISIBLE_HEIGHT);
@@ -116,6 +142,7 @@ describe('géométrie du graphique', () => {
         timeline={timelineOf([bucket(localMidnight(6), {}), bucket(localMidnight(13), {})])}
         labels={LABELS}
       />,
+      { wrapper: Wrapper },
     );
 
     expect(screen.queryByTestId('distance-chart')).toBeNull();
@@ -129,6 +156,7 @@ describe('géométrie du graphique', () => {
         timeline={timelineOf([bucket(localMidnight(6), { running: 12_000, walking: 3_000 })])}
         labels={LABELS}
       />,
+      { wrapper: Wrapper },
     );
 
     expect(screen.getByText('Course à pied · 12,00 km')).toBeOnTheScreen();

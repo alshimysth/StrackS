@@ -12,7 +12,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, spacing, typography } from '../theme';
 import { useTheme } from '../use-theme';
-import { formatPace } from '../../sports/running/format';
+import { useFormat } from '../../core/format/use-format';
 
 export interface Split {
   km: number;
@@ -21,6 +21,8 @@ export interface Split {
 
 interface Props {
   splits: Split[];
+  /** Le mode allure/vitesse est réglé PAR SPORT : il faut savoir lequel on affiche. */
+  sportCode: string;
   testID?: string;
 }
 
@@ -48,8 +50,9 @@ export function barRatio(paceSecPerKm: number, slowest: number): number {
   return Math.max(0.15, paceSecPerKm / slowest);
 }
 
-export function SplitsList({ splits, testID = 'splits-list' }: Props) {
+export function SplitsList({ splits, sportCode, testID = 'splits-list' }: Props) {
   const theme = useTheme();
+  const format = useFormat();
   if (splits.length === 0) {
     return null;
   }
@@ -88,7 +91,7 @@ export function SplitsList({ splits, testID = 'splits-list' }: Props) {
                 { color: isFastest ? theme.textSuccess : theme.textPrimary },
               ]}
             >
-              {formatPace(split.paceSecPerKm)}
+              {format.speed(1000 / split.paceSecPerKm, sportCode)}
             </Text>
           </View>
         );

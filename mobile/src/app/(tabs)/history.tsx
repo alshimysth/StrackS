@@ -25,7 +25,7 @@ import { OfflineBanner } from '../../design-system/components/OfflineBanner';
 import { SportBadge } from '../../design-system/components/SportBadge';
 import { radius, shadows, spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
-import { formatDuration } from '../../sports/running/format';
+import { useFormat } from '../../core/format/use-format';
 import type { Activity } from '../../types/api';
 
 const PERIOD_OPTIONS: ChipOption<PeriodFilter>[] = [
@@ -254,6 +254,7 @@ function ActivityCard({
   onOpen: () => void;
   onDelete: () => void;
 }) {
+  const format = useFormat();
   return (
     <Pressable
       testID={`activity-card-${activity.id}`}
@@ -276,8 +277,10 @@ function ActivityCard({
         {activityTitle(activity)}
       </Text>
       <Text style={[typography.h3, { color: theme.textPrimary }]}>
-        {activity.distanceM != null ? `${(activity.distanceM / 1000).toFixed(2)} km` : '—'}
-        {activity.durationS != null ? `  ·  ${formatDuration(activity.durationS)}` : ''}
+        {activity.distanceM != null
+          ? `${format.distance(Number(activity.distanceM))} ${format.distanceUnit}`
+          : '—'}
+        {activity.durationS != null ? `  ·  ${format.duration(activity.durationS)}` : ''}
       </Text>
       <Text style={[typography.caption, { color: theme.textTertiary }]}>
         {new Date(activity.startedAt).toLocaleDateString('fr-FR', {

@@ -23,7 +23,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { dataSeriesColors, radius, spacing, typography } from '../theme';
 import { useTheme } from '../use-theme';
-import { formatKm } from '../../sports/running/format';
+import { useFormat, type Formatter } from '../../core/format/use-format';
 import type { StatsTimeline, TimelineBucket } from '../../types/api';
 
 const PLOT_HEIGHT = 158;
@@ -42,6 +42,7 @@ interface Props {
 }
 
 export function DistanceBarChart({ timeline, labels }: Props) {
+  const format = useFormat();
   const theme = useTheme();
   const buckets = timeline.buckets;
 
@@ -65,7 +66,7 @@ export function DistanceBarChart({ timeline, labels }: Props) {
 
   return (
     <View style={styles.chart} testID="distance-chart">
-      <View style={styles.plot} accessibilityRole="image" accessibilityLabel={summaryLabel(timeline, labels)}>
+      <View style={styles.plot} accessibilityRole="image" accessibilityLabel={summaryLabel(timeline, labels, format)}>
         {buckets.map((bucket, index) => {
           const total = totals[index];
           const isHighlighted = index === highlighted;
@@ -76,7 +77,7 @@ export function DistanceBarChart({ timeline, labels }: Props) {
               onPress={() => setSelected(index === selected ? null : index)}
               accessibilityRole="button"
               accessibilityState={{ selected: isHighlighted }}
-              accessibilityLabel={`${bucketLabel(bucket, timeline.bucket)} : ${formatKm(total)} kilomètres`}
+              accessibilityLabel={`${bucketLabel(bucket, timeline.bucket)} : ${format.distance(total)} ${format.distanceUnit}`}
               style={styles.column}
             >
               {/* Hauteur réservée en permanence : sans elle, afficher la valeur
@@ -88,7 +89,7 @@ export function DistanceBarChart({ timeline, labels }: Props) {
                   { color: isHighlighted ? theme.textPrimary : 'transparent' },
                 ]}
               >
-                {total > 0 ? formatKm(total) : ''}
+                {total > 0 ? format.distance(total) : ''}
               </Text>
 
               <View style={styles.stackArea}>
@@ -129,7 +130,7 @@ export function DistanceBarChart({ timeline, labels }: Props) {
               style={[styles.swatch, { backgroundColor: seriesColor(sport, theme.textSecondary) }]}
             />
             <Text style={[typography.caption, { color: theme.textSecondary }]}>
-              {labels[sport] ?? sport} · {formatKm(seriesTotal(buckets, sport))} km
+              {labels[sport] ?? sport} · {format.distance(seriesTotal(buckets, sport))} {format.distanceUnit}
             </Text>
           </View>
         ))}
@@ -243,9 +244,20 @@ export function bucketLabel(bucket: TimelineBucket, unit: StatsTimeline['bucket'
   return `${date.getDate()}/${date.getMonth() + 1}`;
 }
 
-function summaryLabel(timeline: StatsTimeline, labels: Record<string, string>): string {
+/**
+ * Libellé d'accessibilité du graphe. Helper pur : le formateur lui est passé, il
+ * n'appelle pas de hook — la fonction est aussi utilisée hors rendu.
+ */
+function summaryLabel(
+  timeline: StatsTimeline,
+  labels: Record<string, string>,
+  format: Formatter,
+): string {
   const sports = seriesOrder(timeline.buckets)
-    .map((sport) => `${labels[sport] ?? sport} ${formatKm(seriesTotal(timeline.buckets, sport))} km`)
+    .map(
+      (sport) =>
+        `${labels[sport] ?? sport} ${format.distance(seriesTotal(timeline.buckets, sport))} ${format.distanceUnit}`,
+    )
     .join(', ');
   return `Distance par intervalle. ${sports || 'aucune donnée'}.`;
 }

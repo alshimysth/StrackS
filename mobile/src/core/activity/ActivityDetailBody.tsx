@@ -18,7 +18,7 @@ import { StatCard } from '../../design-system/components/StatCard';
 import { radius, spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
 import { sportRegistry } from '../../sports/registry';
-import { formatDuration, formatKm } from '../../sports/running/format';
+import { useFormat } from '../format/use-format';
 import type { Activity } from '../../types/api';
 import { toPath, useTrackPoints } from '../api/use-activity';
 
@@ -28,6 +28,7 @@ interface Props {
 
 export function ActivityDetailBody({ activity }: Props) {
   const theme = useTheme();
+  const format = useFormat();
   const module = sportRegistry[activity.sportType];
   const trackPoints = useTrackPoints(activity.id);
   const path = React.useMemo(() => toPath(trackPoints.data ?? []), [trackPoints.data]);
@@ -49,14 +50,14 @@ export function ActivityDetailBody({ activity }: Props) {
       <View style={styles.grid}>
         <StatCard
           label="Distance"
-          value={activity.distanceM != null ? formatKm(Number(activity.distanceM)) : '—'}
-          unit="km"
+          value={activity.distanceM != null ? format.distance(Number(activity.distanceM)) : '—'}
+          unit={format.distanceUnit}
           emphasis="xl"
           style={styles.gridCell}
         />
         <StatCard
           label="Durée"
-          value={activity.durationS != null ? formatDuration(activity.durationS) : '—'}
+          value={activity.durationS != null ? format.duration(activity.durationS) : '—'}
           emphasis="xl"
           style={styles.gridCell}
         />
@@ -79,7 +80,7 @@ export function ActivityDetailBody({ activity }: Props) {
       {splits.length > 0 && (
         <View style={styles.section}>
           <Text style={[typography.label, { color: theme.textSecondary }]}>SPLITS AU KM</Text>
-          <SplitsList splits={splits} />
+          <SplitsList splits={splits} sportCode={activity.sportType} />
         </View>
       )}
 

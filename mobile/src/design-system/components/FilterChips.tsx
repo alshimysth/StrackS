@@ -21,6 +21,8 @@ interface Props<T extends string> {
   value: T;
   onChange: (value: T) => void;
   accessibilityLabel: string;
+  /** Bloque la sélection — un enregistrement est en vol, par exemple. */
+  disabled?: boolean;
 }
 
 export function FilterChips<T extends string>({
@@ -28,6 +30,7 @@ export function FilterChips<T extends string>({
   value,
   onChange,
   accessibilityLabel,
+  disabled = false,
 }: Props<T>) {
   const theme = useTheme();
   return (
@@ -45,13 +48,15 @@ export function FilterChips<T extends string>({
             key={option.value}
             testID={`chip-${option.value}`}
             onPress={() => onChange(option.value)}
+            disabled={disabled}
             accessibilityRole="tab"
-            accessibilityState={{ selected }}
+            accessibilityState={{ selected, disabled }}
             style={[
               styles.chip,
               {
                 backgroundColor: selected ? theme.textPrimary : theme.surfaceCard,
                 borderColor: selected ? theme.textPrimary : theme.borderSubtle,
+                opacity: disabled ? 0.5 : 1,
               },
             ]}
           >

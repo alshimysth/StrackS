@@ -16,7 +16,8 @@ import {
   type PreferencesPatch,
 } from './schema';
 
-const QUERY_KEY = ['preferences'] as const;
+/** Exportée pour que les tests puissent préremplir le cache sans appel réseau. */
+export const QUERY_KEY = ['preferences'] as const;
 
 async function fetchPreferences(): Promise<Preferences> {
   const raw = await api<unknown>('/api/v1/users/me/preferences');
@@ -52,6 +53,15 @@ export function useUpdatePreferences() {
   return useMutation({
     mutationFn: (patch: PreferencesPatch) =>
       api<unknown>('/api/v1/users/me/preferences', { method: 'PATCH', body: patch }),
+    /**
+     * PATCH sérialisés (#66, revue). Deux garde-fous distincts, pas redondants :
+     *  - les appelants envoient des patchs ÉPARS, donc leur intention seule et jamais
+     *    un instantané reconstruit — c'est ce qui protège la donnée stockée ;
+     *  - cette file garantit qu'une seule requête est en vol, donc que le cache finit
+     *    sur le dernier état serveur : chaque réponse est un objet COMPLET, et deux
+     *    réponses désordonnées replaceraient sinon le cache dans un état antérieur.
+     */
+    scope: { id: 'preferences' },
     onSuccess: (raw) => {
       const parsed = preferencesSchema.safeParse(raw);
       if (parsed.success) {

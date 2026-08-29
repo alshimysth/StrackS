@@ -40,7 +40,7 @@ import { OfflineBanner } from '../../design-system/components/OfflineBanner';
 import { StatCard } from '../../design-system/components/StatCard';
 import { radius, shadows, spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
-import { formatDuration, formatKm } from '../../sports/running/format';
+import { useFormat } from '../../core/format/use-format';
 import type { StatsSummary } from '../../types/api';
 
 const PERIOD_OPTIONS: ChipOption<StatsPeriod>[] = [
@@ -165,6 +165,7 @@ type TimelineQuery = ReturnType<typeof useStatsTimeline>;
 
 function Body({ summary, timeline }: { summary: SummaryQuery; timeline: TimelineQuery }) {
   const theme = useTheme();
+  const format = useFormat();
 
   if (summary.isLoading) {
     return <LoadingState message="Calcul de tes totaux" />;
@@ -201,7 +202,7 @@ function Body({ summary, timeline }: { summary: SummaryQuery; timeline: Timeline
           {chartTitle(timeline.data?.bucket ?? 'week')}
         </Text>
         <Text style={[typography.caption, styles.cardCaption, { color: theme.textSecondary }]}>
-          en kilomètres
+          en {format.distanceUnit === 'mi' ? 'miles' : 'kilomètres'}
         </Text>
 
         {timeline.isLoading && <LoadingState title="" testID="chart-loading" />}
@@ -225,11 +226,13 @@ function Body({ summary, timeline }: { summary: SummaryQuery; timeline: Timeline
               <Text style={[typography.bodyLg, { color: theme.textPrimary }]}>{sport.label}</Text>
               <Text style={[typography.caption, { color: theme.textSecondary }]}>
                 {sport.sessions} {sport.sessions > 1 ? 'séances' : 'séance'} ·{' '}
-                {formatDuration(sport.totalDurationS)}
+                {format.duration(sport.totalDurationS)}
               </Text>
             </View>
             <Text style={[typography.bodyLg, { color: theme.textPrimary }]}>
-              {sport.totals.distanceM != null ? `${formatKm(sport.totals.distanceM)} km` : '—'}
+              {sport.totals.distanceM != null
+                ? `${format.distance(sport.totals.distanceM)} ${format.distanceUnit}`
+                : '—'}
             </Text>
           </View>
         ))}
@@ -244,6 +247,7 @@ function Body({ summary, timeline }: { summary: SummaryQuery; timeline: Timeline
  * plugin les a déclarées sur la période.
  */
 function Totals({ data }: { data: StatsSummary }) {
+  const format = useFormat();
   const distance = data.totals.distanceM;
   const elevation = data.totals.elevationGainM;
 
@@ -253,8 +257,8 @@ function Totals({ data }: { data: StatsSummary }) {
         <StatCard
           style={styles.gridCell}
           label="Distance"
-          value={formatKm(distance)}
-          unit="km"
+          value={format.distance(distance)}
+          unit={format.distanceUnit}
           delta={formatDelta(deltaPercent(distance, data.previous.totals.distanceM ?? 0))}
         />
       )}
@@ -267,15 +271,15 @@ function Totals({ data }: { data: StatsSummary }) {
       <StatCard
         style={styles.gridCell}
         label="Temps actif"
-        value={formatDuration(data.totalDurationS)}
+        value={format.duration(data.totalDurationS)}
         delta={formatDelta(deltaPercent(data.totalDurationS, data.previous.durationS))}
       />
       {elevation != null && (
         <StatCard
           style={styles.gridCell}
           label="Dénivelé +"
-          value={String(Math.round(elevation))}
-          unit="m"
+          value={format.elevation(elevation)}
+          unit={format.elevationUnit}
         />
       )}
     </View>

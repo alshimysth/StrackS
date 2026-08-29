@@ -56,6 +56,49 @@ class PreferencesResourceTest {
                 .body("weeklyGoal.distanceM", nullValue());
     }
 
+    /**
+     * Fusion ÉPARSE de `sportDisplay` (#66, revue).
+     *
+     * Le mobile n'envoie que l'entrée modifiée, jamais la table reconstruite : les puces
+     * restent actionnables pendant qu'un enregistrement est en vol, et repartir d'un
+     * instantané local ferait ressusciter le choix précédent d'un autre sport. Ce
+     * comportement serveur est donc désormais un contrat, pas un détail d'implémentation.
+     */
+    @Test
+    void sparse_sport_display_patch_preserves_other_sports() {
+        String token = freshToken();
+
+        as(token).body(Map.of("sportDisplay", Map.of("running", "pace")))
+                .when().patch("/api/v1/users/me/preferences")
+                .then().statusCode(200)
+                .body("sportDisplay.running", equalTo("pace"));
+
+        // Un patch ne portant QUE walking ne doit pas effacer running.
+        as(token).body(Map.of("sportDisplay", Map.of("walking", "speed")))
+                .when().patch("/api/v1/users/me/preferences")
+                .then().statusCode(200)
+                .body("sportDisplay.running", equalTo("pace"))
+                .body("sportDisplay.walking", equalTo("speed"));
+
+        as(token).when().get("/api/v1/users/me/preferences")
+                .then().statusCode(200)
+                .body("sportDisplay.running", equalTo("pace"))
+                .body("sportDisplay.walking", equalTo("speed"));
+    }
+
+    @Test
+    void sparse_sport_display_patch_overwrites_the_same_sport() {
+        String token = freshToken();
+
+        as(token).body(Map.of("sportDisplay", Map.of("running", "pace")))
+                .when().patch("/api/v1/users/me/preferences").then().statusCode(200);
+
+        as(token).body(Map.of("sportDisplay", Map.of("running", "speed")))
+                .when().patch("/api/v1/users/me/preferences")
+                .then().statusCode(200)
+                .body("sportDisplay.running", equalTo("speed"));
+    }
+
     @Test
     void patch_is_partial_and_persisted() {
         String token = freshToken();

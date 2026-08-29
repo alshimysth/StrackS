@@ -7,7 +7,8 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import { z } from 'zod';
 
-import { formatDuration, formatKm, formatPace } from './format';
+import { useFormat } from '../../core/format/use-format';
+import { formatDistance, formatElevation, formatSpeed } from '../../core/format/units';
 import { SessionTrackingScreen } from '../../core/session/SessionTrackingScreen';
 import type { Activity } from '../../types/api';
 import type { LiveMetric, SessionState, SportModule } from '../types';
@@ -23,29 +24,32 @@ const metricsSchema = z.object({
   splits: z.array(z.object({ km: z.number(), paceSecPerKm: z.number() })).optional(),
 });
 
-function instantPace(session: SessionState): string {
-  return session.smoothedSpeedMs > 0.3 ? formatPace(1000 / session.smoothedSpeedMs) : '—';
-}
-
-function averagePace(session: SessionState): string {
-  return session.distanceM > 50 && session.elapsedS > 0
-    ? formatPace(session.elapsedS / (session.distanceM / 1000))
-    : '—';
-}
-
 function TrackingScreen() {
+  // Le formateur est capturé ici, dans le composant : `hero` et `grid` sont de simples
+  // fonctions passées à l'écran générique, elles ne peuvent pas appeler de hook.
+  const format = useFormat();
+  const speedUnit = format.speedUnit('running');
+
   return (
     <SessionTrackingScreen
       sportCode="running"
-      hero={(s) => ({ label: 'Allure', value: instantPace(s), unit: '/km' })}
+      hero={(s) => ({
+        label: format.speedDisplayFor('running') === 'pace' ? 'Allure' : 'Vitesse',
+        value: format.speed(s.smoothedSpeedMs, 'running'),
+        unit: speedUnit,
+      })}
       grid={(s) => [
-        { label: 'Distance', value: formatKm(s.distanceM), unit: 'km' },
-        { label: 'Durée', value: formatDuration(s.elapsedS) },
-        { label: 'Allure moy.', value: averagePace(s), unit: '/km' },
+        { label: 'Distance', value: format.distance(s.distanceM), unit: format.distanceUnit },
+        { label: 'Durée', value: format.duration(s.elapsedS) },
+        {
+          label: format.speedDisplayFor('running') === 'pace' ? 'Allure moy.' : 'Vitesse moy.',
+          value: format.average(s.distanceM, s.elapsedS, 'running'),
+          unit: speedUnit,
+        },
         {
           label: 'Dénivelé',
-          value: `▲${Math.round(s.elevationGainM)} ▼${Math.round(s.elevationLossM)}`,
-          unit: 'm',
+          value: `▲${format.elevation(s.elevationGainM)} ▼${format.elevation(s.elevationLossM)}`,
+          unit: format.elevationUnit,
         },
       ]}
     />
@@ -53,22 +57,36 @@ function TrackingScreen() {
 }
 
 function SummaryPanel({ activity }: { activity: Activity }) {
+  const format = useFormat();
   const metrics = metricsSchema.safeParse(activity.metrics);
-  const pace = metrics.success ? metrics.data.avgPaceSecPerKm : undefined;
+  const paceSecPerKm = metrics.success ? metrics.data.avgPaceSecPerKm : undefined;
+  // `avgPaceSecPerKm` est une allure métrique venue du serveur : on repasse par la
+  // vitesse SI pour que la préférence d'unité s'applique aussi ici.
+  const speedMs = paceSecPerKm != null && paceSecPerKm > 0 ? 1000 / paceSecPerKm : 0;
+  const label = format.speedDisplayFor('running') === 'pace' ? 'Allure moyenne' : 'Vitesse moyenne';
   return (
     <View>
-      <Text>Allure moyenne : {pace != null ? formatPace(pace) : '—'}</Text>
+      <Text>
+        {label} : {format.speed(speedMs, 'running')} {format.speedUnit('running')}
+      </Text>
     </View>
   );
 }
 
+/**
+ * Métriques dérivées hors composant : pas de hook disponible ici, donc pas de
+ * préférence. Les valeurs sont en métrique — c'est un point d'entrée technique
+ * (aucun écran ne l'utilise aujourd'hui), pas de l'affichage utilisateur.
+ */
 function deriveLiveMetrics(session: SessionState): LiveMetric[] {
-  const paceSecPerKm =
-    session.smoothedSpeedMs > 0.3 ? 1000 / session.smoothedSpeedMs : null;
   return [
-    { label: 'Allure', value: paceSecPerKm ? formatPace(paceSecPerKm) : '—', unit: '/km' },
-    { label: 'Distance', value: (session.distanceM / 1000).toFixed(2), unit: 'km' },
-    { label: 'D+', value: String(Math.round(session.elevationGainM)), unit: 'm' },
+    {
+      label: 'Allure',
+      value: formatSpeed(session.smoothedSpeedMs, 'metric', 'pace'),
+      unit: '/km',
+    },
+    { label: 'Distance', value: formatDistance(session.distanceM, 'metric'), unit: 'km' },
+    { label: 'D+', value: formatElevation(session.elevationGainM, 'metric'), unit: 'm' },
   ];
 }
 

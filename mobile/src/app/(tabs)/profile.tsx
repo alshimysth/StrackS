@@ -140,6 +140,60 @@ function Preferences() {
         onChange={(next) => update.mutate({ theme: next })}
       />
 
+      {/* Objectifs proposés par paliers plutôt qu'en saisie libre : un objectif
+          hebdomadaire est un nombre rond, et une saisie numérique ouvrirait la porte
+          aux valeurs que le socle rejette (bornes 100 m – 1 000 km, 1 – 50 séances). */}
+      <SettingRow
+        testID="setting-goal-distance"
+        label="Objectif hebdomadaire — distance"
+        options={[
+          { value: '', label: 'Aucun' },
+          { value: '10000', label: `10 ${format.distanceUnit}` },
+          { value: '20000', label: `20 ${format.distanceUnit}` },
+          { value: '40000', label: `40 ${format.distanceUnit}` },
+        ]}
+        disabled={saving}
+        value={current.weeklyGoal.distanceM != null ? String(current.weeklyGoal.distanceM) : ''}
+        onChange={(v) =>
+          update.mutate({
+            weeklyGoal: { ...current.weeklyGoal, distanceM: v === '' ? null : Number(v) },
+          })
+        }
+      />
+
+      <SettingRow
+        testID="setting-goal-sessions"
+        label="Objectif hebdomadaire — séances"
+        options={[
+          { value: '', label: 'Aucun' },
+          { value: '2', label: '2' },
+          { value: '3', label: '3' },
+          { value: '5', label: '5' },
+        ]}
+        disabled={saving}
+        value={current.weeklyGoal.sessions != null ? String(current.weeklyGoal.sessions) : ''}
+        onChange={(v) =>
+          update.mutate({
+            weeklyGoal: { ...current.weeklyGoal, sessions: v === '' ? null : Number(v) },
+          })
+        }
+      />
+
+      {/* « Aucun » est une valeur légitime, pas une absence de réglage : elle rend
+          l'ordre serveur et ne présélectionne rien. Le socle accepte `null`. */}
+      <SettingRow
+        testID="setting-default-sport"
+        label="Sport par défaut"
+        helper="Présélectionné sur l'accueil et affiché en premier."
+        options={[
+          { value: '', label: 'Aucun' },
+          ...(sportTypes.data ?? []).map((s) => ({ value: s.code, label: s.label })),
+        ]}
+        disabled={saving}
+        value={current.defaultSport ?? ''}
+        onChange={(code) => update.mutate({ defaultSport: code === '' ? null : code })}
+      />
+
       {/* Réglé PAR SPORT : un coureur lit une allure, un marcheur une vitesse. Un
           réglage global forcerait l'un des deux à lire dans l'autre modèle mental. */}
       {(sportTypes.data ?? []).map((sport) => (

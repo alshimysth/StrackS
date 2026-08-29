@@ -63,6 +63,20 @@ function useGoalJustReached(activity: Activity | undefined): boolean {
   if (activity == null || goal == null || stats.data == null) {
     return false;
   }
+
+  /**
+   * La requête porte sur la semaine COURANTE, alors que le backend agrège par
+   * `startedAt`. Une séance à cheval sur un changement de semaine — commencée
+   * dimanche soir, consultée lundi — n'est donc pas dans `after` ; la retrancher
+   * quand même fabriquerait un « avant » plus bas que la réalité et déclencherait
+   * une fausse célébration. Hors fenêtre, on ne conclut rien.
+   */
+  const startedAt = Date.parse(activity.startedAt);
+  const from = Date.parse(stats.data.from);
+  const to = Date.parse(stats.data.to);
+  if (!(startedAt >= from && startedAt < to)) {
+    return false;
+  }
   const after = {
     distanceM: stats.data.totals.distanceM ?? 0,
     sessions: stats.data.totalSessions,
@@ -102,7 +116,10 @@ export default function SummaryScreen() {
             {/* Une seule célébration à la fois : deux bandeaux volt côte à côte
                 diluent exactement ce qu'ils sont censés souligner. La première
                 séance prime — elle ne se produit qu'une fois. */}
-            {firstSession.data === true ? (
+            {/* Rien tant que la première requête n'a pas tranché : sinon le bandeau
+                « objectif » s'affiche puis cède la place à « première séance », ce qui
+                contredit la priorité qu'on vient d'établir. */}
+            {firstSession.isPending ? null : firstSession.data === true ? (
               <CelebrationBanner
                 reason="first-session"
                 sportLabel={sportLabel(activity.sportType)}

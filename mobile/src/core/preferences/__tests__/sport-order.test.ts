@@ -65,3 +65,23 @@ describe('initialSelection', () => {
     expect(initialSelection([], 'running')).toBeNull();
   });
 });
+
+/**
+ * Sports non démarrables (revue #68).
+ *
+ * Le backend peut exposer un sport dont le mobile n'a pas de module. Le laisser entrer
+ * dans la liste permettrait de le définir comme défaut, de le présélectionner, puis de
+ * ne rien faire au clic sur « Démarrer » — un cul-de-sac. Le filtre a donc lieu AVANT
+ * l'ordonnancement et la présélection, ce que ces cas figent.
+ */
+describe('sports non démarrables', () => {
+  const startable = SPORTS.filter((s) => s.code !== 'strength');
+
+  it('n’ordonne que les sports démarrables', () => {
+    expect(orderSports(startable, 'walking').map((s) => s.code)).toEqual(['walking', 'running']);
+  });
+
+  it('ne présélectionne pas un sport absent de la liste filtrée', () => {
+    expect(initialSelection(startable, 'strength')).toBeNull();
+  });
+});

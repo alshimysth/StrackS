@@ -33,9 +33,15 @@ export default function HomeScreen() {
   const preferences = usePreferences();
   const defaultSport = preferences.data?.defaultSport ?? null;
 
-  // Ordre serveur, sport préféré remonté en tête (#34).
+  /**
+   * Ordre serveur, sport préféré remonté en tête (#34).
+   *
+   * Filtré sur le registre AVANT tout : un sport exposé par le backend sans module
+   * mobile n'est pas démarrable. Le laisser passer permettrait de le présélectionner,
+   * d'afficher « Démarrer », puis de ne rien faire au clic — un cul-de-sac.
+   */
   const sports = React.useMemo(
-    () => orderSports(sportTypes.data ?? [], defaultSport),
+    () => orderSports((sportTypes.data ?? []).filter((s) => sportRegistry[s.code] != null), defaultSport),
     [sportTypes.data, defaultSport],
   );
 
@@ -96,10 +102,6 @@ export default function HomeScreen() {
 
       <View style={styles.sportList}>
         {sports.map((sport) => {
-          const module = sportRegistry[sport.code];
-          if (!module) {
-            return null; // sport backend sans module mobile : ignoré
-          }
           const isSelected = selected === sport.code;
           return (
             <Pressable

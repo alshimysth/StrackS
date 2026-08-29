@@ -7,6 +7,7 @@ import { useFormat } from '../../core/format/use-format';
 import { DEFAULT_PREFERENCES, speedDisplayFor } from '../../core/preferences/schema';
 import { usePreferences, useUpdatePreferences } from '../../core/preferences/use-preferences';
 import { useSportTypes } from '../../core/api/use-sport-types';
+import { sportRegistry } from '../../sports/registry';
 import { ErrorState } from '../../design-system/components/ErrorState';
 import { LoadingState } from '../../design-system/components/LoadingState';
 import { SettingRow } from '../../design-system/components/SettingRow';
@@ -148,9 +149,11 @@ function Preferences() {
         label="Objectif hebdomadaire — distance"
         options={[
           { value: '', label: 'Aucun' },
-          { value: '10000', label: `10 ${format.distanceUnit}` },
-          { value: '20000', label: `20 ${format.distanceUnit}` },
-          { value: '40000', label: `40 ${format.distanceUnit}` },
+          // Le palier est stocké en mètres (SI) : le libellé doit passer par le
+          // formateur, sinon « 10 mi » enregistrerait en réalité 6,2 mi.
+          { value: '10000', label: `${format.distance(10000)} ${format.distanceUnit}` },
+          { value: '20000', label: `${format.distance(20000)} ${format.distanceUnit}` },
+          { value: '40000', label: `${format.distance(40000)} ${format.distanceUnit}` },
         ]}
         disabled={saving}
         value={current.weeklyGoal.distanceM != null ? String(current.weeklyGoal.distanceM) : ''}
@@ -187,7 +190,11 @@ function Preferences() {
         helper="Présélectionné sur l'accueil et affiché en premier."
         options={[
           { value: '', label: 'Aucun' },
-          ...(sportTypes.data ?? []).map((s) => ({ value: s.code, label: s.label })),
+          // Mêmes sports que l'accueil : proposer un sport sans module mobile
+          // permettrait d'en faire un défaut qu'on ne peut pas démarrer.
+          ...(sportTypes.data ?? [])
+            .filter((s) => sportRegistry[s.code] != null)
+            .map((s) => ({ value: s.code, label: s.label })),
         ]}
         disabled={saving}
         value={current.defaultSport ?? ''}

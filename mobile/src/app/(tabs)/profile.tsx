@@ -147,9 +147,11 @@ function Preferences() {
             { value: 'speed', label: 'Vitesse' },
           ]}
           value={speedDisplayFor(current, sport.code)}
-          onChange={(display) =>
-            update.mutate({ sportDisplay: { ...current.sportDisplay, [sport.code]: display } })
-          }
+          // On n'envoie QUE l'entrée modifiée : le serveur fusionne en profondeur.
+          // Reconstruire la table depuis `current` propagerait un instantané périmé —
+          // les puces restent actionnables pendant qu'un enregistrement est en vol, et
+          // un second choix repartirait d'un état d'avant le premier.
+          onChange={(display) => update.mutate({ sportDisplay: { [sport.code]: display } })}
         />
       ))}
     </View>

@@ -54,10 +54,12 @@ export function useUpdatePreferences() {
     mutationFn: (patch: PreferencesPatch) =>
       api<unknown>('/api/v1/users/me/preferences', { method: 'PATCH', body: patch }),
     /**
-     * Les PATCH sont sérialisés (#66, revue) : le serveur fusionne en profondeur
-     * `sportDisplay`, mais chaque réponse REMPLACE le cache. Deux réglages enchaînés
-     * dont les réponses reviennent dans le désordre feraient donc réapparaître un
-     * `sportDisplay` périmé. La file garantit qu'une seule requête est en vol.
+     * PATCH sérialisés (#66, revue). Deux garde-fous distincts, pas redondants :
+     *  - les appelants envoient des patchs ÉPARS, donc leur intention seule et jamais
+     *    un instantané reconstruit — c'est ce qui protège la donnée stockée ;
+     *  - cette file garantit qu'une seule requête est en vol, donc que le cache finit
+     *    sur le dernier état serveur : chaque réponse est un objet COMPLET, et deux
+     *    réponses désordonnées replaceraient sinon le cache dans un état antérieur.
      */
     scope: { id: 'preferences' },
     onSuccess: (raw) => {

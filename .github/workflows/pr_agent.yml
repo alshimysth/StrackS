@@ -20,8 +20,13 @@ jobs:
         uses: the-pr-agent/pr-agent@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Clé Anthropic (Claude) — à créer dans Settings > Secrets and variables > Actions
+          # Clé Anthropic (Claude) — créée dans Settings > Secrets and variables > Actions
           ANTHROPIC.KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Forcé ici directement (redondant avec .pr_agent.toml, mais évite
+          # tout retour silencieux sur le modèle OpenAI par défaut)
+          config.model: "anthropic/claude-sonnet-5"
+          config.fallback_models: '["anthropic/claude-haiku-4-5-20251001"]'
 
           # Quels outils tournent automatiquement sur chaque PR
           github_action_config.auto_review: "true"

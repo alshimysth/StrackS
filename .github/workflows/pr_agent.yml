@@ -1,0 +1,36 @@
+name: PR Agent (Claude)
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  issue_comment:
+
+jobs:
+  pr_agent_job:
+    if: ${{ github.event.sender.type != 'Bot' }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: write
+    name: Run PR Agent on every pull request, respond to comments
+    steps:
+      - name: PR Agent action step
+        id: pragent
+        uses: the-pr-agent/pr-agent@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Clé Anthropic (Claude) — créée dans Settings > Secrets and variables > Actions
+          ANTHROPIC.KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Forcé ici directement (redondant avec .pr_agent.toml, mais évite
+          # tout retour silencieux sur le modèle OpenAI par défaut)
+          config.model: "anthropic/claude-sonnet-5"
+          config.fallback_models: '["anthropic/claude-haiku-4-5-20251001"]'
+
+          # Quels outils tournent automatiquement sur chaque PR
+          github_action_config.auto_review: "true"
+          github_action_config.auto_describe: "true"
+          # /improve fait un appel LLM en plus (donc un coût en plus) : mets "true"
+          # si tu veux aussi des suggestions de code automatiques sur chaque PR
+          github_action_config.auto_improve: "false"

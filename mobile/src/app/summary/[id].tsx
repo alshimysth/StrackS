@@ -25,6 +25,9 @@ import { SportBadge } from '../../design-system/components/SportBadge';
 import { spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
 import type { Activity, Page } from '../../types/api';
+import { useStatsSummary } from '../../core/api/use-stats';
+import { usePreferences } from '../../core/preferences/use-preferences';
+import { goalJustReached } from '../../core/preferences/weekly-goal';
 
 /**
  * Première séance du sport ? Une page de taille 1 suffit : seul `total` est lu.
@@ -44,6 +47,47 @@ function useIsFirstSession(sportType: string | undefined) {
   });
 }
 
+/**
+ * Cette séance vient-elle de faire franchir un objectif hebdomadaire (#35) ?
+ *
+ * L'état « avant » se reconstruit en retranchant la séance des totaux de la semaine :
+ * c'est la seule façon de distinguer « l'objectif est atteint » de « cette séance
+ * vient de l'atteindre ». Sans cette nuance, la célébration rejouerait à chaque
+ * séance jusqu'à la fin de la semaine.
+ */
+function useGoalJustReached(activity: Activity | undefined): boolean {
+  const preferences = usePreferences();
+  const stats = useStatsSummary({ period: 'week', sport: undefined });
+
+  const goal = preferences.data?.weeklyGoal;
+  if (activity == null || goal == null || stats.data == null) {
+    return false;
+  }
+
+  /**
+   * La requête porte sur la semaine COURANTE, alors que le backend agrège par
+   * `startedAt`. Une séance à cheval sur un changement de semaine — commencée
+   * dimanche soir, consultée lundi — n'est donc pas dans `after` ; la retrancher
+   * quand même fabriquerait un « avant » plus bas que la réalité et déclencherait
+   * une fausse célébration. Hors fenêtre, on ne conclut rien.
+   */
+  const startedAt = Date.parse(activity.startedAt);
+  const from = Date.parse(stats.data.from);
+  const to = Date.parse(stats.data.to);
+  if (!(startedAt >= from && startedAt < to)) {
+    return false;
+  }
+  const after = {
+    distanceM: stats.data.totals.distanceM ?? 0,
+    sessions: stats.data.totalSessions,
+  };
+  const before = {
+    distanceM: Math.max(0, after.distanceM - Number(activity.distanceM ?? 0)),
+    sessions: Math.max(0, after.sessions - 1),
+  };
+  return goalJustReached(before, after, goal);
+}
+
 export default function SummaryScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -55,6 +99,7 @@ export default function SummaryScreen() {
 
   const activity = activityQuery.data;
   const firstSession = useIsFirstSession(activity?.sportType);
+  const goalReached = useGoalJustReached(activity);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.surfaceApp }} edges={['top', 'bottom']}>
@@ -68,11 +113,24 @@ export default function SummaryScreen() {
 
         {activity != null && (
           <>
-            {firstSession.data === true && (
+            {/* Une seule célébration à la fois : deux bandeaux volt côte à côte
+                diluent exactement ce qu'ils sont censés souligner. La première
+                séance prime — elle ne se produit qu'une fois. */}
+            {/* Rien tant que la première requête n'a pas tranché : sinon le bandeau
+                « objectif » s'affiche puis cède la place à « première séance », ce qui
+                contredit la priorité qu'on vient d'établir. */}
+            {firstSession.isPending ? null : firstSession.data === true ? (
               <CelebrationBanner
                 reason="first-session"
                 sportLabel={sportLabel(activity.sportType)}
               />
+            ) : (
+              goalReached && (
+                <CelebrationBanner
+                  reason="weekly-goal"
+                  sportLabel={sportLabel(activity.sportType)}
+                />
+              )
             )}
 
             <SportBadge sport={activity.sportType} />

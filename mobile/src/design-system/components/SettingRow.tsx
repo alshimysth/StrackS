@@ -18,6 +18,8 @@ interface Props<T extends string> {
   options: ChipOption<T>[];
   value: T;
   onChange: (value: T) => void;
+  /** Grisé pendant qu'un enregistrement est en vol. */
+  disabled?: boolean;
   testID?: string;
 }
 
@@ -27,6 +29,7 @@ export function SettingRow<T extends string>({
   options,
   value,
   onChange,
+  disabled = false,
   testID,
 }: Props<T>) {
   const theme = useTheme();
@@ -36,7 +39,13 @@ export function SettingRow<T extends string>({
       {helper != null && (
         <Text style={[typography.caption, { color: theme.textTertiary }]}>{helper}</Text>
       )}
-      <FilterChips options={options} value={value} onChange={onChange} accessibilityLabel={label} />
+      <FilterChips
+        options={options}
+        value={value}
+        onChange={onChange}
+        accessibilityLabel={label}
+        disabled={disabled}
+      />
     </View>
   );
 }

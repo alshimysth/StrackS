@@ -94,14 +94,17 @@ function Preferences() {
   }
 
   const current = preferences.data ?? DEFAULT_PREFERENCES;
+  const saving = update.isPending;
 
   return (
     <View style={styles.section} testID="preferences-section">
       <Text style={[typography.h3, { color: theme.textPrimary }]}>Préférences</Text>
 
-      {/* Sans ça, un PATCH échoué fait revenir la puce à sa valeur précédente sans
-          un mot d'explication : l'utilisateur croit que son choix n'a pas été pris
-          en compte, et recommence (signalé en revue). */}
+      {/* Un PATCH échoué ferait sinon revenir la puce à sa valeur précédente sans un
+          mot : l'utilisateur croit que son choix n'a pas été pris, et recommence.
+          Le bandeau ne peut décrire qu'UNE mutation — d'où le blocage des puces
+          pendant l'enregistrement, qui garantit qu'il n'y en a jamais deux en vol et
+          donc qu'aucune erreur n'est masquée par le succès de la suivante. */}
       {update.isError && (
         <ErrorState
           testID="preferences-update-error"
@@ -118,6 +121,7 @@ function Preferences() {
           { value: 'metric', label: 'Métrique' },
           { value: 'imperial', label: 'Impérial' },
         ]}
+        disabled={saving}
         value={current.units}
         onChange={(units) => update.mutate({ units })}
       />
@@ -131,6 +135,7 @@ function Preferences() {
           { value: 'light', label: 'Clair' },
           { value: 'dark', label: 'Sombre' },
         ]}
+        disabled={saving}
         value={current.theme}
         onChange={(next) => update.mutate({ theme: next })}
       />
@@ -146,6 +151,7 @@ function Preferences() {
             { value: 'pace', label: 'Allure' },
             { value: 'speed', label: 'Vitesse' },
           ]}
+          disabled={saving}
           value={speedDisplayFor(current, sport.code)}
           // On n'envoie QUE l'entrée modifiée : le serveur fusionne en profondeur.
           // Reconstruire la table depuis `current` propagerait un instantané périmé —

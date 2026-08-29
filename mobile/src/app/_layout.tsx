@@ -19,6 +19,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { persistOptions, queryClient } from '../core/api/query-client';
 import { useAuthStore } from '../core/auth/use-auth-store';
 import { setupOnlineManager } from '../core/network/online';
+import { darkTheme } from '../design-system/theme';
 import { useTheme } from '../design-system/use-theme';
 
 /**
@@ -75,7 +76,10 @@ function AppShell() {
 
   return (
     <>
-      <StatusBar style="auto" />
+      {/* `style="auto"` suit le thème SYSTÈME, pas le thème résolu : quelqu'un qui
+          choisit « sombre » sur un système clair obtenait des icônes foncées sur fond
+          sombre. On dérive donc le style du thème effectif (signalé en revue). */}
+      <StatusBar style={theme === darkTheme ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />

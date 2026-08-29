@@ -57,8 +57,11 @@ export function formatPaceValue(secondsPerUnit: number): string {
   if (!Number.isFinite(secondsPerUnit) || secondsPerUnit <= 0) {
     return '—';
   }
-  const minutes = Math.floor(secondsPerUnit / 60);
-  const seconds = Math.round(secondsPerUnit % 60);
+  // Arrondir AVANT de découper, jamais après : arrondir le reste produit « 4'60" »
+  // pour 299,6 s, puisque 299,6 % 60 = 59,6 s'arrondit à 60.
+  const total = Math.round(secondsPerUnit);
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
   return `${minutes}'${String(seconds).padStart(2, '0')}"`;
 }
 
@@ -103,9 +106,11 @@ export function formatAverage(
 
 /** 3724 s → « 1:02:04 » ; 754 s → « 12:34 ». Indépendant du système d'unités. */
 export function formatDuration(totalSeconds: number): string {
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = Math.round(totalSeconds % 60);
+  // Même piège que pour l'allure : 59,6 s donnait « 0:60 », et 3599,6 s « 59:60 ».
+  const total = Math.round(totalSeconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
   const mm = String(m).padStart(h > 0 ? 2 : 1, '0');
   const ss = String(s).padStart(2, '0');
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;

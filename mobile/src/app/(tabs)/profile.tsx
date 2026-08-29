@@ -99,6 +99,17 @@ function Preferences() {
     <View style={styles.section} testID="preferences-section">
       <Text style={[typography.h3, { color: theme.textPrimary }]}>Préférences</Text>
 
+      {/* Sans ça, un PATCH échoué fait revenir la puce à sa valeur précédente sans
+          un mot d'explication : l'utilisateur croit que son choix n'a pas été pris
+          en compte, et recommence (signalé en revue). */}
+      {update.isError && (
+        <ErrorState
+          testID="preferences-update-error"
+          error={update.error}
+          onRetry={() => update.mutate(update.variables)}
+        />
+      )}
+
       <SettingRow
         testID="setting-units"
         label="Unités"

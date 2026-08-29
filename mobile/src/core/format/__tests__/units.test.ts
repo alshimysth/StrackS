@@ -77,6 +77,16 @@ describe('formatPaceValue', () => {
   it('garde le zéro de tête des secondes', () => {
     expect(formatPaceValue(305)).toBe("5'05\"");
   });
+
+  /**
+   * Régression signalée en revue : arrondir le RESTE au lieu du total produisait
+   * « 4'60\" » — 299,6 % 60 = 59,6, qui s'arrondit à 60. Une allure ne comporte
+   * jamais 60 secondes.
+   */
+  it('ne produit jamais 60 secondes', () => {
+    expect(formatPaceValue(299.6)).toBe("5'00\"");
+    expect(formatPaceValue(359.7)).toBe("6'00\"");
+  });
 });
 
 describe('formatAverage', () => {
@@ -111,5 +121,12 @@ describe('formatDuration', () => {
   /** La durée ne dépend d'aucun système d'unités — une heure reste une heure. */
   it('ne dépend pas des unités', () => {
     expect(formatDuration(3600)).toBe('1:00:00');
+  });
+
+  /** Même régression que l'allure : « 0:60 » et « 59:60 » étaient produits. */
+  it('ne produit jamais 60 secondes', () => {
+    expect(formatDuration(59.6)).toBe('1:00');
+    expect(formatDuration(3599.6)).toBe('1:00:00');
+    expect(formatDuration(119.7)).toBe('2:00');
   });
 });

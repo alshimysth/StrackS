@@ -202,7 +202,7 @@ function Body({ summary, timeline }: { summary: SummaryQuery; timeline: Timeline
           {chartTitle(timeline.data?.bucket ?? 'week')}
         </Text>
         <Text style={[typography.caption, styles.cardCaption, { color: theme.textSecondary }]}>
-          en kilomètres
+          en {format.distanceUnit === 'mi' ? 'miles' : 'kilomètres'}
         </Text>
 
         {timeline.isLoading && <LoadingState title="" testID="chart-loading" />}
@@ -278,8 +278,8 @@ function Totals({ data }: { data: StatsSummary }) {
         <StatCard
           style={styles.gridCell}
           label="Dénivelé +"
-          value={String(Math.round(elevation))}
-          unit="m"
+          value={format.elevation(elevation)}
+          unit={format.elevationUnit}
         />
       )}
     </View>

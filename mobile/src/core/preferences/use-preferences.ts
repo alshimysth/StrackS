@@ -53,6 +53,13 @@ export function useUpdatePreferences() {
   return useMutation({
     mutationFn: (patch: PreferencesPatch) =>
       api<unknown>('/api/v1/users/me/preferences', { method: 'PATCH', body: patch }),
+    /**
+     * Les PATCH sont sérialisés (#66, revue) : le serveur fusionne en profondeur
+     * `sportDisplay`, mais chaque réponse REMPLACE le cache. Deux réglages enchaînés
+     * dont les réponses reviennent dans le désordre feraient donc réapparaître un
+     * `sportDisplay` périmé. La file garantit qu'une seule requête est en vol.
+     */
+    scope: { id: 'preferences' },
     onSuccess: (raw) => {
       const parsed = preferencesSchema.safeParse(raw);
       if (parsed.success) {

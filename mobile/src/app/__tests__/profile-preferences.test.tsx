@@ -30,6 +30,15 @@ jest.mock('../../core/auth/use-auth-store', () => ({
   ),
 }));
 
+/**
+ * Le registre est stubé : l'écran ne s'en sert que pour filtrer les sports démarrables,
+ * mais l'importer tire tout le moteur de séance derrière lui — donc `expo-sqlite`,
+ * absent sous jest.
+ */
+jest.mock('../../sports/registry', () => ({
+  sportRegistry: { running: { code: 'running' }, walking: { code: 'walking' } },
+}));
+
 jest.mock('../../core/api/use-auth', () => ({
   useProfile: () => ({ data: { displayName: 'Testeur', email: 't@example.com' } }),
   useDeleteAccount: () => ({ mutate: jest.fn() }),

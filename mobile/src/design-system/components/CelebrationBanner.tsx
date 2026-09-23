@@ -16,7 +16,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, spacing, typography } from '../theme';
 
-export type CelebrationReason = 'first-session';
+export type CelebrationReason = 'first-session' | 'weekly-goal';
 
 interface Props {
   reason: CelebrationReason;
@@ -28,6 +28,11 @@ const COPY: Record<CelebrationReason, (sport: string) => { title: string; messag
   'first-session': (sport) => ({
     title: 'Première séance !',
     message: `Ta première sortie en ${sport.toLowerCase()} est enregistrée. La suite se construit là-dessus.`,
+  }),
+  // Déclencheur ajouté par #35 : jusque-là, le volt n'avait aucune raison d'exister.
+  'weekly-goal': () => ({
+    title: 'Objectif de la semaine atteint !',
+    message: 'Cette séance est celle qui fait basculer ta semaine. Le reste est du bonus.',
   }),
 };
 

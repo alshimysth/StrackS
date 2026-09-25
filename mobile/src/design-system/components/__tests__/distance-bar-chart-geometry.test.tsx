@@ -7,13 +7,14 @@
  * dont les segments débordent, ou une petite valeur écrasée à zéro sont des
  * défauts mesurables.
  */
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react-native';
 import React, { type ReactNode } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { DistanceBarChart } from '../DistanceBarChart';
 import type { StatsTimeline, TimelineBucket } from '../../../types/api';
+import { createTestQueryClient } from '../../../test-support/query-client';
 
 const PLOT_HEIGHT = 158;
 const SEGMENT_GAP = 2;
@@ -58,9 +59,7 @@ function Wrapper({ children }: { children: ReactNode }) {
 }
 
 beforeEach(() => {
-  client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0, enabled: false } },
-  });
+  client = createTestQueryClient({ enabled: false });
 });
 
 afterEach(() => {

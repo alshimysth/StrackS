@@ -1,8 +1,16 @@
 /**
  * Calculs GPS côté client — miroir allégé de GpsComputations.java (backend),
- * mêmes seuils : précision 50 m, hystérésis dénivelé 2 m, lissage 5 points.
+ * mêmes seuils : précision 50 m, hystérésis dénivelé 2 m, fenêtre de lissage 5 points.
  * Sert UNIQUEMENT l'affichage live ; le serveur recalcule tout au stop depuis
  * le tracé brut (source de vérité), splits compris.
+ *
+ * **Le lissage d'altitude n'est pas le même des deux côtés** (#53) : moyenne GLISSANTE
+ * sur les 5 derniers points ici (un accumulateur temps réel ne voit pas l'avenir),
+ * moyenne CENTRÉE côté serveur. Les fixtures de parité sont choisies pour que les deux
+ * coïncident ; sur une trace réelle bruitée, le D+ affiché pendant la séance peut donc
+ * différer de celui du résumé. L'écart n'est pas encore chiffré — il se mesure avec
+ * `scripts/measure-elevation-drift.mts` sur les traces de la sortie terrain (#17), et la
+ * décision (tolérer, afficher comme provisoire, ou lissage centré retardé) en dépend.
  */
 import type { GpsFix } from '../gps';
 import type { SessionState } from './types';

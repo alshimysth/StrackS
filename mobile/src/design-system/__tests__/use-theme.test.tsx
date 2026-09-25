@@ -6,7 +6,7 @@
  * verrait l'écran de tracking s'éclaircir — or ce sombre est le mode « plein soleil »,
  * lisible bras tendu en extérieur. C'est explicitement dans la DoD.
  */
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react-native';
 import React, { type ReactNode } from 'react';
 import { Text } from 'react-native';
@@ -15,6 +15,7 @@ import { DEFAULT_PREFERENCES } from '../../core/preferences/schema';
 import { QUERY_KEY } from '../../core/preferences/use-preferences';
 import { darkTheme, lightTheme } from '../theme';
 import { ThemeOverride, useTheme } from '../use-theme';
+import { createTestQueryClient } from '../../test-support/query-client';
 
 jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
   __esModule: true,
@@ -49,7 +50,7 @@ function setPreference(theme: 'auto' | 'light' | 'dark') {
 }
 
 beforeEach(() => {
-  client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  client = createTestQueryClient();
 });
 
 afterEach(() => {

@@ -75,7 +75,7 @@ describe('Countdown', () => {
     const onDone = jest.fn();
     const view = await render(<Countdown onDone={onDone} onCancel={jest.fn()} />);
 
-    view.unmount();
+    await view.unmount();
     await tickSeconds(5);
 
     expect(onDone).not.toHaveBeenCalled();

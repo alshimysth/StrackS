@@ -6,7 +6,7 @@
  * propre : la célébration volt et la sortie qui renvoie à l'accueil plutôt qu'en
  * arrière (on ne « revient » pas dans un écran de tracking terminé).
  */
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -28,6 +28,36 @@ import type { Activity, Page } from '../../types/api';
 import { useStatsSummary } from '../../core/api/use-stats';
 import { usePreferences } from '../../core/preferences/use-preferences';
 import { goalJustReached } from '../../core/preferences/weekly-goal';
+
+/**
+ * Une requête peut-elle servir à conclure sur la séance qui vient de se terminer (#69) ?
+ *
+ * Les deux raisons de célébrer se lisent dans des caches partagés : les totaux de la
+ * semaine ont la même clé que la carte d'objectif de l'accueil, et la sonde « première
+ * séance » a pu être remplie par un résumé précédent. Lus tels quels, ils décrivent le
+ * monde **d'avant** la séance — et un objectif déjà atteint se remettait à clignoter
+ * en volt à la séance suivante.
+ *
+ * Deux gardes, parce qu'aucune ne suffit seule :
+ * - `isFetching` : le moteur de séance invalide `['stats']` et `['activities']` après un
+ *   `stop()` réussi, un refetch est donc en vol à l'arrivée sur cet écran ;
+ * - `dataUpdatedAt` postérieur à `endedAt` : une donnée plus ancienne que la fin de la
+ *   séance ne peut pas la contenir, invalidée ou non. `endedAt` est l'horloge de
+ *   l'appareil (le serveur le reprend tel quel) : on compare deux instants du même
+ *   téléphone. C'est aussi ce qui rend une séance de moins de 30 s (`staleTime`) sûre.
+ *
+ * Tant que ce n'est pas établi, on ne conclut rien — ne pas célébrer vaut toujours
+ * mieux que célébrer à tort.
+ */
+function isFreshFor(
+  query: Pick<UseQueryResult, 'isPending' | 'isFetching' | 'dataUpdatedAt'>,
+  activity: Pick<Activity, 'endedAt'>,
+): boolean {
+  if (query.isPending || query.isFetching || activity.endedAt == null) {
+    return false;
+  }
+  return query.dataUpdatedAt >= Date.parse(activity.endedAt);
+}
 
 /**
  * Première séance du sport ? Une page de taille 1 suffit : seul `total` est lu.
@@ -60,7 +90,7 @@ function useGoalJustReached(activity: Activity | undefined): boolean {
   const stats = useStatsSummary({ period: 'week', sport: undefined });
 
   const goal = preferences.data?.weeklyGoal;
-  if (activity == null || goal == null || stats.data == null) {
+  if (activity == null || goal == null || stats.data == null || !isFreshFor(stats, activity)) {
     return false;
   }
 
@@ -100,6 +130,7 @@ export default function SummaryScreen() {
   const activity = activityQuery.data;
   const firstSession = useIsFirstSession(activity?.sportType);
   const goalReached = useGoalJustReached(activity);
+  const firstSessionSettled = activity != null && isFreshFor(firstSession, activity);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.surfaceApp }} edges={['top', 'bottom']}>
@@ -116,10 +147,11 @@ export default function SummaryScreen() {
             {/* Une seule célébration à la fois : deux bandeaux volt côte à côte
                 diluent exactement ce qu'ils sont censés souligner. La première
                 séance prime — elle ne se produit qu'une fois. */}
-            {/* Rien tant que la première requête n'a pas tranché : sinon le bandeau
-                « objectif » s'affiche puis cède la place à « première séance », ce qui
-                contredit la priorité qu'on vient d'établir. */}
-            {firstSession.isPending ? null : firstSession.data === true ? (
+            {/* Rien tant que la première requête n'a pas tranché sur une donnée
+                postérieure à la séance : sinon le bandeau « objectif » s'affiche puis
+                cède la place à « première séance », ou une sonde en cache fête une
+                première séance qui n'en est plus une (#69). */}
+            {!firstSessionSettled ? null : firstSession.data === true ? (
               <CelebrationBanner
                 reason="first-session"
                 sportLabel={sportLabel(activity.sportType)}

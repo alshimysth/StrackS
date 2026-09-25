@@ -102,6 +102,41 @@ describe.each(implementations)('contrat du buffer — %s', (_label, buffer) => {
       expect((await buffer.allPoints()).map((p) => p.seq)).toEqual([0, 1, 2]);
     });
 
+    /**
+     * Idempotence de l'écriture (#52) : SQLite fait `INSERT OR IGNORE`, la première
+     * valeur gagne. Un rejeu (tâche d'arrière-plan et premier plan qui écrivent le même
+     * seq) ne doit ni dupliquer ni écraser un point.
+     */
+    it('ignore un seq déjà écrit et garde la première valeur', async () => {
+      await buffer.appendPoint(0, point(0, { lat: 45.0 }));
+      await buffer.appendPoint(0, point(0, { lat: 46.0 }));
+      const stored = await buffer.allPoints();
+      expect(stored).toHaveLength(1);
+      expect(stored[0].lat).toBeCloseTo(45.0, 10);
+    });
+
+    it('trie par seq même si les points arrivent en désordre', async () => {
+      for (const seq of [2, 0, 1]) {
+        await buffer.appendPoint(seq, point(seq));
+      }
+      expect((await buffer.allPoints()).map((p) => p.seq)).toEqual([0, 1, 2]);
+    });
+
+    it('trie aussi la file d\'upload par seq', async () => {
+      for (const seq of [3, 1, 2, 0]) {
+        await buffer.appendPoint(seq, point(seq));
+      }
+      expect((await buffer.pendingPoints(3)).map((p) => p.seq)).toEqual([0, 1, 2]);
+    });
+
+    it('reprend la numérotation après le plus grand seq écrit', async () => {
+      expect(await buffer.nextSeqAfterBuffer()).toBe(0);
+      for (const seq of [4, 1]) {
+        await buffer.appendPoint(seq, point(seq));
+      }
+      expect(await buffer.nextSeqAfterBuffer()).toBe(5);
+    });
+
     it('conserve altitude et précision absentes comme nulles', async () => {
       await buffer.appendPoint(0, point(0, { altitudeM: null, accuracyM: null }));
       const [stored] = await buffer.allPoints();
@@ -171,52 +206,5 @@ describe.each(implementations)('contrat du buffer — %s', (_label, buffer) => {
       await expect(buffer.clearBuffer()).resolves.toBeUndefined();
       await expect(buffer.clearBuffer()).resolves.toBeUndefined();
     });
-  });
-});
-
-/**
- * Deux points du contrat que `buffer.web.ts` ne tient pas (relevé par la suite
- * partagée ci-dessus). Aucun des deux n'est atteignable aujourd'hui : le
- * store n'écrit jamais deux fois le même seq, les seq sont monotones, le
- * buffer web est vidé au rechargement (donc `recover()` n'y trouve rien) et le
- * web n'est pas une cible produit de la Phase 1.
- *
- * Consignés en `it.failing` plutôt qu'ignorés : le jour où le contrat sera
- * aligné, ces tests passeront au vert et Jest exigera de les repasser en `it`
- * normal — impossible de corriger le buffer web sans que le test le sache.
- * Voir #52.
- */
-describe('divergences connues de buffer.web.ts', () => {
-  beforeEach(async () => {
-    await sqliteBuffer.clearBuffer();
-    await webBuffer.clearBuffer();
-  });
-
-  it('SQLite ignore un seq déjà écrit et garde la première valeur (INSERT OR IGNORE)', async () => {
-    await sqliteBuffer.appendPoint(0, point(0, { lat: 45.0 }));
-    await sqliteBuffer.appendPoint(0, point(0, { lat: 46.0 }));
-    const stored = await sqliteBuffer.allPoints();
-    expect(stored).toHaveLength(1);
-    expect(stored[0].lat).toBeCloseTo(45.0, 10);
-  });
-
-  it.failing('web devrait aussi ignorer un seq déjà écrit (aujourd\'hui il l\'empile)', async () => {
-    await webBuffer.appendPoint(0, point(0, { lat: 45.0 }));
-    await webBuffer.appendPoint(0, point(0, { lat: 46.0 }));
-    expect(await webBuffer.allPoints()).toHaveLength(1);
-  });
-
-  it('SQLite trie par seq même si les points arrivent en désordre', async () => {
-    for (const seq of [2, 0, 1]) {
-      await sqliteBuffer.appendPoint(seq, point(seq));
-    }
-    expect((await sqliteBuffer.allPoints()).map((p) => p.seq)).toEqual([0, 1, 2]);
-  });
-
-  it.failing('web devrait aussi trier par seq (aujourd\'hui il rend l\'ordre d\'insertion)', async () => {
-    for (const seq of [2, 0, 1]) {
-      await webBuffer.appendPoint(seq, point(seq));
-    }
-    expect((await webBuffer.allPoints()).map((p) => p.seq)).toEqual([0, 1, 2]);
   });
 });

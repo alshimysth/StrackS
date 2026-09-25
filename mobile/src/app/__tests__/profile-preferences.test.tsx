@@ -6,7 +6,7 @@
  * le premier choix est perdu sans un mot. Le garde-fou retenu est de bloquer les puces
  * pendant l'enregistrement — il ne peut donc jamais y avoir deux PATCH en vol.
  */
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import React, { type ReactNode } from 'react';
 
@@ -14,6 +14,7 @@ import ProfileScreen from '../(tabs)/profile';
 import { ApiError } from '../../core/api/client';
 import { DEFAULT_PREFERENCES } from '../../core/preferences/schema';
 import { QUERY_KEY } from '../../core/preferences/use-preferences';
+import { createTestQueryClient } from '../../test-support/query-client';
 
 const mockApi = jest.fn();
 
@@ -56,7 +57,7 @@ function Wrapper({ children }: { children: ReactNode }) {
 }
 
 beforeEach(() => {
-  client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  client = createTestQueryClient();
   client.setQueryData(QUERY_KEY, DEFAULT_PREFERENCES);
   client.setQueryData(['sport-types'], SPORTS);
   mockApi.mockResolvedValue(SPORTS);

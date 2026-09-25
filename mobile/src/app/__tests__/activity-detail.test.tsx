@@ -5,7 +5,7 @@
  * métriques, la suppression exige une confirmation, et l'écran ne se quitte
  * qu'une fois le serveur d'accord.
  */
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import React, { type ReactNode } from 'react';
 import { Alert } from 'react-native';
@@ -13,6 +13,7 @@ import { Alert } from 'react-native';
 import ActivityDetailScreen from '../activity/[id]';
 import { ApiError } from '../../core/api/client';
 import type { Activity } from '../../types/api';
+import { createTestQueryClient } from '../../test-support/query-client';
 
 const mockApi = jest.fn();
 const mockBack = jest.fn();
@@ -93,9 +94,9 @@ function respond(overrides: { activity?: unknown; track?: unknown } = {}) {
 }
 
 /**
- * Le client est gardé pour être vidé après chaque test : react-query planifie des
- * timers de notification et de garbage-collection qui, laissés en vol, empêchent le
- * worker jest de rendre la main en fin de suite.
+ * Le client est gardé pour être vidé après chaque test. Sa configuration vient de
+ * `createTestQueryClient` : c'est elle qui empêche les timers de garbage-collection
+ * des mutations de survivre à la suite (#65).
  */
 let client: QueryClient;
 
@@ -124,9 +125,7 @@ async function pressAlertButton(label: string) {
 }
 
 beforeEach(() => {
-  client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0, staleTime: 0 } },
-  });
+  client = createTestQueryClient();
   jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
 });
 

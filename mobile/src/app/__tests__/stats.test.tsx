@@ -12,6 +12,7 @@ import React, { type ReactNode } from 'react';
 import StatsScreen from '../(tabs)/stats';
 import { ApiError } from '../../core/api/client';
 import type { SportTypeDescriptor, StatsSummary, StatsTimeline } from '../../types/api';
+import { createTestQueryClient } from '../../test-support/query-client';
 
 const mockApi = jest.fn();
 
@@ -105,9 +106,7 @@ function Wrapper({ children }: { children: ReactNode }) {
 const renderScreen = () => render(<StatsScreen />, { wrapper: Wrapper });
 
 beforeEach(() => {
-  client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0, staleTime: 0 } },
-  });
+  client = createTestQueryClient();
   onlineManager.setOnline(true);
 });
 

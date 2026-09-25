@@ -29,6 +29,7 @@ import {
   stopActivity,
 } from '../api/activities';
 import { ApiError } from '../api/client';
+import { queryClient } from '../api/query-client';
 import {
   startBackgroundUpdates,
   startGpsWatch,
@@ -86,6 +87,19 @@ let pausedAtMs: number | null = null;
 function elapsedS(now = Date.now()): number {
   const end = pausedAtMs ?? now;
   return Math.max(0, Math.round((end - startedAtMs) / 1000) - pausedTotalS);
+}
+
+/**
+ * Une séance close change les totaux et l'historique (#69). Sans cette invalidation,
+ * le résumé lisait les totaux de la semaine d'avant la séance — la clé est partagée
+ * avec la carte d'objectif de l'accueil — et pouvait célébrer un objectif déjà atteint.
+ *
+ * Posée ici plutôt que dans l'écran de tracking : c'est le seul endroit par lequel
+ * passe toute clôture réussie, quel que soit l'écran qui l'a demandée.
+ */
+function invalidateAfterSession(): void {
+  void queryClient.invalidateQueries({ queryKey: ['stats'] });
+  void queryClient.invalidateQueries({ queryKey: ['activities'] });
 }
 
 function stopEngine(): void {
@@ -245,12 +259,31 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
       if (get().status !== 'paused') {
         return;
       }
-      if (pausedAtMs != null) {
-        pausedTotalS += Math.round((Date.now() - pausedAtMs) / 1000);
-        pausedAtMs = null;
+      /**
+       * Le GPS d'abord, la comptabilité ensuite (#51). `startGpsWatch` peut rejeter —
+       * permission de localisation révoquée en pleine séance, cas réel sur iOS. Si la
+       * pause était close avant, la séance resterait en pause mais sans borne de fin :
+       * `stop()` facturerait tout le temps écoulé depuis comme du temps d'effort, et la
+       * durée est la seule métrique que le serveur prend telle quelle.
+       *
+       * Tant que le watch n'est pas obtenu, rien ne bouge : ni `pausedAtMs`, ni
+       * `pausedTotalS`, ni le buffer.
+       */
+      const watch = await startGpsWatch(handleFix);
+      const nextPausedTotalS =
+        pausedAtMs == null
+          ? pausedTotalS
+          : pausedTotalS + Math.round((Date.now() - pausedAtMs) / 1000);
+      try {
+        await updatePauseState(nextPausedTotalS, null);
+      } catch (error) {
+        // Buffer indisponible : la reprise n'est pas persistée, elle n'a donc pas lieu.
+        watch.remove();
+        throw error;
       }
-      await updatePauseState(pausedTotalS, null);
-      gpsSub = await startGpsWatch(handleFix); // peut rejeter (permission) : on reste en pause
+      gpsSub = watch;
+      pausedTotalS = nextPausedTotalS;
+      pausedAtMs = null;
       set({ status: 'active' });
       const id = get().activityId;
       if (id != null) {
@@ -278,6 +311,7 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
         });
         await clearBuffer();
         resetToIdle();
+        invalidateAfterSession();
         return activity;
       } catch (error) {
         if (error instanceof ApiError && error.status === 404) {

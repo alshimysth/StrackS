@@ -83,6 +83,8 @@ let seq = 0;
 let startedAtMs = 0;
 let pausedTotalS = 0;
 let pausedAtMs: number | null = null;
+/** Reprise en cours : les appels concurrents de `resume()` partagent la même promesse. */
+let resuming: Promise<void> | null = null;
 
 function elapsedS(now = Date.now()): number {
   const end = pausedAtMs ?? now;
@@ -156,6 +158,58 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
         void flushTrackPoints(activityId).catch(() => {});
       }
     }, FLUSH_MS);
+  }
+
+  /**
+   * Corps de `resume()`. Revérifie après chaque attente que la séance en pause est
+   * toujours celle qui a demandé la reprise : un `stop()` peut aboutir pendant
+   * l'obtention du GPS, et installer le watch ensuite relancerait une séance close.
+   */
+  async function doResume(): Promise<void> {
+    const { status, activityId: resumedId } = get();
+    if (status !== 'paused') {
+      return;
+    }
+    const stillPaused = () => get().status === 'paused' && get().activityId === resumedId;
+    /**
+     * Le GPS d'abord, la comptabilité ensuite (#51). `startGpsWatch` peut rejeter —
+     * permission de localisation révoquée en pleine séance, cas réel sur iOS. Si la
+     * pause était close avant, la séance resterait en pause mais sans borne de fin :
+     * `stop()` facturerait tout le temps écoulé depuis comme du temps d'effort, et la
+     * durée est la seule métrique que le serveur prend telle quelle.
+     *
+     * Tant que le watch n'est pas obtenu, rien ne bouge : ni `pausedAtMs`, ni
+     * `pausedTotalS`, ni le buffer.
+     */
+    const watch = await startGpsWatch(handleFix);
+    if (!stillPaused()) {
+      watch.remove(); // clôturée (ou abandonnée) pendant l'obtention du GPS
+      return;
+    }
+    const nextPausedTotalS =
+      pausedAtMs == null
+        ? pausedTotalS
+        : pausedTotalS + Math.round((Date.now() - pausedAtMs) / 1000);
+    try {
+      await updatePauseState(nextPausedTotalS, null);
+    } catch (error) {
+      // Buffer indisponible : la reprise n'est pas persistée, elle n'a donc pas lieu.
+      watch.remove();
+      throw error;
+    }
+    if (!stillPaused()) {
+      // stop() a abouti pendant l'écriture : il a déjà purgé le buffer, rien à défaire.
+      watch.remove();
+      return;
+    }
+    gpsSub = watch;
+    pausedTotalS = nextPausedTotalS;
+    pausedAtMs = null;
+    set({ status: 'active' });
+    const id = get().activityId;
+    if (id != null) {
+      void resumeActivity(id).catch(() => {});
+    }
   }
 
   function resetToIdle(): void {
@@ -255,40 +309,15 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
       }
     },
 
-    async resume() {
-      if (get().status !== 'paused') {
-        return;
+    resume() {
+      // Une seule reprise à la fois : un double appui pendant l'obtention du GPS ne
+      // doit pas installer deux watches (revue CodeRabbit, PR #71).
+      if (resuming == null) {
+        resuming = doResume().finally(() => {
+          resuming = null;
+        });
       }
-      /**
-       * Le GPS d'abord, la comptabilité ensuite (#51). `startGpsWatch` peut rejeter —
-       * permission de localisation révoquée en pleine séance, cas réel sur iOS. Si la
-       * pause était close avant, la séance resterait en pause mais sans borne de fin :
-       * `stop()` facturerait tout le temps écoulé depuis comme du temps d'effort, et la
-       * durée est la seule métrique que le serveur prend telle quelle.
-       *
-       * Tant que le watch n'est pas obtenu, rien ne bouge : ni `pausedAtMs`, ni
-       * `pausedTotalS`, ni le buffer.
-       */
-      const watch = await startGpsWatch(handleFix);
-      const nextPausedTotalS =
-        pausedAtMs == null
-          ? pausedTotalS
-          : pausedTotalS + Math.round((Date.now() - pausedAtMs) / 1000);
-      try {
-        await updatePauseState(nextPausedTotalS, null);
-      } catch (error) {
-        // Buffer indisponible : la reprise n'est pas persistée, elle n'a donc pas lieu.
-        watch.remove();
-        throw error;
-      }
-      gpsSub = watch;
-      pausedTotalS = nextPausedTotalS;
-      pausedAtMs = null;
-      set({ status: 'active' });
-      const id = get().activityId;
-      if (id != null) {
-        void resumeActivity(id).catch(() => {});
-      }
+      return resuming;
     },
 
     async stop() {
@@ -300,25 +329,30 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
       stopEngine();
       const endMs = pausedAtMs ?? Date.now();
       const durationS = elapsedS(endMs);
+      let activity: import('../../types/api').Activity;
       try {
         const flushed = await flushTrackPoints(activityId);
         if (!flushed) {
           throw new Error('Tracé GPS pas encore envoyé — vérifie ta connexion puis réessaie.');
         }
-        const activity = await stopActivity(activityId, {
+        activity = await stopActivity(activityId, {
           endedAt: new Date(endMs).toISOString(),
           durationS,
         });
-        await clearBuffer();
-        resetToIdle();
-        invalidateAfterSession();
-        return activity;
       } catch (error) {
         if (error instanceof ApiError && error.status === 404) {
           // L'activité n'existe plus côté serveur : le buffer local est orphelin
           await clearBuffer().catch(() => {});
           resetToIdle();
           throw new Error('Séance introuvable côté serveur — données locales purgées.');
+        }
+        if (error instanceof ApiError && error.status === 409) {
+          // Déjà close côté serveur : un stop précédent a abouti mais la purge locale
+          // avait échoué, et `recover()` a ressuscité le buffer. Le serveur fait foi.
+          await clearBuffer().catch(() => {});
+          resetToIdle();
+          invalidateAfterSession();
+          throw new Error('Séance déjà enregistrée — données locales purgées.');
         }
         // Retour en pause : la séance reste récupérable, l'utilisateur réessaiera
         if (pausedAtMs == null) {
@@ -329,6 +363,16 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
         set({ status: 'paused' });
         throw error;
       }
+      /**
+       * Le serveur a clos la séance : plus rien ne doit la rouvrir (revue CodeRabbit,
+       * PR #71). Un échec de purge locale renvoyait auparavant en pause, et chaque
+       * nouvel essai recevait un 409 — le serveur refuse de clore une séance close.
+       * La purge devient donc best-effort, et l'invalidation ne dépend plus d'elle.
+       */
+      invalidateAfterSession();
+      await clearBuffer().catch(() => {});
+      resetToIdle();
+      return activity;
     },
 
     async recover() {

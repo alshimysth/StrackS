@@ -18,7 +18,8 @@
  *   node --no-warnings scripts/measure-elevation-drift.mts --max-kmh 25 plat.json vallonne.json montagne.json
  *
  * `--max-kmh` est le seuil de plausibilité du sport de la séance (celui du module de
- * sport, `maxGpsSpeedKmh`) : le script ne connaît aucun sport.
+ * sport, `maxGpsSpeedKmh`) : le script ne connaît aucun sport, et refuse un lot de
+ * fichiers qui en mélange plusieurs.
  */
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
@@ -62,8 +63,26 @@ const pct = (live: number, final: number) =>
 const { maxKmh, files } = parseArgs(process.argv.slice(2));
 const rows: string[][] = [['séance', 'points', 'D+ final', 'D+ live', 'écart D+', 'D- final', 'D- live', 'écart D-']];
 
-for (const file of files) {
-  const session = JSON.parse(readFileSync(file, 'utf8')) as ExportedSession;
+const sessions = files.map((file) => ({
+  file,
+  session: JSON.parse(readFileSync(file, 'utf8')) as ExportedSession,
+}));
+
+/**
+ * Un seul seuil de plausibilité par appel : il appartient au sport. Mélanger des sports
+ * appliquerait à l'un le filtre de l'autre, et l'écart mesuré ne vaudrait rien
+ * (revue CodeRabbit, PR #71). On refuse plutôt que de produire un chiffre faux.
+ */
+const sports = new Set(sessions.map(({ session }) => session.activity.sportType));
+if (sports.size > 1) {
+  console.error(
+    `Séances de sports différents (${[...sports].join(', ')}) : lance un appel par sport, ` +
+      'chacun avec son --max-kmh.',
+  );
+  process.exit(2);
+}
+
+for (const { file, session } of sessions) {
   const acc = new GpsAccumulator(maxKmh);
   const points = [...session.trackPoints].sort((a, b) => a.seq - b.seq);
   for (const p of points) {

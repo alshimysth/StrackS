@@ -663,3 +663,67 @@ describe('resume refusé par le GPS', () => {
     expect(await buffer.loadSession()).toMatchObject({ pausedTotalS: 0, pausedAtMs: T0 + 10_000 });
   });
 });
+
+/** Points relevés par la revue CodeRabbit de la PR #71. */
+describe('courses entre reprise, clôture et purge locale', () => {
+  it('ne relance pas une séance close pendant l\'obtention du GPS', async () => {
+    await startSession();
+    await advance(10_000);
+    await useSessionStore.getState().pause();
+
+    let grant: (sub: { remove: jest.Mock }) => void = () => undefined;
+    gps.startGpsWatch.mockReturnValueOnce(new Promise((resolve) => (grant = resolve)));
+    const resuming = useSessionStore.getState().resume();
+    await settle();
+
+    await useSessionStore.getState().stop(); // clôture pendant que le GPS se fait attendre
+    const lateWatch = { remove: jest.fn() };
+    grant(lateWatch);
+    await resuming;
+
+    expect(useSessionStore.getState().status).toBe('idle');
+    expect(lateWatch.remove).toHaveBeenCalled();
+    expect(api.resumeActivity).not.toHaveBeenCalled();
+  });
+
+  it('n\'installe qu\'un watch quand la reprise est demandée deux fois', async () => {
+    await startSession();
+    await useSessionStore.getState().pause();
+    gps.startGpsWatch.mockClear();
+
+    await Promise.all([useSessionStore.getState().resume(), useSessionStore.getState().resume()]);
+
+    expect(gps.startGpsWatch).toHaveBeenCalledTimes(1);
+    expect(useSessionStore.getState().status).toBe('active');
+  });
+
+  /**
+   * Le serveur a clos la séance : un échec de purge locale ne doit pas la rouvrir.
+   * Avant, la séance repartait en pause et chaque nouvel essai recevait un 409.
+   */
+  it('reste close et invalide les caches si la purge locale échoue après le stop serveur', async () => {
+    await startSession();
+    await advance(20_000);
+    const clear = jest.spyOn(buffer, 'clearBuffer').mockRejectedValueOnce(new Error('disque plein'));
+
+    await expect(useSessionStore.getState().stop()).resolves.toMatchObject({ status: 'completed' });
+
+    expect(useSessionStore.getState().status).toBe('idle');
+    expect(queries.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['stats'] });
+    clear.mockRestore();
+  });
+
+  it('purge une séance ressuscitée que le serveur a déjà close (409)', async () => {
+    const { ApiError } = require('../../api/client');
+    await startSession();
+    api.stopActivity.mockRejectedValue(
+      new ApiError({ title: 'Conflict', status: 409, detail: 'Transition invalide' }),
+    );
+
+    await expect(useSessionStore.getState().stop()).rejects.toThrow('Séance déjà enregistrée');
+    await settle();
+
+    expect(useSessionStore.getState().status).toBe('idle');
+    expect(await buffer.loadSession()).toBeNull();
+  });
+});

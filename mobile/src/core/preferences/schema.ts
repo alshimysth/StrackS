@@ -15,6 +15,35 @@ export const GPS_MODES = ['max', 'balanced', 'saver'] as const;
 export const SPEED_DISPLAYS = ['pace', 'speed'] as const;
 export const SEXES = ['female', 'male', 'unspecified'] as const;
 
+/**
+ * Âge plausible déduit de `birthDate`, miroir de `PreferencesService.validate` (#56).
+ *
+ * Volontairement **hors** de `physicalSchema` : ce schéma sert à relire le document
+ * serveur, et un âge ne cesse d'augmenter — une date valide à l'écriture finirait par
+ * sortir de la borne, et un échec de lecture ferait servir tous les défauts. La borne
+ * ne sert qu'à valider une saisie avant l'envoi (voir `isPlausibleBirthDate`).
+ */
+export const BIRTH_AGE_BOUNDS = { min: 10, max: 120 } as const;
+
+/**
+ * Même calcul que `Period.between(date, today).getYears()` côté Java : années révolues.
+ * Une date illisible n'est pas plausible.
+ */
+export function isPlausibleBirthDate(iso: string, today: Date = new Date()): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (match == null) {
+    return false;
+  }
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+    return false; // 2026-02-30 : LocalDate.parse la refuse aussi
+  }
+  const [ty, tm, td] = [today.getFullYear(), today.getMonth() + 1, today.getDate()];
+  const age = ty - year - (tm < month || (tm === month && td < day) ? 1 : 0);
+  return age >= BIRTH_AGE_BOUNDS.min && age <= BIRTH_AGE_BOUNDS.max;
+}
+
 /** Bornes miroir de PreferencesService — elles attrapent l'unité inversée, pas l'atypique. */
 export const physicalSchema = z.object({
   weightKg: z.number().min(30).max(300).nullable().default(null),

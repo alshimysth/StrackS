@@ -30,6 +30,11 @@ jest.mock('../../api/activities', () => ({
   deleteActivity: jest.fn(),
 }));
 
+// Le vrai client tire la persistance AsyncStorage : seule l'invalidation compte ici (#69).
+jest.mock('../../api/query-client', () => ({
+  queryClient: { invalidateQueries: jest.fn().mockResolvedValue(undefined) },
+}));
+
 jest.mock('../../gps', () => ({
   startGpsWatch: jest.fn(),
   // Ajoutés par #16 : le moteur les appelle systématiquement (démarrage et arrêt).
@@ -66,12 +71,14 @@ type Api = jest.Mocked<typeof import('../../api/activities')>;
 type Gps = jest.Mocked<typeof import('../../gps')>;
 type Uploader = jest.Mocked<typeof import('../uploader')>;
 type Buffer = typeof import('../buffer.web');
+type Queries = { queryClient: { invalidateQueries: jest.Mock } };
 
 let useSessionStore: Store;
 let api: Api;
 let gps: Gps;
 let uploader: Uploader;
 let buffer: Buffer;
+let queries: Queries;
 let removeWatch: jest.Mock;
 
 /** Laisse tourner les promesses non attendues (appendPoint, best-effort API). */
@@ -116,6 +123,7 @@ beforeEach(() => {
   gps = require('../../gps');
   uploader = require('../uploader');
   buffer = require('../buffer.web');
+  queries = require('../../api/query-client');
 
   removeWatch = jest.fn();
   gps.startGpsWatch.mockResolvedValue({ remove: removeWatch });
@@ -388,6 +396,29 @@ describe('stop', () => {
     });
   });
 
+  /**
+   * #69 : le résumé lit les totaux de la semaine dans un cache partagé avec l'accueil.
+   * Sans invalidation, il conclut sur des totaux d'avant la séance.
+   */
+  it('invalide les stats et l\'historique une fois la séance close', async () => {
+    await startSession();
+    await advance(20_000); // plus court que le staleTime de 30 s : rien d'autre ne rafraîchirait
+
+    await useSessionStore.getState().stop();
+
+    const keys = queries.queryClient.invalidateQueries.mock.calls.map((c) => c[0].queryKey);
+    expect(keys).toEqual(expect.arrayContaining([['stats'], ['activities']]));
+  });
+
+  it('n\'invalide rien quand la clôture échoue — la séance n\'a pas changé les totaux', async () => {
+    await startSession();
+    uploader.flushTrackPoints.mockResolvedValue(false);
+
+    await expect(useSessionStore.getState().stop()).rejects.toThrow(/Tracé GPS/);
+
+    expect(queries.queryClient.invalidateQueries).not.toHaveBeenCalled();
+  });
+
   it('refuse de clôturer sans séance', async () => {
     await expect(useSessionStore.getState().stop()).rejects.toThrow('Aucune séance en cours.');
   });
@@ -542,8 +573,7 @@ describe('recover — app tuée en pleine séance', () => {
  * `pausedAtMs ?? Date.now()`, et tout le temps écoulé depuis la reprise ratée
  * est facturé comme du temps d'effort.
  *
- * Consigné en `it.failing` : le test décrit le comportement attendu et passera
- * au vert le jour du correctif. Voir #51.
+ * Corrigé par #51 : `resume()` obtient le watch GPS avant de toucher à la pause.
  */
 describe('resume refusé par le GPS', () => {
   it('laisse la séance en pause', async () => {
@@ -572,7 +602,7 @@ describe('resume refusé par le GPS', () => {
     expect(useSessionStore.getState().live.elapsedS).toBe(10);
   });
 
-  it.failing('devrait clôturer sur la durée réelle d\'effort, pas sur l\'heure de fin', async () => {
+  it('clôture sur la durée réelle d\'effort, pas sur l\'heure de fin', async () => {
     await startSession();
     await advance(10_000); // 10 s d'effort
     await useSessionStore.getState().pause();
@@ -590,5 +620,110 @@ describe('resume refusé par le GPS', () => {
       ACTIVITY_ID,
       expect.objectContaining({ durationS: 10 }),
     );
+  });
+
+  /**
+   * Une reprise ratée ne crédite pas de pause : c'est la reprise suivante, réussie,
+   * qui clôt la pause — et elle la compte en entier.
+   */
+  it('compte toute la pause quand une reprise réussit après un refus', async () => {
+    await startSession();
+    await advance(10_000); // 10 s d'effort
+    await useSessionStore.getState().pause();
+
+    gps.startGpsWatch.mockRejectedValue(new Error('Permission de localisation refusée'));
+    await advance(10_000);
+    await expect(useSessionStore.getState().resume()).rejects.toThrow(/Permission/);
+
+    await advance(50_000); // permission rétablie dans les réglages, retour dans l'app
+    gps.startGpsWatch.mockResolvedValue({ remove: removeWatch });
+    await useSessionStore.getState().resume();
+    expect(useSessionStore.getState().status).toBe('active');
+    expect(await buffer.loadSession()).toMatchObject({ pausedTotalS: 60, pausedAtMs: null });
+
+    await advance(15_000); // 15 s d'effort après la reprise
+    await useSessionStore.getState().stop();
+
+    expect(api.stopActivity).toHaveBeenCalledWith(
+      ACTIVITY_ID,
+      expect.objectContaining({ durationS: 25 }),
+    );
+  });
+
+  it('ne touche pas au buffer quand la reprise est refusée', async () => {
+    await startSession();
+    await advance(10_000);
+    await useSessionStore.getState().pause();
+
+    gps.startGpsWatch.mockRejectedValue(new Error('Permission de localisation refusée'));
+    await advance(10_000);
+    await expect(useSessionStore.getState().resume()).rejects.toThrow(/Permission/);
+
+    // Une app tuée maintenant doit se récupérer en pause bornée, pas en séance ouverte.
+    expect(await buffer.loadSession()).toMatchObject({ pausedTotalS: 0, pausedAtMs: T0 + 10_000 });
+  });
+});
+
+/** Points relevés par la revue CodeRabbit de la PR #71. */
+describe('courses entre reprise, clôture et purge locale', () => {
+  it('ne relance pas une séance close pendant l\'obtention du GPS', async () => {
+    await startSession();
+    await advance(10_000);
+    await useSessionStore.getState().pause();
+
+    let grant: (sub: { remove: jest.Mock }) => void = () => undefined;
+    gps.startGpsWatch.mockReturnValueOnce(new Promise((resolve) => (grant = resolve)));
+    const resuming = useSessionStore.getState().resume();
+    await settle();
+
+    await useSessionStore.getState().stop(); // clôture pendant que le GPS se fait attendre
+    const lateWatch = { remove: jest.fn() };
+    grant(lateWatch);
+    await resuming;
+
+    expect(useSessionStore.getState().status).toBe('idle');
+    expect(lateWatch.remove).toHaveBeenCalled();
+    expect(api.resumeActivity).not.toHaveBeenCalled();
+  });
+
+  it('n\'installe qu\'un watch quand la reprise est demandée deux fois', async () => {
+    await startSession();
+    await useSessionStore.getState().pause();
+    gps.startGpsWatch.mockClear();
+
+    await Promise.all([useSessionStore.getState().resume(), useSessionStore.getState().resume()]);
+
+    expect(gps.startGpsWatch).toHaveBeenCalledTimes(1);
+    expect(useSessionStore.getState().status).toBe('active');
+  });
+
+  /**
+   * Le serveur a clos la séance : un échec de purge locale ne doit pas la rouvrir.
+   * Avant, la séance repartait en pause et chaque nouvel essai recevait un 409.
+   */
+  it('reste close et invalide les caches si la purge locale échoue après le stop serveur', async () => {
+    await startSession();
+    await advance(20_000);
+    const clear = jest.spyOn(buffer, 'clearBuffer').mockRejectedValueOnce(new Error('disque plein'));
+
+    await expect(useSessionStore.getState().stop()).resolves.toMatchObject({ status: 'completed' });
+
+    expect(useSessionStore.getState().status).toBe('idle');
+    expect(queries.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['stats'] });
+    clear.mockRestore();
+  });
+
+  it('purge une séance ressuscitée que le serveur a déjà close (409)', async () => {
+    const { ApiError } = require('../../api/client');
+    await startSession();
+    api.stopActivity.mockRejectedValue(
+      new ApiError({ title: 'Conflict', status: 409, detail: 'Transition invalide' }),
+    );
+
+    await expect(useSessionStore.getState().stop()).rejects.toThrow('Séance déjà enregistrée');
+    await settle();
+
+    expect(useSessionStore.getState().status).toBe('idle');
+    expect(await buffer.loadSession()).toBeNull();
   });
 });

@@ -3,15 +3,20 @@ name: Mobile CI
 # Vérification du mobile (pas de déploiement) : typecheck + tests unitaires +
 # bundle web, sur chaque push et pull request touchant mobile/**.
 
+# Un fichier backend en plus de mobile/** : la source lue par le test
+# de parité des préférences (#56). Sans lui, modifier une borne côté Java ne relancerait jamais
+# le test censé détecter la divergence avec le miroir zod.
 on:
   push:
     paths:
       - "mobile/**"
       - ".github/workflows/mobile-ci.yml"
+      - "backend/src/main/java/com/stracks/core/user/PreferencesService.java"
   pull_request:
     paths:
       - "mobile/**"
       - ".github/workflows/mobile-ci.yml"
+      - "backend/src/main/java/com/stracks/core/user/PreferencesService.java"
 
 jobs:
   check:

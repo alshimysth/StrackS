@@ -7,6 +7,7 @@ import { exportFileName, exportPersonalData } from '../export-data';
 const mockApi = jest.fn();
 const mockShare = jest.fn();
 const mockAvailable = jest.fn();
+let mockWriteFails = false;
 const mockFiles: { uri: string; content?: string; exists: boolean; deleted: boolean }[] = [];
 
 jest.mock('../../api/client', () => ({ api: (...args: unknown[]) => mockApi(...args) }));
@@ -34,6 +35,10 @@ jest.mock('expo-file-system', () => ({
       this.record.exists = true;
     }
     write(content: string) {
+      if (mockWriteFails) {
+        this.record.content = content.slice(0, 5); // écriture partielle, puis panne
+        throw new Error('ENOSPC');
+      }
       this.record.content = content;
     }
     delete() {
@@ -44,6 +49,7 @@ jest.mock('expo-file-system', () => ({
 }));
 
 beforeEach(() => {
+  mockWriteFails = false;
   mockFiles.length = 0;
   mockApi.mockResolvedValue('{"formatVersion":1}');
   mockAvailable.mockResolvedValue(true);
@@ -80,4 +86,11 @@ it('n’écrit rien quand le partage est indisponible', async () => {
   mockAvailable.mockResolvedValue(false);
   await expect(exportPersonalData()).rejects.toThrow(/partage de fichiers/);
   expect(mockFiles).toHaveLength(0);
+});
+
+it('ne laisse aucun fichier partiel quand l’écriture échoue', async () => {
+  mockWriteFails = true;
+  await expect(exportPersonalData()).rejects.toThrow('ENOSPC');
+  expect(mockFiles[0].exists).toBe(false);
+  expect(mockShare).not.toHaveBeenCalled();
 });

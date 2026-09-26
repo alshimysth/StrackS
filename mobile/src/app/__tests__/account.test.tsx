@@ -138,6 +138,22 @@ describe('Mot de passe oublié (#74)', () => {
   });
 });
 
+/** Revue CodeRabbit (PR #78) : « Renvoyer un code » qui échoue ne doit pas rester muet. */
+it('affiche le refus d’un renvoi de code à l’étape du code', async () => {
+  mockApi.mockResolvedValueOnce(undefined);
+  await render(<ForgotPasswordScreen />, { wrapper: Wrapper });
+  await fireEvent.changeText(screen.getByTestId('reset-email'), 'coureur@example.com');
+  await fireEvent.press(screen.getByText('Recevoir un code'));
+  await waitFor(() => expect(screen.getByTestId('reset-code')).toBeOnTheScreen());
+
+  mockApi.mockRejectedValueOnce(
+    problem(429, 'Trop de tentatives', 'Trop de tentatives rapprochées. Réessaie dans 40 min.'),
+  );
+  await fireEvent.press(screen.getByText('Renvoyer un code'));
+
+  expect(await screen.findByText(/Réessaie dans 40 min/)).toBeOnTheScreen();
+});
+
 describe('Changement de mot de passe (#73)', () => {
   const fill = async () => {
     await fireEvent.changeText(screen.getByTestId('password-current'), 'ancien-mdp');

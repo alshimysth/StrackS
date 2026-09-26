@@ -287,6 +287,46 @@ class AccountFlowTest {
             login(a.email(), "motdepasse8").statusCode(200);
         }
 
+        /**
+         * Revue CodeRabbit (PR #78). Quelqu'un qui connaît l'ancien mot de passe lance un
+         * changement d'email vers une adresse qu'il contrôle ; la victime réinitialise son
+         * mot de passe. Le JWT de l'attaquant vit encore quelques minutes : il ne doit plus
+         * suffire à confirmer le changement, sinon il reprend le compte par l'adresse.
+         */
+        @Test
+        void une_reinitialisation_du_mot_de_passe_annule_un_changement_d_email_en_attente() {
+            Account victim = register();
+            String attackerAddress = freshAddress();
+            post(victim, "/email-changes", Map.of("newEmail", attackerAddress, "currentPassword", "motdepasse8"))
+                    .statusCode(202);
+            String attackerCode = codeFor(attackerAddress);
+
+            given().contentType("application/json").body(Map.of("email", victim.email()))
+                    .when().post("/api/v1/auth/password-resets").then().statusCode(202);
+            given().contentType("application/json")
+                    .body(Map.of("email", victim.email(), "code", codeFor(victim.email()),
+                            "newPassword", "reprise-en-main"))
+                    .when().post("/api/v1/auth/password-reset-confirmations").then().statusCode(204);
+
+            // Le JWT d'accès d'origine est encore valide : c'est lui que l'attaquant utilise.
+            post(victim, "/email-change-confirmations", Map.of("code", attackerCode)).statusCode(400);
+            login(victim.email(), "reprise-en-main").statusCode(200);
+        }
+
+        @Test
+        void un_changement_de_mot_de_passe_annule_aussi_un_changement_d_email_en_attente() {
+            Account a = register();
+            String target = freshAddress();
+            post(a, "/email-changes", Map.of("newEmail", target, "currentPassword", "motdepasse8"))
+                    .statusCode(202);
+            String code = codeFor(target);
+
+            post(a, "/password", Map.of("currentPassword", "motdepasse8", "newPassword", "nouveau-mdp"))
+                    .statusCode(200);
+
+            post(a, "/email-change-confirmations", Map.of("code", code)).statusCode(400);
+        }
+
         @Test
         void refuse_l_adresse_actuelle() {
             Account a = register();

@@ -28,7 +28,9 @@ import jakarta.transaction.Transactional;
  *       l'utilisateur pour une simple faute de frappe.</li>
  *   <li><b>Changer de secret coupe toutes les autres sessions.</b> Un JWT d'accès reste
  *       valable jusqu'à son expiration (15 min, #49) — c'est la limite assumée d'un jeton
- *       non révocable ; les refresh tokens, eux, tombent immédiatement.</li>
+ *       non révocable ; les refresh tokens, eux, tombent immédiatement, et avec eux tous
+ *       les codes encore ouverts. Sans ça, un JWT encore vivant suffirait à confirmer un
+ *       changement d'email lancé avant la reprise en main, puis à reprendre le compte.</li>
  * </ul>
  */
 @ApplicationScoped
@@ -58,6 +60,7 @@ public class AccountService {
         requireCurrentPassword(user, currentPassword);
         user.passwordHash = BcryptUtil.bcryptHash(newPassword);
         RefreshTokenEntity.revokeAllForUser(user.id, Instant.now(), REASON_PASSWORD_CHANGED);
+        AccountCodeEntity.closeAllActive(user.id, Instant.now());
         mail.send(new EmailMessage(user.email, "Ton mot de passe StrackS a été modifié",
                 """
                 Le mot de passe de ton compte StrackS vient d'être modifié.
@@ -106,6 +109,9 @@ public class AccountService {
             user.emailVerifiedAt = Instant.now();
         }
         RefreshTokenEntity.revokeAllForUser(user.id, Instant.now(), REASON_PASSWORD_RESET);
+        // Le code de réinitialisation est déjà consommé ; les autres (changement d'email en
+        // attente, ouvert par quelqu'un qui connaissait l'ancien mot de passe) tombent aussi.
+        AccountCodeEntity.closeAllActive(user.id, Instant.now());
     }
 
     // --- Adresse email -----------------------------------------------------------
@@ -186,6 +192,9 @@ public class AccountService {
         String previous = user.email;
         user.email = target;
         user.emailVerifiedAt = Instant.now();
+        // Un code de réinitialisation déjà envoyé à l'ancienne adresse ne doit plus ouvrir
+        // le compte désormais rattaché à la nouvelle.
+        AccountCodeEntity.closeAllActive(user.id, Instant.now());
         mail.send(new EmailMessage(previous, "L'adresse de ton compte StrackS a changé",
                 """
                 L'adresse email de ton compte StrackS n'est plus celle-ci : elle a été remplacée

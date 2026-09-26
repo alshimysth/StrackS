@@ -33,7 +33,18 @@ public class RateLimiter {
             if (parts.length != 2) {
                 throw new IllegalArgumentException("Seuil invalide (attendu n/PT…) : " + spec);
             }
-            return new Limit(Integer.parseInt(parts[0].trim()), Duration.parse(parts[1].trim()));
+            int limit = Integer.parseInt(parts[0].trim());
+            Duration window = Duration.parse(parts[1].trim());
+            // Un seuil nul ferait planter la première requête (500 au lieu de 429) ; une
+            // fenêtre nulle désactiverait le limiteur sans rien dire. Les deux doivent
+            // faire échouer le démarrage, pas passer en silence.
+            if (limit < 1) {
+                throw new IllegalArgumentException("Seuil invalide (au moins 1 requête) : " + spec);
+            }
+            if (window.isZero() || window.isNegative()) {
+                throw new IllegalArgumentException("Seuil invalide (fenêtre positive attendue) : " + spec);
+            }
+            return new Limit(limit, window);
         }
     }
 

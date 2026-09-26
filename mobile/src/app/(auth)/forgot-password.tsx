@@ -46,6 +46,7 @@ export default function ForgotPasswordScreen() {
       return;
     }
     setErrors({});
+    confirmReset.reset(); // l'erreur affichée doit être celle de la dernière action
     requestReset.mutate(parsed.data, { onSuccess: () => setStep('confirm') });
   };
 
@@ -67,7 +68,11 @@ export default function ForgotPasswordScreen() {
     );
   };
 
-  const apiError = accountErrorMessage(step === 'request' ? requestReset.error : confirmReset.error);
+  // À l'étape du code, « Renvoyer un code » relance la demande : son refus (un 429, le
+  // plus souvent, avec son délai) doit s'afficher aussi (revue CodeRabbit, PR #78).
+  const apiError = accountErrorMessage(
+    step === 'request' ? requestReset.error : (confirmReset.error ?? requestReset.error),
+  );
 
   return (
     <KeyboardAvoidingView

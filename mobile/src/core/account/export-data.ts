@@ -29,19 +29,23 @@ export async function exportPersonalData(): Promise<void> {
     throw new Error('Le partage de fichiers n’est pas disponible sur cet appareil.');
   }
   const file = new File(Paths.cache, name);
-  if (file.exists) {
-    file.delete();
-  }
-  file.create();
-  file.write(json);
+  // Tout ce qui écrit est dans le `try` : un disque plein en pleine écriture laisserait
+  // sinon un fichier partiel — tracés GPS compris — dans le cache (revue CodeRabbit, PR #78).
   try {
+    if (file.exists) {
+      file.delete();
+    }
+    file.create();
+    file.write(json);
     await Sharing.shareAsync(file.uri, {
       mimeType: 'application/json',
       UTI: 'public.json',
       dialogTitle: 'Exporter mes données',
     });
   } finally {
-    file.delete();
+    if (file.exists) {
+      file.delete();
+    }
   }
 }
 

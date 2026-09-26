@@ -22,6 +22,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>La purge est appelée avec un instant explicite plutôt que d'attendre l'ordonnanceur :
  * c'est la règle de sélection qui est testée, pas l'horloge.
+ *
+ * <p><b>Toujours l'horloge réelle</b> comme instant de purge. La base est partagée par toutes
+ * les suites {@code @QuarkusTest} et la purge ne filtre pas par utilisateur : un instant
+ * dans le futur supprimerait des jetons encore valides d'autres suites, et leurs tests
+ * échoueraient selon l'ordre d'exécution (revue CodeRabbit, PR #78).
  */
 @QuarkusTest
 class RefreshTokenPurgeTest {
@@ -62,7 +67,7 @@ class RefreshTokenPurgeTest {
 
     @Test
     void ne_supprime_que_les_jetons_expires_depuis_plus_que_la_retention() {
-        Instant now = Instant.parse("2026-09-26T12:00:00Z");
+        Instant now = Instant.now();
         UUID user = newUser();
 
         UUID oldExpired = token(user, now.minus(RETENTION).minusSeconds(1), true);
@@ -84,7 +89,7 @@ class RefreshTokenPurgeTest {
     /** `replaced_by` pointe sur des jetons purgés : le ON DELETE SET NULL de V5 doit tenir. */
     @Test
     void purger_un_maillon_ne_casse_pas_la_chaine_de_rotation() {
-        Instant now = Instant.parse("2026-09-26T12:00:00Z");
+        Instant now = Instant.now();
         UUID user = newUser();
         UUID purged = token(user, now.minus(Duration.ofDays(90)), true);
         UUID survivor = token(user, now.plus(Duration.ofDays(1)), true);
@@ -104,7 +109,7 @@ class RefreshTokenPurgeTest {
 
     @Test
     void un_second_passage_ne_supprime_plus_rien() {
-        Instant now = Instant.parse("2027-01-01T00:00:00Z");
+        Instant now = Instant.now();
         purge.purge(now);
         assertEquals(0, purge.purge(now));
     }

@@ -77,4 +77,12 @@ class RateLimiterTest {
         assertTrue(assertThrows(IllegalArgumentException.class, () -> RateLimiter.Limit.parse("10"))
                 .getMessage().contains("Seuil invalide"));
     }
+
+    /** Une configuration absurde doit faire échouer le démarrage, pas la première requête. */
+    @Test
+    void refuse_un_seuil_nul_ou_une_fenetre_non_positive() {
+        for (String spec : new String[] {"0/PT1M", "-3/PT1M", "5/PT0S", "5/PT-1M"}) {
+            assertThrows(IllegalArgumentException.class, () -> RateLimiter.Limit.parse(spec), spec);
+        }
+    }
 }

@@ -62,6 +62,16 @@ public class AccountCodeEntity extends PanacheEntityBase {
                 .firstResultOptional();
     }
 
+    /**
+     * Clôt tous les codes ouverts d'un utilisateur, tous motifs confondus. Appelé quand un
+     * secret change (revue CodeRabbit, PR #78) : une action lancée depuis l'ancienne
+     * session — un changement d'email en attente, typiquement — ne doit pas survivre à
+     * la reprise en main du compte.
+     */
+    static long closeAllActive(UUID userId, Instant when) {
+        return update("consumedAt = ?1 where userId = ?2 and consumedAt is null", when, userId);
+    }
+
     /** Un seul code ouvert par motif : en émettre un nouveau clôt les précédents. */
     static long closeActive(UUID userId, String purpose, Instant when) {
         return update("consumedAt = ?1 where userId = ?2 and purpose = ?3 and consumedAt is null",

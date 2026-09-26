@@ -5,6 +5,11 @@ export interface User {
   email: string;
   displayName: string | null;
   createdAt: string;
+  /**
+   * Adresse prouvée par un code (#75). Optionnel : un utilisateur mis en cache par une
+   * version antérieure de l'app n'a pas le champ — absent vaut « non vérifié ».
+   */
+  emailVerified?: boolean;
 }
 
 export interface AuthResponse {

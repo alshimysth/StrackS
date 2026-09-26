@@ -1,0 +1,39 @@
+meta {
+  name: Changer le mot de passe
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users/me/password
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "currentPassword": "{{userPassword}}",
+    "newPassword": "{{userPassword}}"
+  }
+}
+
+tests {
+  test("200 + session neuve pour cet appareil", function () {
+    expect(res.getStatus()).to.equal(200);
+    const body = res.getBody();
+    bru.setVar("token", body.token);
+    bru.setVar("refreshToken", body.refreshToken);
+  });
+}
+
+docs {
+  #73. Réutilise le même mot de passe pour ne pas casser la suite de la collection ; le
+  serveur l'accepte. Toutes les **autres** sessions sont révoquées ; la réponse porte une
+  session neuve, rangée dans `{{token}}` / `{{refreshToken}}`.
+
+  Un mauvais mot de passe actuel répond **403**, jamais 401 : voir le dossier 6.
+}

@@ -4,7 +4,7 @@
  * Design (manque connu, PLAN §1.3) — composition minimale avec les composants
  * existants, à revalider quand la spec écran existera.
  */
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -38,7 +38,7 @@ export default function LoginScreen() {
     login.error instanceof ApiError
       ? login.error.status === 401
         ? 'Email ou mot de passe incorrect.'
-        : login.error.message
+        : login.error.message // 429 (#72) : le serveur dit combien de temps attendre
       : login.error
         ? 'Serveur injoignable. Réessaie.'
         : null;
@@ -80,15 +80,27 @@ export default function LoginScreen() {
           <Button size="lg" fullWidth onPress={submit} disabled={login.isPending}>
             {login.isPending ? 'Connexion…' : 'Se connecter'}
           </Button>
+          {/* #74. L'adresse déjà saisie suit : l'utilisateur ne la retape pas. */}
+          <Button
+            variant="text"
+            fullWidth
+            onPress={() =>
+              router.push({ pathname: '/(auth)/forgot-password', params: { email: email.trim() } })
+            }
+          >
+            Mot de passe oublié ?
+          </Button>
         </View>
 
+        {/* Bouton « texte » du design system plutôt qu'un lien à la couleur codée en dur :
+            aucun jeton de couleur de lien n'existe, et le bouton suit le thème. */}
         <View style={styles.footer}>
           <Text style={[typography.body, { color: theme.textSecondary }]}>
             Pas encore de compte ?
           </Text>
-          <Link href="/(auth)/register" style={[typography.bodyLg, { color: '#3d78e6' }]}>
+          <Button variant="text" onPress={() => router.push('/(auth)/register')}>
             Créer un compte
-          </Link>
+          </Button>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -107,6 +119,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     marginTop: spacing.xl,
-    alignItems: 'baseline',
+    alignItems: 'center',
   },
 });

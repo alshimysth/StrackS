@@ -12,7 +12,11 @@ public class ApiExceptionMapper implements ExceptionMapper<ApiException> {
 
     @Override
     public Response toResponse(ApiException e) {
-        return Response.status(e.status())
+        Response.ResponseBuilder builder = Response.status(e.status());
+        if (e instanceof TooManyRequestsException limited) {
+            builder.header("Retry-After", limited.retryAfterSeconds());
+        }
+        return builder
                 .type("application/problem+json")
                 .entity(Map.of(
                         "type", "about:blank",

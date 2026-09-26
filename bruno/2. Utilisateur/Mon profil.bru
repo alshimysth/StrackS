@@ -18,7 +18,7 @@ tests {
   test("200 OK + profil", function () {
     expect(res.getStatus()).to.equal(200);
     const body = res.getBody();
-    expect(body).to.have.all.keys("id", "email", "displayName", "createdAt");
+    expect(body).to.have.all.keys("id", "email", "displayName", "createdAt", "emailVerified");
   });
 }
 

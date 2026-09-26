@@ -1,0 +1,34 @@
+meta {
+  name: Changer d'adresse email — demander un code
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users/me/email-changes
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "newEmail": "bruno-nouvelle-{{$timestamp}}@stracks.test",
+    "currentPassword": "{{userPassword}}"
+  }
+}
+
+tests {
+  test("202 — code envoyé à la nouvelle adresse", function () {
+    expect(res.getStatus()).to.equal(202);
+  });
+}
+
+docs {
+  #75. Le code part vers la **nouvelle** adresse ; tant qu'il n'est pas confirmé
+  (`POST /users/me/email-change-confirmations`), le compte garde l'ancienne et la
+  connexion se fait avec elle. Adresse déjà prise → 409 ; mauvais mot de passe → 403.
+}

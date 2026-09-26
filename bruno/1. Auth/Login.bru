@@ -28,6 +28,7 @@ tests {
   const body = res.getBody();
   expect(body.token).to.be.a("string").and.not.empty;
   bru.setVar("token", body.token);
+  bru.setVar("refreshToken", body.refreshToken);
 }
 
 docs {

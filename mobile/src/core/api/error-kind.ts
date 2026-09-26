@@ -19,6 +19,8 @@ export type ErrorKind =
   | 'server'
   /** Session refusée (401/403) — le renouvellement a déjà échoué en amont. */
   | 'unauthorized'
+  /** Trop de tentatives (429, #72) : rien n'est cassé, il faut attendre. */
+  | 'rate-limited'
   /** Le serveur a répondu une erreur qui vient de la requête (4xx). */
   | 'client';
 
@@ -28,6 +30,9 @@ export function classifyError(error: unknown): ErrorKind {
   }
   if (error.status >= 500) {
     return 'server';
+  }
+  if (error.status === 429) {
+    return 'rate-limited';
   }
   if (error.status === 401 || error.status === 403) {
     return 'unauthorized';
@@ -54,6 +59,10 @@ export const errorCopy: Record<ErrorKind, { title: string; message: string }> = 
   unauthorized: {
     title: 'Session expirée',
     message: 'Reconnecte-toi pour retrouver tes séances.',
+  },
+  'rate-limited': {
+    title: 'Trop de tentatives',
+    message: 'Patiente quelques minutes avant de réessayer.',
   },
   client: {
     title: 'Impossible de charger',

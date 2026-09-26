@@ -1,7 +1,13 @@
-/** Profil — infos du compte, déconnexion, suppression (droit à l'effacement). */
+/**
+ * Profil — infos du compte, sécurité (#73, #75), export (#76), préférences, déconnexion,
+ * suppression (droit à l'effacement).
+ */
+import { router } from 'expo-router';
 import React from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { exportPersonalData } from '../../core/account/export-data';
+import { accountErrorMessage } from '../../core/api/use-account';
 import { useDeleteAccount, useProfile } from '../../core/api/use-auth';
 import { useFormat } from '../../core/format/use-format';
 import { DEFAULT_PREFERENCES, speedDisplayFor } from '../../core/preferences/schema';
@@ -57,7 +63,20 @@ export default function ProfileScreen() {
           Email
         </Text>
         <Text style={[typography.bodyLg, { color: theme.textPrimary }]}>{user?.email ?? '—'}</Text>
+        {user != null && (
+          <Text
+            testID="email-status"
+            style={[
+              typography.body,
+              { color: user.emailVerified === true ? theme.textSuccess : theme.textWarning },
+            ]}
+          >
+            {user.emailVerified === true ? 'Adresse vérifiée' : 'Adresse non vérifiée'}
+          </Text>
+        )}
       </View>
+
+      <AccountSecurity verified={user?.emailVerified === true} />
 
       <Preferences />
 
@@ -70,6 +89,56 @@ export default function ProfileScreen() {
         </Button>
       </View>
     </ScrollView>
+  );
+}
+
+/**
+ * Section Compte (#73, #75, #76). Les écrans de saisie vivent sous `app/account/` : un
+ * formulaire à plusieurs champs n'a pas sa place dans un écran de réglages qui défile.
+ */
+function AccountSecurity({ verified }: { verified: boolean }) {
+  const theme = useTheme();
+  const [exporting, setExporting] = React.useState(false);
+  const [exportError, setExportError] = React.useState<string | null>(null);
+
+  const runExport = async () => {
+    setExporting(true);
+    setExportError(null);
+    try {
+      await exportPersonalData();
+    } catch (error) {
+      setExportError(accountErrorMessage(error) ?? 'L’export n’a pas abouti. Réessaie.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <View style={styles.section} testID="account-section">
+      <Text style={[typography.h3, { color: theme.textPrimary }]}>Compte</Text>
+      {!verified && (
+        <Button variant="secondary" fullWidth onPress={() => router.push('/account/verify-email')}>
+          Vérifier mon adresse
+        </Button>
+      )}
+      <Button variant="secondary" fullWidth onPress={() => router.push('/account/email')}>
+        Changer d’adresse email
+      </Button>
+      <Button variant="secondary" fullWidth onPress={() => router.push('/account/password')}>
+        Changer le mot de passe
+      </Button>
+      <Button variant="secondary" fullWidth onPress={() => void runExport()} disabled={exporting}>
+        {exporting ? 'Préparation de l’export…' : 'Exporter mes données'}
+      </Button>
+      <Text style={[typography.body, { color: theme.textSecondary }]}>
+        Un fichier JSON avec ton profil, tes réglages et toutes tes séances, tracés GPS compris.
+      </Text>
+      {exportError != null && (
+        <Text testID="export-error" style={[typography.body, { color: theme.textError }]}>
+          {exportError}
+        </Text>
+      )}
+    </View>
   );
 }
 

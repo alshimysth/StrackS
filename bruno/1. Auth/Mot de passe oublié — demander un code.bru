@@ -1,0 +1,35 @@
+meta {
+  name: Mot de passe oublié — demander un code
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/password-resets
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{userEmail}}"
+  }
+}
+
+tests {
+  test("202 — même réponse que l'adresse ait un compte ou non", function () {
+    expect(res.getStatus()).to.equal(202);
+  });
+}
+
+docs {
+  #74. Toujours **202**, compte existant ou non : l'endpoint ne doit pas servir d'annuaire.
+
+  En local, aucun email ne part : le code (format `ABCD-EFGH`, valable 15 min) est écrit
+  dans le journal du backend (`LoggingEmailSender`). En prod, tant qu'aucun fournisseur
+  n'est branché, le code est masqué dans le journal — la fonction ne marche pas encore.
+}

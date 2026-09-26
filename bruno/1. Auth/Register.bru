@@ -35,6 +35,7 @@ tests {
   expect(body.token).to.be.a("string").and.not.empty;
   expect(body.user.email).to.equal(bru.getVar("userEmail"));
   bru.setVar("token", body.token);
+  bru.setVar("refreshToken", body.refreshToken);
 }
 
 docs {

@@ -1,5 +1,5 @@
 /** Inscription — mêmes conventions que login.tsx. */
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -92,9 +92,9 @@ export default function RegisterScreen() {
 
         <View style={styles.footer}>
           <Text style={[typography.body, { color: theme.textSecondary }]}>Déjà inscrit ?</Text>
-          <Link href="/(auth)/login" style={[typography.bodyLg, { color: '#3d78e6' }]}>
+          <Button variant="text" onPress={() => router.replace('/(auth)/login')}>
             Se connecter
-          </Link>
+          </Button>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -113,6 +113,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     marginTop: spacing.xl,
-    alignItems: 'baseline',
+    alignItems: 'center',
   },
 });

@@ -32,6 +32,9 @@ export type GpsMode = 'max' | 'balanced' | 'saver';
  *
  * L'impact batterie de `max` et `saver` n'est **pas mesuré** : il dépend de la sortie
  * terrain (#18). Les libellés de l'écran restent au conditionnel en attendant.
+ *
+ * ⚠️ `timeInterval` n'est honoré que sur **Android** : iOS ne suit que `distanceInterval`.
+ * Sur iPhone, `saver` se distingue donc par sa précision et ses 5 m, pas par ses 3 s.
  */
 export const GPS_MODE_SETTINGS: Record<
   GpsMode,

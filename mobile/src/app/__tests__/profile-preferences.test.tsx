@@ -165,7 +165,7 @@ describe('Mode GPS (#36)', () => {
         body: { gpsMode: 'saver' },
       }),
     );
-    expect(await screen.findByText(/Un point toutes les 3 s/)).toBeOnTheScreen();
+    expect(await screen.findByText(/Moins de points/)).toBeOnTheScreen();
   });
 });
 

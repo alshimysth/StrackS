@@ -42,6 +42,7 @@ const session = {
   maxSpeedKmh: 25,
   pausedTotalS: 0,
   pausedAtMs: null,
+  gpsMode: 'saver' as const,
 };
 
 const implementations: [string, BufferModule][] = [

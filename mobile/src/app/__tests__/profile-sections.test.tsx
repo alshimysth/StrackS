@@ -9,7 +9,12 @@ import React, { type ReactNode } from 'react';
 import { AllTimeStats } from '../../core/profile/AllTimeStats';
 import { PhysicalProfile } from '../../core/profile/PhysicalProfile';
 import { PrivacyZones } from '../../core/profile/PrivacyZones';
-import { DEFAULT_PREFERENCES, type Preferences } from '../../core/preferences/schema';
+import {
+  DEFAULT_PREFERENCES,
+  type Preferences,
+  type PrivacyZone as PrivacyZoneT,
+} from '../../core/preferences/schema';
+import { haversineM } from '../../core/session/metrics';
 import { QUERY_KEY } from '../../core/preferences/use-preferences';
 import { initialsOf } from '../../design-system/components/Avatar';
 import { createTestQueryClient } from '../../test-support/query-client';
@@ -105,7 +110,11 @@ describe('Poids (#32)', () => {
     expect(screen.getByText(/Sert uniquement à estimer les calories/)).toBeOnTheScreen();
   });
 
-  it('enregistre le poids en kg, sans toucher aux autres données physiques', async () => {
+  /**
+   * Revue PR #80 : seul le poids part. Recopier les autres champs depuis un état pas
+   * encore chargé enverrait des `null`, que le serveur lit comme « effacer ».
+   */
+  it('n’envoie que le poids, jamais les autres données physiques', async () => {
     withPreferences({ physical: { ...DEFAULT_PREFERENCES.physical, heightCm: 180 } });
     echoPatches();
     await render(<PhysicalProfile />, { wrapper: Wrapper });
@@ -113,11 +122,7 @@ describe('Poids (#32)', () => {
     await fireEvent.changeText(screen.getByTestId('weight-input'), '72,5');
     await fireEvent.press(screen.getByText('Enregistrer le poids'));
 
-    await waitFor(() =>
-      expect(patches()).toEqual([
-        { physical: { weightKg: 72.5, heightCm: 180, birthDate: null, sex: null } },
-      ]),
-    );
+    await waitFor(() => expect(patches()).toEqual([{ physical: { weightKg: 72.5 } }]));
   });
 
   it('saisit en livres en impérial et stocke des kg', async () => {
@@ -159,7 +164,8 @@ describe('Zones de confidentialité (#37)', () => {
     expect(screen.getByText(/reste enregistré en entier/)).toBeOnTheScreen();
   });
 
-  it('ajoute une zone autour de la position actuelle, coordonnées arrondies', async () => {
+  /** Centre décalé au hasard (revue PR #80) : la position réelle n'est jamais envoyée. */
+  it('ajoute une zone qui couvre la position actuelle sans être centrée dessus', async () => {
     mockPosition.mockResolvedValue({ lat: 48.8566123, lng: 2.3522219, accuracyM: 8 });
     echoPatches();
     await render(<PrivacyZones />, { wrapper: Wrapper });
@@ -167,11 +173,41 @@ describe('Zones de confidentialité (#37)', () => {
     await fireEvent.press(screen.getByTestId('chip-200'));
     await fireEvent.press(screen.getByText('Masquer autour de ma position actuelle'));
 
-    await waitFor(() =>
-      expect(patches()).toEqual([
-        { privacyZones: [{ lat: 48.85661, lng: 2.35222, radiusM: 200, label: 'Domicile' }] },
-      ]),
+    await waitFor(() => expect(patches()).toHaveLength(1));
+    const [zone] = (patches()[0] as { privacyZones: PrivacyZoneT[] }).privacyZones;
+    expect(zone).toMatchObject({ radiusM: 200, label: 'Domicile' });
+    const offset = haversineM(48.8566123, 2.3522219, zone.lat, zone.lng);
+    expect(offset).toBeLessThanOrEqual(0.3 * 200 + 1); // position réelle couverte
+    expect(String(zone.lat).split('.')[1]?.length ?? 0).toBeLessThanOrEqual(5);
+  });
+
+  /**
+   * Revue PR #80 : deux retraits avant la réponse du premier. Calculés depuis le même
+   * rendu, le second PATCH renverrait la zone que le premier venait d'enlever.
+   */
+  it('enchaîne deux retraits rapides sans que le second annule le premier', async () => {
+    withPreferences({
+      privacyZones: [
+        { lat: 1, lng: 1, radiusM: 500, label: 'Domicile' },
+        { lat: 2, lng: 2, radiusM: 500, label: 'Zone 2' },
+        { lat: 3, lng: 3, radiusM: 500, label: 'Zone 3' },
+      ],
+    });
+    // Réponse lente : les deux appuis ont lieu avant que le premier PATCH ne revienne.
+    mockApi.mockImplementation(
+      (path: string, options?: { body?: Partial<Preferences> }) =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve({ ...DEFAULT_PREFERENCES, ...(options?.body ?? {}) }), 50);
+        }),
     );
+    await render(<PrivacyZones />, { wrapper: Wrapper });
+
+    // L'utilisateur touche ce qui est à l'écran : deux fois le premier « Retirer ».
+    await fireEvent.press(screen.getAllByText('Retirer')[0]);
+    await fireEvent.press(screen.getAllByText('Retirer')[0]);
+
+    await waitFor(() => expect(patches()).toHaveLength(2));
+    expect(patches()[1]).toEqual({ privacyZones: [{ lat: 3, lng: 3, radiusM: 500, label: 'Zone 3' }] });
   });
 
   it('retire une zone en renvoyant la liste restante', async () => {
@@ -216,6 +252,10 @@ describe('Avatar (#7)', () => {
     ['Zoé', null, 'ZO'],
     [null, 'coureur@example.com', 'C'],
     ['   ', null, '?'],
+    // Revue PR #80 : un emoji est un seul caractère, jamais une moitié de paire UTF-16.
+    ['😀 Alice', null, '😀A'],
+    ['😀', null, '😀'],
+    [null, '😀@example.com', '😀'],
   ])('%s / %s → %s', (name, email, expected) => {
     expect(initialsOf(name, email)).toBe(expected);
   });

@@ -170,8 +170,10 @@ function AccountSecurity({ verified }: { verified: boolean }) {
 
 const GPS_MODE_HELP: Record<'max' | 'balanced' | 'saver', string> = {
   max: 'Un point à chaque mesure : le tracé le plus fidèle, la batterie la plus sollicitée. S’applique à la prochaine séance.',
-  balanced: 'Le réglage de référence : un point par seconde. S’applique à la prochaine séance.',
-  saver: 'Un point toutes les 3 s environ : devrait économiser la batterie, au prix d’un tracé moins fin dans les virages. S’applique à la prochaine séance.',
+  balanced: 'Le réglage de référence : un point tous les 2 m environ. S’applique à la prochaine séance.',
+  // iOS ignore l'intervalle de temps d'expo-location et ne suit que la distance (revue
+  // PR #80) : on ne promet donc pas de cadence fixe.
+  saver: 'Moins de points (tous les 5 m environ, et au plus un toutes les 3 s sur Android) : devrait économiser la batterie, au prix d’un tracé moins fin dans les virages. S’applique à la prochaine séance.',
 };
 
 /**

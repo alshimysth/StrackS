@@ -163,8 +163,10 @@ public class StatsResource {
             query.append(" and sportType = ?2");
         }
         // Ordre chronologique : à valeur égale, la séance la plus ancienne reste détentrice.
+        // `startedAt` vient du client et peut coïncider ; l'id est un UUID aléatoire. C'est
+        // donc l'instant d'enregistrement serveur qui départage (revue PR #80).
         List<ActivityEntity> activities = ActivityEntity.list(
-                query.append(" order by startedAt, id").toString(), params.toArray());
+                query.append(" order by startedAt, createdAt, id").toString(), params.toArray());
 
         Map<String, List<ActivityEntity>> bySport = activities.stream()
                 .collect(Collectors.groupingBy(a -> a.sportType, LinkedHashMap::new, Collectors.toList()));

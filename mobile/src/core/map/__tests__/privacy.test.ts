@@ -49,3 +49,45 @@ it('applique plusieurs zones', () => {
   expect(masked.hiddenPoints).toBe(5 + 3);
   expect(masked.segments).toHaveLength(2);
 });
+
+/**
+ * Revue PR #80 : points espacés de part et d'autre de la zone, aucun à l'intérieur.
+ * Sans découpe, la ligne droite entre eux traverserait le domicile.
+ */
+it('coupe un segment qui traverse une zone sans qu’aucun point n’y tombe', () => {
+  const south = { latitude: 45 - 400 * DEG_PER_M, longitude: 5 };
+  const north = { latitude: 45 + 400 * DEG_PER_M, longitude: 5 };
+  const masked = maskRoute([south, north], [home]);
+  expect(masked.hiddenPoints).toBe(0);
+  expect(masked.segments).toEqual([[south], [north]]);
+});
+
+it('ne coupe pas un segment qui passe à côté de la zone', () => {
+  const west = { latitude: 45, longitude: 5 - 0.01 };
+  const farNorth = { latitude: 45 + 400 * DEG_PER_M, longitude: 5 - 0.01 };
+  expect(maskRoute([west, farNorth], [home]).segments).toEqual([[west, farNorth]]);
+});
+
+
+describe('centre décalé (revue PR #80)', () => {
+  const { jitteredCenter, CENTER_JITTER_RATIO } = jest.requireActual('../privacy');
+  const { haversineM } = jest.requireActual('../../session/metrics');
+
+  it('ne stocke pas la position réelle comme centre', () => {
+    const c = jitteredCenter(48.8566, 2.3522, 500, () => 0.5);
+    expect(haversineM(48.8566, 2.3522, c.lat, c.lng)).toBeGreaterThan(50);
+  });
+
+  it('couvre toujours la position réelle avec une marge d’au moins 70 % du rayon', () => {
+    let seed = 1;
+    const random = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    for (let i = 0; i < 500; i++) {
+      const c = jitteredCenter(48.8566, 2.3522, 500, random);
+      const offset = haversineM(48.8566, 2.3522, c.lat, c.lng);
+      expect(offset).toBeLessThanOrEqual(CENTER_JITTER_RATIO * 500 + 0.5);
+    }
+  });
+});

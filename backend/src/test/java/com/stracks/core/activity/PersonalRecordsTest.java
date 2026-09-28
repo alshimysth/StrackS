@@ -110,6 +110,22 @@ class PersonalRecordsTest {
         assertEquals(better, record(records(token, "running"), "running", "distanceM").get("activityId"));
     }
 
+    /**
+     * Même `startedAt`, même distance : la première séance enregistrée garde le record,
+     * quel que soit l'ordre de ses UUID. Répété pour que le hasard des UUID ne puisse pas
+     * faire passer le test par chance.
+     */
+    @Test
+    void a_depart_identique_la_premiere_seance_enregistree_reste_detentrice() {
+        for (int attempt = 0; attempt < 5; attempt++) {
+            String token = freshToken();
+            Instant same = Instant.parse("2025-04-01T08:00:00Z");
+            String first = session(token, "running", same, 30);
+            session(token, "running", same, 30);
+            assertEquals(first, record(records(token, "running"), "running", "distanceM").get("activityId"));
+        }
+    }
+
     @Test
     void les_records_sont_tenus_par_sport_et_ne_melangent_pas_les_comptes() {
         String token = freshToken();

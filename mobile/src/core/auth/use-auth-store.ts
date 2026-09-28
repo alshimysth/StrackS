@@ -12,6 +12,7 @@ import { Platform } from 'react-native';
 import { create } from 'zustand';
 
 import { API_BASE_URL } from '../api/config';
+import { clearUserCache } from '../api/query-client';
 import type { User } from '../../types/api';
 
 const TOKEN_KEY = 'stracks.token';
@@ -113,6 +114,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     void storage.remove(TOKEN_KEY);
     void storage.remove(REFRESH_TOKEN_KEY);
     void storage.remove(USER_KEY);
+    // Les données du compte ne doivent pas survivre à sa session (revue PR #80).
+    void clearUserCache().catch(() => {});
   },
 
   hydrate: async () => {

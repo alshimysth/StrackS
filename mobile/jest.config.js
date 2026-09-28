@@ -15,6 +15,9 @@ module.exports = {
   // sont de simples modules importés, pas des suites.
   testMatch: ['**/__tests__/**/*.test.ts?(x)'],
 
+  // Mocks globaux des modules natifs (AsyncStorage) — voir le fichier.
+  setupFiles: ['<rootDir>/jest.setup.js'],
+
   // Même alias que tsconfig.json, pour que les tests puissent importer `@/…`.
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',

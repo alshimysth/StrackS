@@ -100,7 +100,19 @@ export type Preferences = z.infer<typeof preferencesSchema>;
  * la seule façon d'effacer une valeur, il n'y a pas de DELETE par clé.
  */
 export type PreferencesPatch = {
-  [K in keyof Preferences]?: Preferences[K] | null;
+  /**
+   * Les objets imbriqués (`physical`, `weeklyGoal`, `sportDisplay`) sont fusionnés clé par
+   * clé côté serveur : un patch n'en porte que les clés modifiées. Les exiger complets
+   * pousserait à recopier des valeurs périmées, que le serveur appliquerait (revue PR #80).
+   * Les listes, elles, sont remplacées d'un bloc.
+   */
+  [K in keyof Preferences]?:
+    | (Preferences[K] extends unknown[]
+        ? Preferences[K]
+        : Preferences[K] extends Record<string, unknown>
+          ? Partial<Preferences[K]>
+          : Preferences[K])
+    | null;
 };
 
 export const DEFAULT_PREFERENCES: Preferences = preferencesSchema.parse({});

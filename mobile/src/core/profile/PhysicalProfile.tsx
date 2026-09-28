@@ -55,13 +55,15 @@ export function PhysicalProfile() {
       return;
     }
     setError(undefined);
-    // Patch épars : le serveur fusionne `physical` clé par clé, rien d'autre ne bouge.
-    update.mutate({ physical: { ...current.physical, weightKg: kg } });
+    // Patch épars : le serveur fusionne `physical` clé par clé. On n'envoie QUE le poids —
+    // recopier les autres champs depuis un état pas encore chargé enverrait des `null`,
+    // que le serveur lit comme « effacer » (revue PR #80).
+    update.mutate({ physical: { weightKg: kg } });
   };
 
   const remove = () => {
     setError(undefined);
-    update.mutate({ physical: { ...current.physical, weightKg: null } });
+    update.mutate({ physical: { weightKg: null } });
   };
 
   const apiError = accountErrorMessage(update.error);

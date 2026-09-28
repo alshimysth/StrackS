@@ -247,6 +247,28 @@ describe('Zones de confidentialité (#37)', () => {
   });
 });
 
+/**
+ * Revue PR #80 : tant que les zones ne sont pas connues, `usePreferences` sert des défauts
+ * sans zone. Dessiner le tracé à ce moment-là montrerait le départ au domicile.
+ */
+it('ne dessine pas la carte tant que les zones de confidentialité ne sont pas chargées', async () => {
+  respond();
+  mockApi.mockImplementation((path: string) =>
+    path === '/api/v1/users/me/preferences'
+      ? new Promise(() => undefined) // préférences qui ne répondent jamais
+      : path.endsWith('/track-points')
+        ? Promise.resolve([
+            { seq: 0, recordedAt: ACTIVITY.startedAt, lat: 45.0, lng: 5.0, altitudeM: 200, accuracyM: 5 },
+            { seq: 1, recordedAt: ACTIVITY.startedAt, lat: 45.01, lng: 5.0, altitudeM: 210, accuracyM: 5 },
+          ])
+        : Promise.resolve(ACTIVITY),
+  );
+  await renderScreen();
+
+  expect(await screen.findByTestId('map-pending')).toBeOnTheScreen();
+  expect(screen.queryByTestId('route-map')).toBeNull();
+});
+
 describe('Calories (#33)', () => {
   it('explique l’absence de calories quand le poids n’est pas renseigné', async () => {
     respond({ activity: { ...ACTIVITY, calories: null } });

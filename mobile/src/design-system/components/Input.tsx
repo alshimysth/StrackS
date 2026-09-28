@@ -29,6 +29,11 @@ export function Input({ label, error, helper, ...inputProps }: Props) {
       <Text style={[typography.label, { color: theme.textSecondary }]}>{label}</Text>
       <TextInput
         {...inputProps}
+        // Le libellé visible est un `Text` voisin : un lecteur d'écran ne l'associe pas au
+        // champ. Sans nom accessible, VoiceOver annonce « champ de texte » et rien d'autre
+        // (revue PR #80). L'aide et l'erreur complètent l'annonce.
+        accessibilityLabel={inputProps.accessibilityLabel ?? label}
+        accessibilityHint={inputProps.accessibilityHint ?? error ?? helper}
         onFocus={(e) => {
           setFocused(true);
           inputProps.onFocus?.(e);

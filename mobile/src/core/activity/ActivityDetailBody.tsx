@@ -34,7 +34,7 @@ export function ActivityDetailBody({ activity }: Props) {
   const format = useFormat();
   const module = sportRegistry[activity.sportType];
   const trackPoints = useTrackPoints(activity.id);
-  const { preferences } = usePreferences();
+  const { preferences, data: loadedPreferences } = usePreferences();
   const path = React.useMemo(() => toPath(trackPoints.data ?? []), [trackPoints.data]);
   // #37 : masquage à l'affichage seulement — le tracé stocké et exporté reste complet.
   const route = React.useMemo(
@@ -50,14 +50,22 @@ export function ActivityDetailBody({ activity }: Props) {
     <>
       {/* Le tracé n'apparaît que s'il existe : une séance sans GPS (ou dont le tracé
           n'a pas encore été téléversé) ne doit pas laisser un cadre vide. */}
-      {route.segments.length > 0 && (
+      {/* Pas de carte tant que les zones de confidentialité ne sont pas connues (revue
+          PR #80) : pendant le chargement, ou en cas d'échec, `usePreferences` sert des
+          défauts sans zone — le tracé complet s'afficherait, départ au domicile compris. */}
+      {loadedPreferences != null && route.segments.length > 0 && (
         <View style={[styles.mapFrame, { borderColor: theme.borderSubtle }]}>
           <RouteMap segments={route.segments} />
         </View>
       )}
+      {loadedPreferences == null && path.length > 0 && (
+        <Text testID="map-pending" style={[typography.caption, { color: theme.textSecondary }]}>
+          La carte s’affichera une fois tes réglages de confidentialité chargés.
+        </Text>
+      )}
       {/* Dit explicitement ce qui manque : un trou sans explication passerait pour une
           perte de signal, et « masqué » n'est pas « supprimé » (DoD #37). */}
-      {route.hiddenPoints > 0 && (
+      {loadedPreferences != null && route.hiddenPoints > 0 && (
         <Text testID="privacy-masked" style={[typography.caption, { color: theme.textSecondary }]}>
           {route.segments.length === 0
             ? 'Tout le tracé est dans une zone de confidentialité : il n’est pas affiché.'

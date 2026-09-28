@@ -86,9 +86,8 @@ let startedAtMs = 0;
 let pausedTotalS = 0;
 let pausedAtMs: number | null = null;
 /**
- * Mode GPS de la séance en cours (#36), réutilisé à la reprise. Non persisté dans le
- * buffer : une séance récupérée après un kill repart en `balanced`, les réglages de
- * référence — le schéma SQLite du buffer n'a pas à changer pour ça.
+ * Mode GPS de la séance en cours (#36), réutilisé à la reprise. Persisté dans le buffer :
+ * une séance récupérée après un kill reprend avec ses propres réglages (revue PR #80).
  */
 let gpsMode: GpsMode = 'balanced';
 /** Reprise en cours : les appels concurrents de `resume()` partagent la même promesse. */
@@ -264,6 +263,7 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
         seq = 0;
         acc = new GpsAccumulator(maxGpsSpeedKmh);
         await clearBuffer();
+        gpsMode = mode;
         await saveSession({
           activityId: activity.id,
           sportType,
@@ -271,8 +271,8 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
           maxSpeedKmh: maxGpsSpeedKmh,
           pausedTotalS: 0,
           pausedAtMs: null,
+          gpsMode,
         });
-        gpsMode = mode;
         gpsSub = await startGpsWatch(handleFix, gpsMode);
         // Demandée APRÈS le démarrage, jamais au lancement de l'app : hors contexte,
         // iOS la refuse en bloc. Un refus n'interrompt pas la séance — on reste en
@@ -396,6 +396,7 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
       const points = await allPoints();
       startedAtMs = session.startedAtMs;
       pausedTotalS = session.pausedTotalS;
+      gpsMode = session.gpsMode ?? 'balanced';
       acc = new GpsAccumulator(session.maxSpeedKmh);
       for (const p of points) {
         acc.add(p);

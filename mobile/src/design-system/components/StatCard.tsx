@@ -22,6 +22,7 @@ interface Props {
   /** Une hausse est-elle une bonne nouvelle ? Faux pour un temps de récupération. */
   deltaIsGood?: boolean;
   style?: ViewStyle;
+  testID?: string;
 }
 
 export function StatCard({
@@ -32,10 +33,12 @@ export function StatCard({
   delta,
   deltaIsGood = true,
   style,
+  testID,
 }: Props) {
   const theme = useTheme();
   return (
     <View
+      testID={testID}
       style={[
         styles.card,
         shadows.card,

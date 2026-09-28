@@ -23,21 +23,42 @@ export interface GpsFix {
 
 export type GpsSubscription = { remove(): void };
 
+export type GpsMode = 'max' | 'balanced' | 'saver';
+
 /**
- * Demande la permission foreground puis démarre le watch (1 s / 2 m).
+ * Réglages GPS par mode (#36). **`balanced` reproduit exactement les réglages d'avant le
+ * choix du mode** — ceux avec lesquels le filtrage (#17) et la parité client/serveur (#40)
+ * ont été établis. Un utilisateur qui ne touche à rien ne voit donc aucun changement.
+ *
+ * L'impact batterie de `max` et `saver` n'est **pas mesuré** : il dépend de la sortie
+ * terrain (#18). Les libellés de l'écran restent au conditionnel en attendant.
+ */
+export const GPS_MODE_SETTINGS: Record<
+  GpsMode,
+  { accuracy: Location.Accuracy; timeInterval: number; distanceInterval: number }
+> = {
+  // Chaque fix, sans seuil de déplacement : le plus fidèle en virage, le plus coûteux.
+  max: { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 0 },
+  balanced: { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 2 },
+  // Un fix toutes les 3 s ou 5 m, précision « haute » plutôt que « navigation » : reste
+  // sous le seuil de perte de signal (15 s, #19), donc la distance est toujours comptée.
+  saver: { accuracy: Location.Accuracy.High, timeInterval: 3000, distanceInterval: 5 },
+};
+
+/**
+ * Demande la permission foreground puis démarre le watch selon le mode (#36).
  * Rejette avec un message utilisateur si la permission est refusée.
  */
-export async function startGpsWatch(onFix: (fix: GpsFix) => void): Promise<GpsSubscription> {
+export async function startGpsWatch(
+  onFix: (fix: GpsFix) => void,
+  mode: GpsMode = 'balanced',
+): Promise<GpsSubscription> {
   const permission = await Location.requestForegroundPermissionsAsync();
   if (!permission.granted) {
     throw new Error('Permission de localisation refusée — active-la dans les réglages.');
   }
   return Location.watchPositionAsync(
-    {
-      accuracy: Location.Accuracy.BestForNavigation,
-      timeInterval: 1000,
-      distanceInterval: 2,
-    },
+    { ...GPS_MODE_SETTINGS[mode] },
     (location) => {
       onFix({
         recordedAtMs: location.timestamp,
@@ -61,7 +82,7 @@ export async function startGpsWatch(onFix: (fix: GpsFix) => void): Promise<GpsSu
  * lancement de l'app : iOS refuse en bloc une demande hors contexte, et l'utilisateur qui
  * vient de lancer une course comprend pourquoi on la demande à ce moment-là.
  */
-export async function startBackgroundUpdates(): Promise<boolean> {
+export async function startBackgroundUpdates(mode: GpsMode = 'balanced'): Promise<boolean> {
   const permission = await Location.requestBackgroundPermissionsAsync();
   if (!permission.granted) {
     return false;
@@ -70,9 +91,7 @@ export async function startBackgroundUpdates(): Promise<boolean> {
     return true; // déjà en cours : ne pas empiler deux souscriptions
   }
   await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-    accuracy: Location.Accuracy.BestForNavigation,
-    timeInterval: 1000,
-    distanceInterval: 2,
+    ...GPS_MODE_SETTINGS[mode],
     // Android impose une notification persistante : sans elle le système tue la tâche
     // au bout de quelques minutes.
     foregroundService: {

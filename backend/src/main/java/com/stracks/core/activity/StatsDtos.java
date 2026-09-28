@@ -76,4 +76,28 @@ public final class StatsDtos {
             String bucket,
             List<TimelineBucket> buckets) {
     }
+
+    /**
+     * Records personnels (#61). Calculés sur <strong>tout</strong> l'historique, côté
+     * serveur : un record lu sur une page d'historique serait faux dès la 21e séance.
+     */
+    public record PersonalRecordsResponse(List<SportRecords> bySport) {
+    }
+
+    public record SportRecords(String sportType, String label, int sessions, List<PersonalRecord> records) {
+    }
+
+    /**
+     * Détenteur d'un record : la séance qui a la plus grande valeur, la plus ancienne en
+     * cas d'égalité. Égaler son record n'est donc pas en battre un — la séance du jour ne
+     * devient détentrice que si elle fait strictement mieux.
+     */
+    public record PersonalRecord(
+            String key,
+            String label,
+            String unit,
+            double value,
+            java.util.UUID activityId,
+            Instant startedAt) {
+    }
 }

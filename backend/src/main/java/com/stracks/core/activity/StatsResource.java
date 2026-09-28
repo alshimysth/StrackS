@@ -15,6 +15,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.stracks.core.activity.StatsDtos.PersonalRecord;
+import com.stracks.core.activity.StatsDtos.PersonalRecordsResponse;
+import com.stracks.core.activity.StatsDtos.SportRecords;
 import com.stracks.core.activity.StatsDtos.StatsSummaryResponse;
 import com.stracks.core.activity.StatsDtos.StatsTimelineResponse;
 import com.stracks.core.activity.StatsDtos.StatsTotals;
@@ -64,6 +67,9 @@ public class StatsResource {
             "month", ChronoUnit.WEEKS,
             "year", ChronoUnit.MONTHS);
 
+    /** Fenêtre « depuis toujours » de {@code /summary} (#7). */
+    static final String PERIOD_ALL = "all";
+
     @Inject
     JsonWebToken jwt;
 
@@ -82,7 +88,7 @@ public class StatsResource {
             @QueryParam("tz") String tz) {
 
         UUID userId = currentUser();
-        String resolvedPeriod = requirePeriod(period);
+        String resolvedPeriod = requireSummaryPeriod(period);
         ZoneId zone = requireZone(tz);
         String resolvedSport = requireSportOrNull(sport);
 
@@ -135,6 +141,64 @@ public class StatsResource {
 
         return new StatsTimelineResponse(
                 window.start(), window.end(), sqlUnit(unit), buckets);
+    }
+
+    /**
+     * Records personnels (#61), sur tout l'historique terminé de l'utilisateur.
+     *
+     * <p>Calcul en mémoire, sport par sport, pour que chaque plugin lise ses propres
+     * valeurs — même choix que {@code /summary}. Le client n'y lit que les détenteurs :
+     * il ne rapatrie jamais l'historique pour les déduire lui-même.
+     */
+    @GET
+    @Path("/records")
+    public PersonalRecordsResponse records(@QueryParam("sport") String sport) {
+        UUID userId = currentUser();
+        String resolvedSport = requireSportOrNull(sport);
+
+        StringBuilder query = new StringBuilder("userId = ?1 and status = 'completed'");
+        List<Object> params = new ArrayList<>(List.of(userId));
+        if (resolvedSport != null) {
+            params.add(resolvedSport);
+            query.append(" and sportType = ?2");
+        }
+        // Ordre chronologique : à valeur égale, la séance la plus ancienne reste détentrice.
+        List<ActivityEntity> activities = ActivityEntity.list(
+                query.append(" order by startedAt, id").toString(), params.toArray());
+
+        Map<String, List<ActivityEntity>> bySport = activities.stream()
+                .collect(Collectors.groupingBy(a -> a.sportType, LinkedHashMap::new, Collectors.toList()));
+
+        List<SportRecords> result = bySport.entrySet().stream()
+                .map(e -> recordsOf(registry.require(e.getKey()), e.getValue()))
+                .sorted(Comparator.comparing(SportRecords::sportType))
+                .toList();
+        return new PersonalRecordsResponse(result);
+    }
+
+    private static SportRecords recordsOf(SportPlugin plugin, List<ActivityEntity> chronological) {
+        List<PersonalRecordMetric> metrics = new ArrayList<>();
+        metrics.add(PersonalRecordMetric.LONGEST_DURATION);
+        metrics.addAll(plugin.personalRecordMetrics());
+
+        List<PersonalRecord> records = new ArrayList<>();
+        for (PersonalRecordMetric metric : metrics) {
+            ActivityEntity holder = null;
+            double best = 0; // une valeur nulle ou négative n'est un record de rien
+            for (ActivityEntity activity : chronological) {
+                Double value = metric.value().apply(activity);
+                if (value != null && value > best) { // strictement : égaler ne détrône pas
+                    best = value;
+                    holder = activity;
+                }
+            }
+            if (holder != null) {
+                records.add(new PersonalRecord(metric.key(), metric.label(), metric.unit(),
+                        best, holder.id, holder.startedAt));
+            }
+        }
+        return new SportRecords(plugin.descriptor().code(), plugin.descriptor().label(),
+                chronological.size(), records);
     }
 
     // ------------------------------------------------------------------
@@ -228,6 +292,11 @@ public class StatsResource {
     private record Window(Instant start, Instant end) {
 
         Window previous(String period, ZoneId zone) {
+            if (PERIOD_ALL.equals(period)) {
+                // « Depuis toujours » n'a pas de période précédente : fenêtre vide, donc
+                // des totaux à zéro — le client n'affiche pas de comparaison.
+                return new Window(start(), start());
+            }
             ZonedDateTime start = start().atZone(zone);
             return switch (period) {
                 case "week" -> new Window(start.minusWeeks(1).toInstant(), start.toInstant());
@@ -243,6 +312,11 @@ public class StatsResource {
      * n'importe quelle date de juillet pour obtenir juillet entier.
      */
     private Window windowOf(String period, Instant from, ZoneId zone) {
+        if (PERIOD_ALL.equals(period)) {
+            // Depuis toujours (#7) : toute l'histoire du compte, jusqu'à maintenant.
+            // `from` n'a pas de sens ici et est ignoré ; le fuseau non plus.
+            return new Window(Instant.EPOCH, Instant.now());
+        }
         ZonedDateTime anchor = (from != null ? from : Instant.now()).atZone(zone);
         ZonedDateTime start = switch (period) {
             case "week" -> anchor.with(ChronoField.DAY_OF_WEEK, 1).truncatedTo(ChronoUnit.DAYS);
@@ -301,6 +375,23 @@ public class StatsResource {
 
     private UUID currentUser() {
         return UUID.fromString(jwt.getSubject());
+    }
+
+    /**
+     * {@code /summary} accepte en plus {@code all} (#7, statistiques du profil). Pas
+     * {@code /timeline} : un graphique « depuis toujours » n'a pas de maille naturelle,
+     * et aucun écran n'en a besoin.
+     */
+    private String requireSummaryPeriod(String period) {
+        if (PERIOD_ALL.equals(period)) {
+            return PERIOD_ALL;
+        }
+        try {
+            return requirePeriod(period);
+        } catch (ApiException e) {
+            throw new ApiException(400, "Période invalide",
+                    "period doit valoir 'week', 'month', 'year' ou 'all'.");
+        }
     }
 
     private String requirePeriod(String period) {

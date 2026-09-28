@@ -79,8 +79,11 @@ const ACTIVITY: Activity = {
   },
 };
 
-function respond(overrides: { activity?: unknown; track?: unknown } = {}) {
+function respond(overrides: { activity?: unknown; track?: unknown; preferences?: unknown } = {}) {
   mockApi.mockImplementation((path: string) => {
+    if (path === '/api/v1/users/me/preferences') {
+      return Promise.resolve(overrides.preferences ?? {});
+    }
     if (path.endsWith('/track-points')) {
       const track = overrides.track ?? [
         { seq: 0, recordedAt: ACTIVITY.startedAt, lat: 45.0, lng: 5.0, altitudeM: 200, accuracyM: 5 },
@@ -213,6 +216,53 @@ describe('Détail d’activité (#6)', () => {
     await renderScreen();
 
     await waitFor(() => expect(screen.getByTestId('error-state-server')).toBeOnTheScreen());
+  });
+});
+
+describe('Zones de confidentialité (#37)', () => {
+  /** Le tracé de test part de (45, 5) et monte vers le nord : une zone de 500 m au départ. */
+  const home = { lat: 45.0, lng: 5.0, radiusM: 500, label: 'Domicile' };
+
+  it('prévient que des portions sont masquées et que le tracé reste complet', async () => {
+    respond({
+      preferences: { privacyZones: [home] },
+      track: [
+        { seq: 0, recordedAt: ACTIVITY.startedAt, lat: 45.0, lng: 5.0, altitudeM: 200, accuracyM: 5 },
+        { seq: 1, recordedAt: ACTIVITY.startedAt, lat: 45.01, lng: 5.0, altitudeM: 210, accuracyM: 5 },
+        { seq: 2, recordedAt: ACTIVITY.startedAt, lat: 45.02, lng: 5.0, altitudeM: 210, accuracyM: 5 },
+      ],
+    });
+    await renderScreen();
+
+    expect(await screen.findByTestId('privacy-masked')).toHaveTextContent(/figure dans ton export/);
+    expect(screen.getByTestId('route-map')).toBeOnTheScreen(); // le reste du tracé s'affiche
+  });
+
+  it('n’affiche aucune carte quand tout le tracé est dans une zone', async () => {
+    respond({ preferences: { privacyZones: [{ ...home, radiusM: 2000 }] } });
+    await renderScreen();
+
+    expect(await screen.findByTestId('privacy-masked')).toHaveTextContent(/n’est pas affiché/);
+    expect(screen.queryByTestId('route-map')).toBeNull();
+  });
+});
+
+describe('Calories (#33)', () => {
+  it('explique l’absence de calories quand le poids n’est pas renseigné', async () => {
+    respond({ activity: { ...ACTIVITY, calories: null } });
+    await renderScreen();
+    expect(await screen.findByTestId('calories-missing')).toHaveTextContent(/Renseigne ton poids/);
+  });
+
+  it('n’affiche pas cet appel quand le poids est connu', async () => {
+    respond({
+      activity: { ...ACTIVITY, calories: null },
+      preferences: { physical: { weightKg: 70 } },
+    });
+    await renderScreen();
+    await waitFor(() => expect(screen.getByTestId('activity-title')).toBeOnTheScreen());
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+    expect(screen.queryByTestId('calories-missing')).toBeNull();
   });
 });
 

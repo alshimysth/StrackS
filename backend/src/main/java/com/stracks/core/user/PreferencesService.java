@@ -38,10 +38,15 @@ public class PreferencesService {
     /** Clés racine connues. Toute autre clé est refusée à l'écriture. */
     private static final Set<String> ROOT_KEYS = Set.of(
             "units", "theme", "defaultSport", "sportDisplay", "gpsMode",
-            "countdownEnabled", "autoPauseEnabled", "weeklyGoal", "physical");
+            "countdownEnabled", "autoPauseEnabled", "weeklyGoal", "physical", "privacyZones");
 
     private static final Set<String> PHYSICAL_KEYS = Set.of("weightKg", "heightCm", "birthDate", "sex");
     private static final Set<String> GOAL_KEYS = Set.of("distanceM", "sessions");
+    private static final Set<String> PRIVACY_ZONE_KEYS = Set.of("lat", "lng", "radiusM", "label");
+
+    /** Au-delà, c'est un usage détourné : une zone protège un domicile, un bureau. */
+    static final int MAX_PRIVACY_ZONES = 5;
+    static final int MAX_PRIVACY_ZONE_LABEL = 40;
 
     private static final List<String> UNITS = List.of("metric", "imperial");
     private static final List<String> THEMES = List.of("auto", "light", "dark");
@@ -89,6 +94,9 @@ public class PreferencesService {
         ObjectNode goal = root.putObject("weeklyGoal");
         goal.putNull("distanceM");
         goal.putNull("sessions");
+
+        // Zones de confidentialité (#37) : vide par défaut, rien n'est masqué.
+        root.putArray("privacyZones");
 
         ObjectNode physical = root.putObject("physical");
         physical.putNull("weightKg");
@@ -189,6 +197,11 @@ public class PreferencesService {
             positiveNumber(goal, "weeklyGoal.sessions", goal.get("sessions"), 1, 50);
         }
 
+        JsonNode zones = patch.get("privacyZones");
+        if (zones != null && !zones.isNull()) {
+            validatePrivacyZones(zones);
+        }
+
         JsonNode physical = patch.get("physical");
         if (physical != null && !physical.isNull()) {
             requireObjectWithKeys(physical, "physical", PHYSICAL_KEYS);
@@ -218,6 +231,39 @@ public class PreferencesService {
             if (sex != null && !sex.isNull()
                     && (!sex.isTextual() || !SEXES.contains(sex.asText()))) {
                 throw ApiException.invalidPreference("physical.sex doit valoir " + SEXES + ".");
+            }
+        }
+    }
+
+    /**
+     * Zones de confidentialité (#37) : la liste est remplacée d'un bloc, jamais fusionnée
+     * élément par élément — un tableau n'a pas de clé stable pour cela.
+     */
+    private void validatePrivacyZones(JsonNode zones) {
+        if (!zones.isArray()) {
+            throw ApiException.invalidPreference("privacyZones doit être une liste.");
+        }
+        if (zones.size() > MAX_PRIVACY_ZONES) {
+            throw ApiException.invalidPreference(
+                    "privacyZones : " + MAX_PRIVACY_ZONES + " zones au maximum.");
+        }
+        for (JsonNode zone : zones) {
+            requireObjectWithKeys(zone, "privacyZones[]", PRIVACY_ZONE_KEYS);
+            for (String required : List.of("lat", "lng", "radiusM")) {
+                if (zone.get(required) == null || zone.get(required).isNull()) {
+                    throw ApiException.invalidPreference("privacyZones[]." + required + " est requis.");
+                }
+            }
+            positiveNumber(zone, "privacyZones.lat", zone.get("lat"), -90, 90);
+            positiveNumber(zone, "privacyZones.lng", zone.get("lng"), -180, 180);
+            // En dessous de 100 m, le départ reste identifiable à la rue près ; au-delà
+            // de 2 km, c'est un quartier entier qui disparaît de chaque tracé.
+            positiveNumber(zone, "privacyZones.radiusM", zone.get("radiusM"), 100, 2000);
+            JsonNode label = zone.get("label");
+            if (label != null && !label.isNull()
+                    && (!label.isTextual() || label.asText().length() > MAX_PRIVACY_ZONE_LABEL)) {
+                throw ApiException.invalidPreference(
+                        "privacyZones[].label : texte de " + MAX_PRIVACY_ZONE_LABEL + " caractères au plus.");
             }
         }
     }

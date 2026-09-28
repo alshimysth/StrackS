@@ -4,6 +4,10 @@
  * Distinct de `LiveMap`, qui suit la caméra sur le dernier point et lit le store de
  * séance en cours. Ici le tracé est complet et connu d'avance : la carte se cadre une
  * fois sur l'ensemble du parcours, sans animation ni suivi.
+ *
+ * Le tracé arrive en **portions** (#37) : les zones de confidentialité le coupent, et
+ * chaque portion se dessine séparément. Cadrage et repères ne portent que sur ce qui est
+ * visible — un cadrage sur le tracé complet recentrerait la vue sur la zone masquée.
  */
 import React from 'react';
 import { StyleSheet } from 'react-native';
@@ -12,7 +16,7 @@ import MapView, { Marker, Polyline, type LatLng } from 'react-native-maps';
 import { colors } from '../../design-system/theme';
 
 interface Props {
-  path: LatLng[];
+  segments: LatLng[][];
   testID?: string;
 }
 
@@ -37,28 +41,38 @@ export function boundingRegion(path: LatLng[]) {
   };
 }
 
-export function RouteMap({ path, testID = 'route-map' }: Props) {
-  if (path.length === 0) {
+export function RouteMap({ segments, testID = 'route-map' }: Props) {
+  const visible = segments.filter((segment) => segment.length > 0);
+  if (visible.length === 0) {
     return null;
   }
 
-  const start = path[0];
-  const end = path[path.length - 1];
+  const all = visible.flat();
+  const start = visible[0][0];
+  const lastSegment = visible[visible.length - 1];
+  const end = lastSegment[lastSegment.length - 1];
 
   return (
     <MapView
       testID={testID}
       style={StyleSheet.absoluteFill}
-      initialRegion={boundingRegion(path)}
+      initialRegion={boundingRegion(all)}
       toolbarEnabled={false}
       pitchEnabled={false}
       rotateEnabled={false}
     >
-      {path.length > 1 && (
-        <Polyline coordinates={path} strokeColor={colors.primary500} strokeWidth={4} />
-      )}
+      {visible
+        .filter((segment) => segment.length > 1)
+        .map((segment, index) => (
+          <Polyline
+            key={index}
+            coordinates={segment}
+            strokeColor={colors.primary500}
+            strokeWidth={4}
+          />
+        ))}
       <Marker coordinate={start} title="Départ" pinColor={colors.success500} />
-      {path.length > 1 && <Marker coordinate={end} title="Arrivée" pinColor={colors.error500} />}
+      {all.length > 1 && <Marker coordinate={end} title="Arrivée" pinColor={colors.error500} />}
     </MapView>
   );
 }

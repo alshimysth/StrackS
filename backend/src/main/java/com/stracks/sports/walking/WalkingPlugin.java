@@ -12,6 +12,7 @@ import com.stracks.core.activity.ActivityEntity;
 import com.stracks.core.activity.CalorieEstimator;
 import com.stracks.core.activity.GpsComputations;
 import com.stracks.core.activity.SportPlugin;
+import com.stracks.core.activity.PersonalRecordMetric;
 import com.stracks.core.activity.SportStats;
 import com.stracks.core.activity.SportTypeDescriptor;
 import com.stracks.core.activity.TrackPointEntity;
@@ -113,6 +114,17 @@ public class WalkingPlugin implements SportPlugin {
             return OptionalInt.empty();
         }
         return CalorieEstimator.estimate(met(speed), athlete, activity.durationS);
+    }
+
+    /**
+     * Records de ce sport (#61) : la plus longue distance, en plus de la durée que le
+     * socle suit pour tous. Lue sur la colonne recalculée par le serveur au stop,
+     * jamais sur une valeur envoyée par le client.
+     */
+    @Override
+    public List<PersonalRecordMetric> personalRecordMetrics() {
+        return List.of(new PersonalRecordMetric("distanceM", "Plus longue distance", "m",
+                a -> a.distanceM == null ? null : a.distanceM.doubleValue()));
     }
 
     @Override

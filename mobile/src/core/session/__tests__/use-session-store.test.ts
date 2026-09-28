@@ -727,3 +727,23 @@ describe('courses entre reprise, clôture et purge locale', () => {
     expect(await buffer.loadSession()).toBeNull();
   });
 });
+
+describe('mode GPS (#36)', () => {
+  it('démarre en mode équilibré quand rien n’est précisé', async () => {
+    await startSession();
+    expect(gps.startGpsWatch).toHaveBeenCalledWith(expect.any(Function), 'balanced');
+    expect(gps.startBackgroundUpdates).toHaveBeenCalledWith('balanced');
+  });
+
+  it('applique le mode choisi au démarrage et le garde à la reprise', async () => {
+    api.startActivity.mockResolvedValue(activity());
+    await useSessionStore.getState().start('running', 25, 'saver');
+    expect(gps.startGpsWatch).toHaveBeenLastCalledWith(expect.any(Function), 'saver');
+    expect(gps.startBackgroundUpdates).toHaveBeenCalledWith('saver');
+
+    await useSessionStore.getState().pause();
+    await useSessionStore.getState().resume();
+    expect(gps.startGpsWatch).toHaveBeenLastCalledWith(expect.any(Function), 'saver');
+  });
+});
+

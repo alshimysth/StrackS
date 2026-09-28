@@ -22,6 +22,7 @@ describe('preferencesSchema', () => {
       countdownEnabled: true,
       autoPauseEnabled: false,
       weeklyGoal: { distanceM: null, sessions: null },
+      privacyZones: [],
       physical: { weightKg: null, heightCm: null, birthDate: null, sex: null },
     });
   });

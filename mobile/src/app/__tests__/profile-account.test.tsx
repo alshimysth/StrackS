@@ -48,6 +48,17 @@ jest.mock('../../core/api/use-auth', () => ({
   useDeleteAccount: () => ({ mutate: jest.fn() }),
 }));
 
+/** Totaux du profil (#7) : servis par chemin, ils ne sont pas le sujet de cette suite. */
+const ALL_TIME = {
+  from: '1970-01-01T00:00:00Z',
+  to: '2026-09-28T00:00:00Z',
+  bySport: [],
+  totalSessions: 0,
+  totalDurationS: 0,
+  totals: {},
+  previous: { sessions: 0, durationS: 0, totals: {} },
+};
+
 let client: QueryClient;
 
 function Wrapper({ children }: { children: ReactNode }) {
@@ -58,7 +69,9 @@ beforeEach(() => {
   client = createTestQueryClient();
   client.setQueryData(QUERY_KEY, DEFAULT_PREFERENCES);
   client.setQueryData(['sport-types'], []);
-  mockApi.mockResolvedValue([]);
+  mockApi.mockImplementation((path: string) =>
+    Promise.resolve(path.startsWith('/api/v1/stats/summary') ? ALL_TIME : []),
+  );
   mockVerified = false;
 });
 

@@ -50,6 +50,17 @@ const SPORTS = [
   { code: 'walking', label: 'Marche', usesGps: true, schemaVersion: 1 },
 ];
 
+/** Totaux du profil (#7) : servis par chemin, ils ne sont pas le sujet de cette suite. */
+const ALL_TIME = {
+  from: '1970-01-01T00:00:00Z',
+  to: '2026-09-28T00:00:00Z',
+  bySport: [],
+  totalSessions: 0,
+  totalDurationS: 0,
+  totals: {},
+  previous: { sessions: 0, durationS: 0, totals: {} },
+};
+
 let client: QueryClient;
 
 function Wrapper({ children }: { children: ReactNode }) {
@@ -60,7 +71,9 @@ beforeEach(() => {
   client = createTestQueryClient();
   client.setQueryData(QUERY_KEY, DEFAULT_PREFERENCES);
   client.setQueryData(['sport-types'], SPORTS);
-  mockApi.mockResolvedValue(SPORTS);
+  mockApi.mockImplementation((path: string) =>
+    Promise.resolve(path.startsWith('/api/v1/stats/summary') ? ALL_TIME : SPORTS),
+  );
 });
 
 afterEach(() => {
@@ -129,3 +142,30 @@ describe('Préférences — échec d’enregistrement', () => {
     );
   });
 });
+
+describe('Mode GPS (#36)', () => {
+  it('enregistre le mode choisi et en explique l’effet', async () => {
+    mockApi.mockImplementation((path: string, options?: { method?: string; body?: object }) =>
+      Promise.resolve(
+        options?.method === 'PATCH'
+          ? { ...DEFAULT_PREFERENCES, ...options.body }
+          : path.startsWith('/api/v1/stats/summary')
+            ? ALL_TIME
+            : SPORTS,
+      ),
+    );
+    await renderScreen();
+
+    expect(screen.getByTestId('setting-gps-mode')).toHaveTextContent(/réglage de référence/);
+    await fireEvent.press(screen.getByTestId('chip-saver'));
+
+    await waitFor(() =>
+      expect(mockApi).toHaveBeenCalledWith('/api/v1/users/me/preferences', {
+        method: 'PATCH',
+        body: { gpsMode: 'saver' },
+      }),
+    );
+    expect(await screen.findByText(/Un point toutes les 3 s/)).toBeOnTheScreen();
+  });
+});
+

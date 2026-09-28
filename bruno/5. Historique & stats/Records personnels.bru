@@ -1,0 +1,33 @@
+meta {
+  name: Records personnels
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/stats/records
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 + détenteurs de record par sport", function () {
+    expect(res.getStatus()).to.equal(200);
+    const body = res.getBody();
+    expect(body.bySport).to.be.an("array");
+    for (const sport of body.bySport) {
+      const keys = sport.records.map((r) => r.key);
+      expect(keys).to.include("durationS"); // suivi par le socle pour tout sport
+      for (const r of sport.records) {
+        expect(r.activityId).to.be.a("string");
+        expect(r.value).to.be.above(0);
+      }
+    }
+  });
+}
+
+docs {
+  #61. Calculés sur TOUT l'historique terminé. Le socle suit la durée ; chaque module de
+  sport déclare ses propres records (course et marche : `distanceM`). À égalité, la
+  séance la plus ancienne reste détentrice. Filtre optionnel `?sport=running`.
+}

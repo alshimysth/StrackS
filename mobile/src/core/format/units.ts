@@ -115,3 +115,36 @@ export function formatDuration(totalSeconds: number): string {
   const ss = String(s).padStart(2, '0');
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
+
+/**
+ * Cumul long (#7, profil) : « 45 h 12 min » plutôt que « 45:12:08 ». À l'échelle d'une
+ * vie sportive, les secondes n'apportent rien et le format horloge se lit mal.
+ */
+export function formatLongDuration(totalSeconds: number): string {
+  const minutes = Math.round(Math.max(0, totalSeconds) / 60);
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min`;
+}
+
+// --- Poids (#32) --------------------------------------------------------------------
+// Stocké en kilogrammes (SI) côté serveur. Le système impérial saisit et lit en livres ;
+// la conversion n'existe qu'aux bords de l'écran, jamais dans une donnée envoyée.
+
+const KG_PER_LB = 0.45359237;
+
+export function weightUnit(units: Units): string {
+  return units === 'imperial' ? 'lb' : 'kg';
+}
+
+/** kg → valeur affichée, arrondie au dixième. */
+export function toDisplayWeight(kg: number, units: Units): number {
+  const value = units === 'imperial' ? kg / KG_PER_LB : kg;
+  return Math.round(value * 10) / 10;
+}
+
+/** Valeur saisie → kg, arrondie au dixième (précision de la balance, pas plus). */
+export function fromDisplayWeight(value: number, units: Units): number {
+  const kg = units === 'imperial' ? value * KG_PER_LB : value;
+  return Math.round(kg * 10) / 10;
+}

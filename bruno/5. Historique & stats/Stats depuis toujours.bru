@@ -1,0 +1,25 @@
+meta {
+  name: Stats depuis toujours (profil)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/stats/summary?period=all&tz=Europe/Paris
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 + totaux sans période précédente", function () {
+    expect(res.getStatus()).to.equal(200);
+    const body = res.getBody();
+    expect(body.totalSessions).to.be.a("number");
+    expect(body.previous.sessions).to.equal(0);
+  });
+}
+
+docs {
+  #7. Fenêtre « depuis toujours » pour l'écran Profil. Pas de période précédente
+  (totaux à zéro) ; `/stats/timeline` refuse `period=all` (400).
+}

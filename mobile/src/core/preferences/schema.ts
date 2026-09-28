@@ -57,6 +57,21 @@ export const weeklyGoalSchema = z.object({
   sessions: z.number().int().min(1).max(50).nullable().default(null),
 });
 
+/**
+ * Zone de confidentialité (#37) : les points du tracé situés dans le cercle ne sont pas
+ * dessinés. Bornes miroir de `PreferencesService.validatePrivacyZones`.
+ */
+export const privacyZoneSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  radiusM: z.number().min(100).max(2000),
+  label: z.string().max(40).nullable().default(null),
+});
+
+export type PrivacyZone = z.infer<typeof privacyZoneSchema>;
+
+export const MAX_PRIVACY_ZONES = 5;
+
 export const preferencesSchema = z
   .object({
     units: z.enum(UNITS).default('metric'),
@@ -68,6 +83,7 @@ export const preferencesSchema = z
     countdownEnabled: z.boolean().default(true),
     autoPauseEnabled: z.boolean().default(false),
     weeklyGoal: weeklyGoalSchema.default({ distanceM: null, sessions: null }),
+    privacyZones: z.array(privacyZoneSchema).max(MAX_PRIVACY_ZONES).default([]),
     physical: physicalSchema.default({
       weightKg: null,
       heightCm: null,

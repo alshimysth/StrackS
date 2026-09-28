@@ -28,6 +28,12 @@ describe('classifyError', () => {
     expect(classifyError(problem(status))).toBe('server');
   });
 
+  /** #72 : un 429 n'est ni une panne ni une requête fautive — il faut attendre. */
+  it('classe 429 en limitation de débit, avec un message qui ne parle pas de panne', () => {
+    expect(classifyError(problem(429))).toBe('rate-limited');
+    expect(errorCopy['rate-limited'].message).toMatch(/Patiente/);
+  });
+
   it.each([401, 403])('classe %s en session refusée', (status) => {
     expect(classifyError(problem(status))).toBe('unauthorized');
   });

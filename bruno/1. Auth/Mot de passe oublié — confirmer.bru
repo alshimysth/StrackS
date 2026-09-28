@@ -1,0 +1,38 @@
+meta {
+  name: Mot de passe oublié — confirmer (code du journal)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/password-reset-confirmations
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{userEmail}}",
+    "code": "ABCD-EFGH",
+    "newPassword": "{{userPassword}}"
+  }
+}
+
+tests {
+  test("400 RFC 7807 sur un code inventé", function () {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getBody().title).to.equal("Code invalide");
+  });
+}
+
+docs {
+  #74. Tel quel, le code est inventé : réponse **400** « Code invalide », sans dire si
+  l'adresse existe. Pour le chemin nominal, remplacer `ABCD-EFGH` par le code lu dans le
+  journal du backend : **204**, toutes les sessions sont révoquées (relancer Login).
+
+  Cinq essais faux brûlent le code (il faut en redemander un).
+}

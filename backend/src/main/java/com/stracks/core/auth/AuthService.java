@@ -19,6 +19,9 @@ public class AuthService {
     @Inject
     RefreshTokenService refreshTokenService;
 
+    @Inject
+    AccountService accountService;
+
     public record AuthResult(String token, String refreshToken, UserEntity user) {
     }
 
@@ -33,6 +36,9 @@ public class AuthService {
         user.passwordHash = BcryptUtil.bcryptHash(request.password());
         user.displayName = request.displayName();
         user.persist();
+        // Vérification d'adresse (#75) : proposée, jamais bloquante en Phase 1. Un compte
+        // non vérifié se connecte et enregistre normalement.
+        accountService.sendVerificationCode(user);
         return issueSession(user);
     }
 
@@ -65,7 +71,8 @@ public class AuthService {
         refreshTokenService.revokeSession(presentedRefreshToken);
     }
 
-    private AuthResult issueSession(UserEntity user) {
+    /** Ouvre une session neuve : JWT d'accès + nouvelle famille de refresh tokens. */
+    AuthResult issueSession(UserEntity user) {
         return new AuthResult(
                 tokenService.issue(user),
                 refreshTokenService.issueForNewSession(user.id),

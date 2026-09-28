@@ -1,0 +1,30 @@
+meta {
+  name: Exporter mes données (RGPD)
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/users/me/export
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 + document JSON en pièce jointe", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getHeader("content-disposition")).to.contain("attachment");
+    const body = res.getBody();
+    expect(body.formatVersion).to.equal(1);
+    expect(body.user.email).to.equal(bru.getVar("userEmail"));
+    expect(body.activities).to.be.an("array");
+  });
+  test("aucun secret d'authentification", function () {
+    expect(JSON.stringify(res.getBody()).toLowerCase()).to.not.contain("password");
+  });
+}
+
+docs {
+  #76. Profil, préférences, toutes les activités et tous leurs points GPS. Aucune empreinte
+  de mot de passe, aucun jeton.
+}

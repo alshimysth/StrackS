@@ -1,0 +1,29 @@
+meta {
+  name: 403 — mauvais mot de passe actuel
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users/me/password
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "currentPassword": "pas-le-bon-mot-de-passe",
+    "newPassword": "peu-importe-123"
+  }
+}
+
+tests {
+  test("403, pas 401 : le client mobile prendrait un 401 pour une session expirée", function () {
+    expect(res.getStatus()).to.equal(403);
+    expect(res.getBody().title).to.equal("Mot de passe incorrect");
+  });
+}

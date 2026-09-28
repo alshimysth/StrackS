@@ -35,6 +35,13 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-flyway</artifactId>
         </dependency>
+        <!-- Tâches périodiques en processus (#50 purge des refresh tokens, #72 ménage du
+             limiteur de débit). Un seul backend en prod : pas besoin d'un ordonnanceur
+             distribué. -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-scheduler</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-hibernate-validator</artifactId>

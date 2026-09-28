@@ -1,0 +1,23 @@
+meta {
+  name: Renvoyer le code de vérification d'adresse
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users/me/email-verifications
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("202", function () {
+    expect(res.getStatus()).to.equal(202);
+  });
+}
+
+docs {
+  #75. Un code est déjà envoyé à l'inscription ; celui-ci le remplace (le précédent ne
+  vaut plus). Confirmer avec `POST /users/me/email-verification-confirmations` et le code
+  lu dans le journal du backend. Sans effet si l'adresse est déjà vérifiée.
+}

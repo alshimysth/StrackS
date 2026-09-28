@@ -4,7 +4,14 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.stracks.core.auth.AccountRequests;
+import com.stracks.core.auth.AccountService;
+import com.stracks.core.auth.AuthRateLimits;
+import com.stracks.core.auth.AuthResource;
+import com.stracks.core.auth.AuthResponse;
 import com.stracks.core.common.ApiException;
+
+import io.vertx.core.http.HttpServerRequest;
 
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -15,8 +22,10 @@ import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.PATCH;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.jwt.JsonWebToken;
@@ -32,6 +41,15 @@ public class UserResource {
 
     @Inject
     PreferencesService preferences;
+
+    @Inject
+    AccountService account;
+
+    @Inject
+    AuthRateLimits limits;
+
+    @Inject
+    DataExportService export;
 
     private UserEntity currentUser() {
         UUID id = UUID.fromString(jwt.getSubject());
@@ -80,6 +98,73 @@ public class UserResource {
         UserEntity user = currentUser();
         user.preferences = preferences.merge(user.preferences, patch);
         return preferences.withDefaults(user.preferences);
+    }
+
+    // --- Sécurité du compte (#73, #75) -------------------------------------------
+
+    /**
+     * Changement de mot de passe (#73). Rend une session neuve pour cet appareil ; les
+     * autres sessions sont révoquées. Mauvais mot de passe actuel → 403, jamais 401.
+     */
+    @POST
+    @Path("/password")
+    public AuthResponse changePassword(@Valid AccountRequests.ChangePassword request,
+            @Context HttpServerRequest http) {
+        limits.codeConfirm(AuthResource.clientIp(http)); // même famille : un secret est vérifié
+        return AuthResource.toResponse(
+                account.changePassword(userId(), request.currentPassword(), request.newPassword()));
+    }
+
+    /** Vérification de l'adresse actuelle (#75) : (r)envoie un code. 202 même si déjà vérifiée. */
+    @POST
+    @Path("/email-verifications")
+    @Consumes(MediaType.WILDCARD) // sans corps : le client n'envoie pas de Content-Type
+    public Response requestEmailVerification(@Context HttpServerRequest http) {
+        limits.codeRequest(AuthResource.clientIp(http), "user:" + userId());
+        account.requestEmailVerification(userId());
+        return Response.accepted().build();
+    }
+
+    @POST
+    @Path("/email-verification-confirmations")
+    public UserResponse confirmEmailVerification(@Valid AccountRequests.CodeConfirmation request,
+            @Context HttpServerRequest http) {
+        limits.codeConfirm(AuthResource.clientIp(http));
+        return UserResponse.of(account.confirmEmailVerification(userId(), request.code()));
+    }
+
+    /** Changement d'adresse (#75) : le code part vers la nouvelle adresse. */
+    @POST
+    @Path("/email-changes")
+    public Response requestEmailChange(@Valid AccountRequests.EmailChange request,
+            @Context HttpServerRequest http) {
+        // Clé « compte » = le demandeur : sans elle, un compte pourrait inonder n'importe
+        // quelle adresse de codes en changeant de cible à chaque requête.
+        limits.codeRequest(AuthResource.clientIp(http), "user:" + userId());
+        account.requestEmailChange(userId(), request.newEmail(), request.currentPassword());
+        return Response.accepted().build();
+    }
+
+    @POST
+    @Path("/email-change-confirmations")
+    public UserResponse confirmEmailChange(@Valid AccountRequests.CodeConfirmation request,
+            @Context HttpServerRequest http) {
+        limits.codeConfirm(AuthResource.clientIp(http));
+        return UserResponse.of(account.confirmEmailChange(userId(), request.code()));
+    }
+
+    /** Export RGPD (#76) : tout ce que l'utilisateur a confié à l'app, en JSON. */
+    @GET
+    @Path("/export")
+    public Response export() {
+        String filename = "stracks-export-" + java.time.LocalDate.now() + ".json";
+        return Response.ok(export.export(userId()), MediaType.APPLICATION_JSON)
+                .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")
+                .build();
+    }
+
+    private UUID userId() {
+        return UUID.fromString(jwt.getSubject());
     }
 
     @DELETE

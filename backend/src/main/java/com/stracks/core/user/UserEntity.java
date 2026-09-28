@@ -33,6 +33,10 @@ public class UserEntity extends PanacheEntityBase {
     @Column(name = "display_name")
     public String displayName;
 
+    /** Adresse prouvée par un code reçu dessus (#75) ; null = jamais vérifiée. */
+    @Column(name = "email_verified_at")
+    public Instant emailVerifiedAt;
+
     /**
      * Document de préférences (Story #29). Schéma tenu par PreferencesService,
      * pas par la base : ajouter une préférence ne demande aucune migration.

@@ -31,7 +31,15 @@ interface SessionPayload {
 }
 
 /** Endpoints dont la réponse porte un couple de jetons à ranger dans le store. */
-const SESSION_PATHS = ['/api/v1/auth/login', '/api/v1/auth/register'];
+const SESSION_PATHS = [
+  '/api/v1/auth/login',
+  '/api/v1/auth/register',
+  // Changement de mot de passe (#73) : le serveur révoque toutes les sessions et en rend
+  // une neuve pour cet appareil. Sans la capter, le prochain renouvellement présenterait
+  // un refresh token révoqué — et déconnecterait l'utilisateur qui vient de sécuriser
+  // son compte.
+  '/api/v1/users/me/password',
+];
 
 function isSessionPayload(value: unknown): value is SessionPayload {
   const payload = value as SessionPayload | null;
@@ -110,9 +118,15 @@ async function performRefresh(): Promise<RefreshOutcome> {
 
 export async function api<T>(
   path: string,
-  options: { method?: string; body?: unknown; auth?: boolean } = {},
+  options: {
+    method?: string;
+    body?: unknown;
+    auth?: boolean;
+    /** `text` : corps rendu tel quel, sans parsing (export RGPD #76, écrit tel quel sur disque). */
+    parse?: 'json' | 'text';
+  } = {},
 ): Promise<T> {
-  const { method = 'GET', body, auth = true } = options;
+  const { method = 'GET', body, auth = true, parse = 'json' } = options;
 
   // Les en-têtes sont reconstruits à chaque tentative : après un renouvellement, le
   // rejeu doit partir avec le NOUVEAU jeton, pas celui qui vient d'être refusé.
@@ -163,6 +177,10 @@ export async function api<T>(
 
   if (response.status === 204) {
     return undefined as T;
+  }
+
+  if (parse === 'text') {
+    return (await response.text()) as T;
   }
 
   const payload = (await response.json()) as T;

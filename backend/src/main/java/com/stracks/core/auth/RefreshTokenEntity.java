@@ -87,6 +87,21 @@ public class RefreshTokenEntity extends PanacheEntityBase {
                 .firstResultOptional();
     }
 
+    /**
+     * Révoque toutes les sessions d'un utilisateur : après un changement ou une
+     * réinitialisation de mot de passe (#73, #74), aucun appareil ne doit pouvoir
+     * prolonger une session ouverte avec l'ancien secret.
+     */
+    public static long revokeAllForUser(UUID userId, Instant when, String reason) {
+        return update("revokedAt = ?1, revokedReason = ?2 where userId = ?3 and revokedAt is null",
+                when, reason, userId);
+    }
+
+    /** Purge (#50) : ne touche qu'aux jetons expirés depuis avant {@code before}. */
+    public static long deleteExpiredBefore(Instant before) {
+        return delete("expiresAt < ?1", before);
+    }
+
     /** Révoque d'un coup toute la famille — réaction au rejeu d'un jeton déjà tourné. */
     public static long revokeFamily(UUID familyId, Instant when, String reason) {
         return update("revokedAt = ?1, revokedReason = ?2 where familyId = ?3 and revokedAt is null",

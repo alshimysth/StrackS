@@ -140,6 +140,15 @@ Publier une mise à jour, une fois une build de production installée :
 eas update --channel production --message "Correctif …"
 ```
 
+⚠️ **Bloquant avant la première build de production** : `updates.url` doit être présent
+dans `app.json` (c'est `eas update:configure` qui l'écrit). Sans lui, la build part sans
+serveur de mises à jour : aucune correction OTA ne pourra jamais l'atteindre, il faudra
+republier sur les stores.
+
+```bash
+grep -q '"url": "https://u.expo.dev/' app.json && echo "OTA prêt" || echo "BLOQUANT : lancer eas update:configure"
+```
+
 Premières builds : voir `mobile/DEV-BUILD.md` pour le dev build (#15). En production :
 
 ```bash

@@ -1,7 +1,8 @@
 # StrackS API — collection Bruno
 
-Collection d'API de référence (elle remplace l'ancienne collection Postman, retirée), pour tester le backend
-en production sur le VPS (ou en local) sans dépendance à un compte Postman.
+Collection d'API de référence (elle remplace l'ancienne collection Postman, retirée).
+**Le déroulé complet se lance contre un backend local uniquement** : il crée des comptes et en
+supprime. Contre la production (`VPS`), ne lancer que des requêtes en lecture, une à une.
 
 ## Démarrage
 

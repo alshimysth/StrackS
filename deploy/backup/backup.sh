@@ -55,12 +55,20 @@ if [ "$(date -u +%u)" = "7" ]; then
 fi
 
 # L'objet est-il vraiment là, et entier ?
-REMOTE_SIZE=$(rclone size --json "$REMOTE/daily/$NAME" | sed -n 's/.*"bytes":\([0-9]*\).*/\1/p')
+# Chaque commande passe par `fail` : sous `set -e`, un échec dans une substitution
+# sortirait sans signaler l'échec à la surveillance (revue PR #88).
+SIZE_JSON=$(rclone size --json "$REMOTE/daily/$NAME") || fail "lecture de la taille distante"
+REMOTE_SIZE=$(printf '%s' "$SIZE_JSON" | sed -n 's/.*"bytes":\([0-9]*\).*/\1/p')
 LOCAL_SIZE=$(wc -c < "$WORK/stracks.dump.gpg")
 [ "$REMOTE_SIZE" = "$LOCAL_SIZE" ] || fail "taille distante $REMOTE_SIZE ≠ locale $LOCAL_SIZE"
 
-rclone delete --min-age "${DAILY_KEEP}d" "$REMOTE/daily" || log "rétention quotidienne non appliquée"
-rclone delete --min-age "${WEEKLY_KEEP}d" "$REMOTE/weekly" || log "rétention hebdomadaire non appliquée"
+# La sauvegarde du jour est en place ; une rétention en échec compte pourtant comme un
+# échec du cycle (revue PR #88) : répétée, elle laisserait le bucket grossir sans fin
+# pendant que la surveillance afficherait « tout va bien ».
+rclone delete --min-age "${DAILY_KEEP}d" "$REMOTE/daily" \
+  || fail "rétention quotidienne (la sauvegarde $NAME, elle, est bien envoyée)"
+rclone delete --min-age "${WEEKLY_KEEP}d" "$REMOTE/weekly" \
+  || fail "rétention hebdomadaire (la sauvegarde $NAME, elle, est bien envoyée)"
 
 log "OK : $NAME ($LOCAL_SIZE octets chiffrés)"
 ping_monitor ""

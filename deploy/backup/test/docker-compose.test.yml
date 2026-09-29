@@ -16,7 +16,8 @@ services:
     healthcheck: { test: ["CMD-SHELL", "pg_isready -U stracks -d stracks_restore"], interval: 2s, retries: 30 }
 
   minio:
-    image: minio/minio:latest
+    # Épinglée par empreinte (revue PR #88) : l'essai doit être reproductible.
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     command: server /data
     environment: { MINIO_ROOT_USER: essai-cle, MINIO_ROOT_PASSWORD: essai-secret-123 }
     healthcheck: { test: ["CMD", "mc", "ready", "local"], interval: 2s, retries: 30 }
@@ -39,7 +40,7 @@ services:
     volumes:
       - ../backup.sh:/backup/backup.sh:ro
       - ../entrypoint.sh:/backup/entrypoint.sh:ro
-      - ./keys/backup-public.asc:/backup/keys/backup-public.asc:ro
+      - ${KEYS_DIR:?KEYS_DIR fourni par run-test.sh}/backup-public.asc:/backup/keys/backup-public.asc:ro
 
   restorer:
     image: postgres:18-alpine
@@ -48,11 +49,11 @@ services:
     entrypoint: ["sh", "-c"]
     volumes:
       - ../restore.sh:/backup/restore.sh:ro
-      - ./keys:/keys:ro
+      - ${KEYS_DIR:?KEYS_DIR fourni par run-test.sh}:/keys:ro
 
   # Création du bucket avec rclone, le même outil que les scripts (pas d'image « mc »).
   bucket:
-    image: alpine:3
+    image: alpine@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
     depends_on: { minio: { condition: service_healthy } }
     environment: *store
     entrypoint: ["sh", "-c", "apk add --no-cache --quiet rclone >/dev/null && rclone mkdir store:stracks-backups"]

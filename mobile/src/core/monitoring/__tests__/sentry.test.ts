@@ -24,6 +24,7 @@ it('s’initialise avec un DSN, sans donnée personnelle ni traces de performanc
     extra: { lat: 48.8 },
   });
   expect(sent.user).toBeUndefined();
+  expect(sent.extra).toBeUndefined(); // contexte libre : ne part jamais
   expect(sent.request.url).toBe('https://api.test/api/v1/activities');
   expect(JSON.stringify(sent)).not.toContain('48.8');
 });

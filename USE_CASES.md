@@ -28,7 +28,7 @@ Préconditions générales : app installée ; les UC-2+ exigent une session acti
 |---|---|
 | **Déclencheur** | Lancement de l'app ou « Se connecter » |
 | **Scénario nominal** | 1. Saisie email + mot de passe. 2. JWT retourné, session persistée. 3. Aux lancements suivants, la session est réhydratée sans re-saisie. |
-| **Alternatives** | 2a. Identifiants invalides → « Email ou mot de passe incorrect » (401), sans révéler lequel. 2b. Trop d'essais → 429 avec délai d'attente (#72). 3a. JWT d'accès expiré (15 min, #49) → **renouvellement transparent** par refresh token rotatif (#44), sans retour à l'écran de connexion ; seule une session révoquée ou expirée (60 j) y ramène. 3b. Mot de passe oublié → code à usage unique par email (#74). |
+| **Alternatives** | 2a. Identifiants invalides → « Email ou mot de passe incorrect » (401), sans révéler lequel. 2b. Trop d'essais → 429 avec délai d'attente (#72). 3a. JWT d'accès expiré (15 min, #49) → **renouvellement transparent** par refresh token rotatif (#44), sans retour à l'écran de connexion ; seule une session révoquée, ou restée inactive plus de 60 jours, y ramène (chaque renouvellement repart pour 60 jours). 3b. Mot de passe oublié → code à usage unique par email (#74). |
 | **Implémenté par** | `POST /api/v1/auth/login·refresh·logout·password-resets` · `core/api/client.ts` · `use-auth-store` · tests `AuthResourceTest`, `RefreshTokenResourceTest`, `ShortLivedAccessTokenTest`, `AccountFlowTest`, `client.test.ts` |
 
 ## UC-3 — Gérer son profil et supprimer son compte

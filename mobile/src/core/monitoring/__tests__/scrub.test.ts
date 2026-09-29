@@ -1,5 +1,5 @@
 /** Aucune donnée personnelle ne part chez le tiers de monitoring. */
-import { scrub, stripQuery } from '../scrub';
+import { sanitizeText, scrub, stripQuery } from '../scrub';
 
 it('retire positions, emails, jetons et codes où qu’ils soient', () => {
   const event = {
@@ -36,3 +36,37 @@ it('retire la chaîne de requête des URL', () => {
   );
   expect(stripQuery(undefined)).toBeUndefined();
 });
+
+/** Revue PR #88 : une clé composée échappait à la liste de noms exacts. */
+it('reconnaît les clés composées', () => {
+  const clean = scrub({ accessToken: 'a', userEmail: 'b', startLat: 1, currentPosition: 'c', statusCode: 500 });
+  expect(clean).toEqual({
+    accessToken: '[retiré]',
+    userEmail: '[retiré]',
+    startLat: '[retiré]',
+    currentPosition: '[retiré]',
+    statusCode: 500, // clé technique, conservée
+  });
+});
+
+/** Revue PR #88 : un message d'erreur libre peut contenir une adresse ou un jeton. */
+it('masque emails, jetons et coordonnées dans le texte libre', () => {
+  expect(sanitizeText('Échec pour a.b@example.com avec eyJhbGciOi.eyJzdWIiOi.c2lnbmF0dXJl à 48.85661,2.35222')).toBe(
+    'Échec pour [email retiré] avec [jeton retiré] à [coord. retirée],[coord. retirée]',
+  );
+  // Un nombre ordinaire n'est pas une coordonnée.
+  expect(sanitizeText('HTTP 503 après 2.5 s, 42 points')).toBe('HTTP 503 après 2.5 s, 42 points');
+  expect(scrub({ exception: { values: [{ value: 'Account a@example.com failed' }] } })).toEqual({
+    exception: { values: [{ value: 'Account [email retiré] failed' }] },
+  });
+});
+
+/** Revue PR #88 : au-delà de la limite de profondeur, rien n'est renvoyé sans inspection. */
+it('remplace un sous-arbre trop profond au lieu de le laisser passer', () => {
+  let deep: Record<string, unknown> = { password: 'secret' };
+  for (let i = 0; i < 12; i++) {
+    deep = { level: deep };
+  }
+  expect(JSON.stringify(scrub(deep))).not.toContain('secret');
+});
+

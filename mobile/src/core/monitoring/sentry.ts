@@ -28,6 +28,9 @@ export function initMonitoring(dsn: string | undefined = process.env.EXPO_PUBLIC
     enableAutoSessionTracking: true,
     environment: __DEV__ ? 'development' : 'production',
     beforeSend(event) {
+      // Contexte libre ajouté par un appelant : rien ne garantit ce qu'il contient.
+      // Il ne part pas ; l'exception, la pile et le contexte technique suffisent.
+      delete event.extra;
       const clean = scrub(event);
       if (clean.request?.url != null) {
         clean.request = { ...clean.request, url: stripQuery(clean.request.url) };

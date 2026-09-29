@@ -79,11 +79,27 @@ séance. »
 ## Google Play — « Sécurité des données » (Data safety)
 
 - Données chiffrées en transit : **Oui**.
-- L'utilisateur peut demander la suppression de ses données : **Oui**, dans l'app (Profil →
-  Supprimer mon compte).
-- Données partagées avec des tiers : **Non**. Les sous-traitants qui traitent pour notre
-  compte (hébergement, sauvegardes, email) ne constituent pas un « partage » au sens de
-  Google. **À confirmer** au moment de remplir le formulaire.
+- L'utilisateur peut demander la suppression de ses données : **Oui**, par deux chemins, que
+  Google **exige tous les deux** pour une app où l'on crée un compte :
+  - dans l'app : Profil → Supprimer mon compte ;
+  - **sur le web**, sans avoir à installer l'app : [À COMPLÉTER : URL d'une page expliquant
+    comment demander la suppression — par exemple la politique de confidentialité, avec une
+    adresse de contact dédiée. Cette page n'existe pas encore.]
+- Données partagées avec des tiers : **réponse à établir transfert par transfert**. Google
+  exclut du « partage » les transferts vers un prestataire qui traite pour notre compte,
+  mais chaque transfert déclaré dans la politique de confidentialité doit être rattaché à
+  une exception, sinon la réponse devient « Oui » :
+
+  | Transfert | Exception visée | À vérifier |
+  |---|---|---|
+  | Hostinger (hébergement) | Prestataire de services | Contrat / DPA |
+  | Cloudflare R2 (sauvegardes chiffrées) | Prestataire de services | DPA ; le contenu est illisible par Cloudflare |
+  | Fournisseur d'email (#77) | Prestataire de services | Selon le fournisseur retenu |
+  | Sentry (si activé) | Prestataire de services | DPA ; événements sans donnée personnelle |
+  | Expo (EAS Update) | Prestataire de services | Seule l'adresse IP est vue au téléchargement |
+  | Google Maps SDK (Android) | **Incertain** : la zone affichée part chez Google, qui l'utilise selon ses propres conditions | Consulter la fiche « données collectées » du SDK Maps ; si Google agit en responsable de traitement, déclarer la **position approximative** comme partagée |
+
+  Tant que ce tableau n'est pas vérifié, **ne pas répondre « Non » par défaut**.
 
 | Catégorie Google | Collectée | Facultative | Finalité |
 |---|---|---|---|

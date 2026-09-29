@@ -83,8 +83,13 @@ Vous pouvez, **directement dans l'application** (onglet Profil) :
 - **supprimer votre compte**, avec toutes vos séances et tous vos tracés (droit à
   l'effacement).
 
-Pour tout autre droit (opposition, limitation), ou si l'app ne vous est plus accessible :
-**[À COMPLÉTER : email de contact]**. Vous pouvez aussi saisir la CNIL (www.cnil.fr).
+**Sans l'application** — si vous l'avez désinstallée, par exemple —, vous pouvez demander la
+suppression de votre compte et de toutes vos données en écrivant à **[À COMPLÉTER : email
+de contact]** depuis l'adresse de votre compte. Cette section sert aussi de page de demande
+de suppression exigée par Google Play.
+
+Pour tout autre droit (opposition, limitation) : même adresse. Vous pouvez aussi saisir la
+CNIL (www.cnil.fr).
 
 ## 7. Sécurité
 

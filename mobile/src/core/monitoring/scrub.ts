@@ -27,8 +27,30 @@ const COORDINATE = /-?\b\d{1,3}\.\d{4,}\b/g;
 const REDACTED = '[retiré]';
 const MAX_DEPTH = 8;
 
+/**
+ * Ce qui suit un mot désignant un secret (« Password hunter2 failed », « code: ABCD… »,
+ * « token=… ») : le mot reste, le terme suivant disparaît (revue PR #88).
+ */
+const AFTER_SECRET_WORD =
+  /\b(password|passwd|pwd|passcode|mot de passe|code|token|jeton|secret|api[_-]?key|authorization|bearer)(\s*[:=]\s*|\s+)(?!\[)("[^"]*"|'[^']*'|\S+)/gi;
+/** Format exact des codes à usage unique du compte (#74, #75) : `ABCD-EFGH` ou `ABCDEFGH`. */
+const ACCOUNT_CODE = /\b[2-9A-HJ-NP-Z]{4}-?[2-9A-HJ-NP-Z]{4}\b/g;
+
+/**
+ * Masque les données personnelles reconnaissables dans un texte libre.
+ *
+ * Limite assumée : aucun motif ne garantit qu'un texte arbitraire est sans secret. Ce qui
+ * rend le risque résiduel acceptable, c'est la source des messages — aucun message d'erreur
+ * de l'app n'interpole de secret (vérifié au lot 5 : ce sont des chaînes fixes, ou le
+ * `detail` RFC 7807 du serveur, qui n'en contient pas) — et un monitoring éteint par défaut.
+ */
 export function sanitizeText(text: string): string {
-  return text.replace(EMAIL, '[email retiré]').replace(JWT, '[jeton retiré]').replace(COORDINATE, '[coord. retirée]');
+  return text
+    .replace(EMAIL, '[email retiré]')
+    .replace(JWT, '[JWT retiré]')
+    .replace(AFTER_SECRET_WORD, (_match, word: string, separator: string) => `${word}${separator}[retiré]`)
+    .replace(ACCOUNT_CODE, '[code retiré]')
+    .replace(COORDINATE, '[coord. retirée]');
 }
 
 /** Nettoie récursivement clés et valeurs. Ne modifie pas l'entrée. */

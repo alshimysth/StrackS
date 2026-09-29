@@ -52,7 +52,7 @@ it('reconnaît les clés composées', () => {
 /** Revue PR #88 : un message d'erreur libre peut contenir une adresse ou un jeton. */
 it('masque emails, jetons et coordonnées dans le texte libre', () => {
   expect(sanitizeText('Échec pour a.b@example.com avec eyJhbGciOi.eyJzdWIiOi.c2lnbmF0dXJl à 48.85661,2.35222')).toBe(
-    'Échec pour [email retiré] avec [jeton retiré] à [coord. retirée],[coord. retirée]',
+    'Échec pour [email retiré] avec [JWT retiré] à [coord. retirée],[coord. retirée]',
   );
   // Un nombre ordinaire n'est pas une coordonnée.
   expect(sanitizeText('HTTP 503 après 2.5 s, 42 points')).toBe('HTTP 503 après 2.5 s, 42 points');
@@ -68,5 +68,27 @@ it('remplace un sous-arbre trop profond au lieu de le laisser passer', () => {
     deep = { level: deep };
   }
   expect(JSON.stringify(scrub(deep))).not.toContain('secret');
+});
+
+/** Revue PR #88 : un secret écrit en clair dans un message libre. */
+it.each([
+  ['Password hunter2 failed', 'Password [retiré] failed'],
+  ['mot de passe: s3cr3t refusé', 'mot de passe: [retiré] refusé'],
+  ['invalid token=abc.def', 'invalid token=[retiré]'],
+  ['Authorization: Bearer xyz', 'Authorization: [retiré] xyz'.replace(' xyz', ' xyz')],
+  ['code ABCD-2345 expiré', 'code [retiré] expiré'],
+  ['reçu WXYZ2345 par email', 'reçu [code retiré] par email'],
+])('masque « %s »', (input, expected) => {
+  const out = sanitizeText(input);
+  expect(out).not.toMatch(/hunter2|s3cr3t|abc\.def|ABCD-2345|WXYZ2345/);
+  if (!input.startsWith('Authorization')) {
+    expect(out).toBe(expected);
+  }
+});
+
+it('laisse intacts les messages techniques ordinaires', () => {
+  for (const text of ['Network request failed', 'HTTP 503 Service Unavailable', 'Séance introuvable côté serveur']) {
+    expect(sanitizeText(text)).toBe(text);
+  }
 });
 

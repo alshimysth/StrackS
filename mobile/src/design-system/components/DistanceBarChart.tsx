@@ -108,7 +108,7 @@ export function DistanceBarChart({ timeline, labels }: Props) {
                 numberOfLines={1}
                 style={[
                   styles.axisLabel,
-                  { color: isHighlighted ? theme.textPrimary : theme.textTertiary },
+                  { color: isHighlighted ? theme.textPrimary : theme.textSecondary },
                 ]}
               >
                 {bucketLabel(bucket, timeline.bucket)}

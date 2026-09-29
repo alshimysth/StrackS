@@ -39,6 +39,10 @@ export function StatCard({
   return (
     <View
       testID={testID}
+      // Lu d'un seul tenant (#42) : « Distance, 5,20 km » plutôt que trois fragments que
+      // le lecteur d'écran annoncerait séparément.
+      accessible
+      accessibilityLabel={[label, value, unit, delta].filter(Boolean).join(', ')}
       style={[
         styles.card,
         shadows.card,
@@ -49,6 +53,9 @@ export function StatCard({
       <Text style={[typography.label, { color: theme.textSecondary }]}>{label}</Text>
       <View style={styles.valueRow}>
         <Text
+          // Suit la taille de texte du système (#42), plafonnée : un chiffre de 40 px
+          // agrandi trois fois sortirait de sa carte et deviendrait illisible.
+          maxFontSizeMultiplier={1.4}
           style={[
             emphasis === 'xl' ? typography.statXl : typography.statLg,
             { color: theme.textPrimary },

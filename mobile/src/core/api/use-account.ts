@@ -127,3 +127,21 @@ export function useConfirmEmailChange() {
     onSuccess: storeUser,
   });
 }
+
+/**
+ * Nom affiché (#7). Vide = retiré : le serveur enregistre `null` et l'app retombe sur
+ * « — » et sur l'initiale de l'email pour l'avatar.
+ */
+export const displayNameSchema = z.object({
+  displayName: z.string().trim().max(80, '80 caractères au plus'),
+});
+
+export function useUpdateDisplayName() {
+  const storeUser = useStoreUser();
+  return useMutation({
+    mutationFn: (input: { displayName: string }) =>
+      api<User>('/api/v1/users/me', { method: 'PATCH', body: input }),
+    onSuccess: storeUser,
+  });
+}
+

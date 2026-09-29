@@ -56,7 +56,7 @@ export function Input({ label, error, helper, ...inputProps }: Props) {
         <Text
           style={[
             typography.caption,
-            { color: error ? theme.textError : theme.textTertiary },
+            { color: error ? theme.textError : theme.textSecondary }, // aide lisible, AA (#42)
           ]}
         >
           {error ?? helper}

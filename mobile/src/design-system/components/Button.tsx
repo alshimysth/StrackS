@@ -6,7 +6,8 @@
 import React from 'react';
 import { Animated, Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
 
-import { colors, fonts, motion, radius } from '../theme';
+import { Icon, type IconName } from './Icon';
+import { colors, fonts, lightTheme, motion, radius } from '../theme';
 
 type Variant = 'primary' | 'volt' | 'secondary' | 'text';
 type Size = 'md' | 'lg';
@@ -19,6 +20,10 @@ interface Props {
   disabled?: boolean;
   fullWidth?: boolean;
   style?: ViewStyle;
+  /** Icône avant le libellé (#39), de la couleur du libellé. Décorative : le texte nomme l'action. */
+  icon?: IconName;
+  /** Complète le libellé pour un lecteur d'écran quand l'effet n'est pas évident (#42). */
+  accessibilityHint?: string;
 }
 
 export function Button({
@@ -29,6 +34,8 @@ export function Button({
   disabled = false,
   fullWidth = false,
   style,
+  icon,
+  accessibilityHint,
 }: Props) {
   const scale = React.useRef(new Animated.Value(1)).current;
 
@@ -43,6 +50,10 @@ export function Button({
     <Animated.View style={[{ transform: [{ scale }] }, fullWidth && styles.fullWidth, style]}>
       <Pressable
         accessibilityRole="button"
+        // L'état désactivé est annoncé (« estompé ») au lieu d'un bouton muet qui ne
+        // réagit pas (#42).
+        accessibilityState={{ disabled }}
+        accessibilityHint={accessibilityHint}
         disabled={disabled}
         onPress={onPress}
         onPressIn={() => animate(0.97)}
@@ -54,6 +65,9 @@ export function Button({
           disabled && styles.disabled,
         ]}
       >
+        {icon != null && (
+          <Icon name={icon} color={textStyles[variant].color} size={size === 'lg' ? 'md' : 'sm'} />
+        )}
         <Text style={[styles.label, size === 'lg' && styles.labelLg, textStyles[variant]]}>
           {children}
         </Text>
@@ -92,7 +106,8 @@ const variantStyles: Record<Variant, ViewStyle> = {
 
 const textStyles: Record<Variant, { color: string }> = {
   primary: { color: colors.neutral0 },
-  volt: { color: '#2a3c10' },
+  // `textOnVolt` a la même valeur dans les deux thèmes : le fond volt ne change pas.
+  volt: { color: lightTheme.textOnVolt },
   secondary: { color: colors.primary500 },
   text: { color: colors.primary500 },
 };

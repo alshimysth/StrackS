@@ -83,7 +83,7 @@ export default function ActivityDetailScreen() {
             <Text testID="activity-title" style={[typography.h2, { color: theme.textPrimary }]}>
               {activityTitle(activity)}
             </Text>
-            <Text style={[typography.caption, { color: theme.textTertiary }]}>
+            <Text style={[typography.caption, { color: theme.textSecondary }]}>
               {new Date(activity.startedAt).toLocaleString('fr-FR', {
                 weekday: 'long',
                 day: 'numeric',

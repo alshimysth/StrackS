@@ -18,6 +18,7 @@ import type { LiveMetric, SessionState } from './types';
 import { Button } from '../../design-system/components/Button';
 import { HoldToFinish } from '../../design-system/components/HoldToFinish';
 import { SportBadge } from '../../design-system/components/SportBadge';
+import { Icon } from '../../design-system/components/Icon';
 import { StatCard } from '../../design-system/components/StatCard';
 import { darkTheme, radius, spacing, typography } from '../../design-system/theme';
 import { ThemeOverride } from '../../design-system/use-theme';
@@ -91,8 +92,12 @@ export function SessionTrackingScreen({ sportCode, hero, grid }: Props) {
         <View style={styles.screen}>
           <View style={styles.header}>
             <SportBadge sport={sportCode} variant="outline" />
-            <View style={styles.gps}>
-              <View style={[styles.gpsDot, { backgroundColor: gpsColor }]} />
+            <View
+              style={styles.gps}
+              accessible
+              accessibilityLabel={signalLost ? 'Signal GPS perdu' : 'Signal GPS reçu'}
+            >
+              <Icon name="state-gps" color={gpsColor} size="sm" />
               <Text style={[typography.label, { color: gpsColor }]}>
                 {signalLost ? 'GPS PERDU' : 'GPS'}
               </Text>
@@ -103,7 +108,13 @@ export function SessionTrackingScreen({ sportCode, hero, grid }: Props) {
               stagne sans comprendre pourquoi, et croit l'app plantée. Dire que la
               distance n'est pas comptée est la moitié utile du message. */}
           {signalLost && (
-            <View testID="gps-lost-banner" style={[styles.lostBanner, { borderColor: darkTheme.textError }]}>
+            <View
+              testID="gps-lost-banner"
+              // Annoncé dès son apparition (#42) : en courant, on ne balaie pas l'écran.
+              accessibilityRole="alert"
+              accessibilityLiveRegion="assertive"
+              style={[styles.lostBanner, { borderColor: darkTheme.textError }]}
+            >
               <Text style={[typography.label, { color: darkTheme.textError }]}>SIGNAL GPS PERDU</Text>
               <Text style={[typography.caption, { color: darkTheme.textSecondary }]}>
                 La séance continue. La distance reprendra au retour du signal — le trajet
@@ -138,6 +149,7 @@ export function SessionTrackingScreen({ sportCode, hero, grid }: Props) {
           <View style={styles.controls}>
             <Button
               size="lg"
+              icon={status === 'active' ? 'action-pause' : 'action-resume'}
               onPress={() => void onTogglePause()}
               disabled={status === 'stopping'}
               style={styles.pauseButton}
@@ -177,7 +189,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   gps: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  gpsDot: { width: 8, height: 8, borderRadius: 4 },
   map: {
     flex: 1,
     minHeight: 200,
@@ -199,5 +210,5 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
   },
   pauseButton: { flex: 1 },
-  hint: { color: darkTheme.textTertiary, textAlign: 'center' },
+  hint: { color: darkTheme.textSecondary, textAlign: 'center' }, // AA (#42)
 });

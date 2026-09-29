@@ -11,6 +11,7 @@
 import * as Location from 'expo-location';
 
 import { BACKGROUND_LOCATION_TASK } from './background-task';
+import { colors } from '../../design-system/theme';
 
 /** Relevé brut, tel que persisté dans le buffer puis envoyé au serveur. */
 export interface GpsFix {
@@ -100,7 +101,7 @@ export async function startBackgroundUpdates(mode: GpsMode = 'balanced'): Promis
     foregroundService: {
       notificationTitle: 'Séance en cours',
       notificationBody: 'StrackS enregistre ton parcours.',
-      notificationColor: '#208AEF',
+      notificationColor: colors.primary500, // couleur de marque, plus le bleu du gabarit Expo
     },
     pausesUpdatesAutomatically: false, // iOS couperait de lui-même à l'arrêt : c'est notre rôle
     showsBackgroundLocationIndicator: true,

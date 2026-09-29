@@ -23,6 +23,7 @@ import { Button } from '../../design-system/components/Button';
 import { Input } from '../../design-system/components/Input';
 import { spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
+import { SafeScreen } from '../../design-system/components/SafeScreen';
 
 type Step = 'request' | 'confirm' | 'done';
 
@@ -75,102 +76,104 @@ export default function ForgotPasswordScreen() {
   );
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.flex, { backgroundColor: theme.surfaceApp }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={[typography.h2, { color: theme.textPrimary }]}>Mot de passe oublié</Text>
+    <SafeScreen edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={[styles.flex, { backgroundColor: theme.surfaceApp }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          <Text style={[typography.h2, { color: theme.textPrimary }]}>Mot de passe oublié</Text>
 
-        {step === 'request' && (
-          <View style={styles.form}>
-            <Text style={[typography.bodyLg, { color: theme.textSecondary }]}>
-              Saisis l’adresse de ton compte : tu recevras un code pour choisir un nouveau mot
-              de passe.
-            </Text>
-            <Input
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              error={errors.email}
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              testID="reset-email"
-            />
-            {apiError != null && (
-              <Text style={[typography.body, { color: theme.textError }]}>{apiError}</Text>
-            )}
-            <Button size="lg" fullWidth onPress={sendCode} disabled={requestReset.isPending}>
-              {requestReset.isPending ? 'Envoi…' : 'Recevoir un code'}
-            </Button>
-          </View>
-        )}
+          {step === 'request' && (
+            <View style={styles.form}>
+              <Text style={[typography.bodyLg, { color: theme.textSecondary }]}>
+                Saisis l’adresse de ton compte : tu recevras un code pour choisir un nouveau mot
+                de passe.
+              </Text>
+              <Input
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                error={errors.email}
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                testID="reset-email"
+              />
+              {apiError != null && (
+                <Text style={[typography.body, { color: theme.textError }]}>{apiError}</Text>
+              )}
+              <Button size="lg" fullWidth onPress={sendCode} disabled={requestReset.isPending}>
+                {requestReset.isPending ? 'Envoi…' : 'Recevoir un code'}
+              </Button>
+            </View>
+          )}
 
-        {step === 'confirm' && (
-          <View style={styles.form}>
-            <Text testID="reset-code-sent" style={[typography.bodyLg, { color: theme.textSecondary }]}>
-              Si un compte existe pour {email.trim()}, un code vient d’y être envoyé. Il est
-              valable 15 minutes.
-            </Text>
-            <Input
-              label="Code reçu"
-              value={code}
-              onChangeText={setCode}
-              error={errors.code}
-              autoCapitalize="characters"
-              autoComplete="one-time-code"
-              testID="reset-code"
-            />
-            <Input
-              label="Nouveau mot de passe"
-              value={password}
-              onChangeText={setPassword}
-              error={errors.newPassword}
-              secureTextEntry
-              autoComplete="new-password"
-              testID="reset-password"
-            />
-            <Input
-              label="Confirme le nouveau mot de passe"
-              value={confirmation}
-              onChangeText={setConfirmation}
-              error={errors.confirmation}
-              secureTextEntry
-              autoComplete="new-password"
-              testID="reset-confirmation"
-            />
-            {apiError != null && (
-              <Text style={[typography.body, { color: theme.textError }]}>{apiError}</Text>
-            )}
-            <Button size="lg" fullWidth onPress={submitNewPassword} disabled={confirmReset.isPending}>
-              {confirmReset.isPending ? 'Enregistrement…' : 'Changer le mot de passe'}
-            </Button>
-            <Button variant="text" fullWidth onPress={sendCode} disabled={requestReset.isPending}>
-              Renvoyer un code
-            </Button>
-          </View>
-        )}
+          {step === 'confirm' && (
+            <View style={styles.form}>
+              <Text testID="reset-code-sent" style={[typography.bodyLg, { color: theme.textSecondary }]}>
+                Si un compte existe pour {email.trim()}, un code vient d’y être envoyé. Il est
+                valable 15 minutes.
+              </Text>
+              <Input
+                label="Code reçu"
+                value={code}
+                onChangeText={setCode}
+                error={errors.code}
+                autoCapitalize="characters"
+                autoComplete="one-time-code"
+                testID="reset-code"
+              />
+              <Input
+                label="Nouveau mot de passe"
+                value={password}
+                onChangeText={setPassword}
+                error={errors.newPassword}
+                secureTextEntry
+                autoComplete="new-password"
+                testID="reset-password"
+              />
+              <Input
+                label="Confirme le nouveau mot de passe"
+                value={confirmation}
+                onChangeText={setConfirmation}
+                error={errors.confirmation}
+                secureTextEntry
+                autoComplete="new-password"
+                testID="reset-confirmation"
+              />
+              {apiError != null && (
+                <Text style={[typography.body, { color: theme.textError }]}>{apiError}</Text>
+              )}
+              <Button size="lg" fullWidth onPress={submitNewPassword} disabled={confirmReset.isPending}>
+                {confirmReset.isPending ? 'Enregistrement…' : 'Changer le mot de passe'}
+              </Button>
+              <Button variant="text" fullWidth onPress={sendCode} disabled={requestReset.isPending}>
+                Renvoyer un code
+              </Button>
+            </View>
+          )}
 
-        {step === 'done' && (
-          <View style={styles.form}>
-            <Text testID="reset-done" style={[typography.bodyLg, { color: theme.textPrimary }]}>
-              Mot de passe changé. Toutes tes sessions ont été fermées : connecte-toi avec le
-              nouveau.
-            </Text>
-            <Button size="lg" fullWidth onPress={() => router.replace('/(auth)/login')}>
-              Se connecter
-            </Button>
-          </View>
-        )}
+          {step === 'done' && (
+            <View style={styles.form}>
+              <Text testID="reset-done" style={[typography.bodyLg, { color: theme.textPrimary }]}>
+                Mot de passe changé. Toutes tes sessions ont été fermées : connecte-toi avec le
+                nouveau.
+              </Text>
+              <Button size="lg" fullWidth onPress={() => router.replace('/(auth)/login')}>
+                Se connecter
+              </Button>
+            </View>
+          )}
 
-        {step !== 'done' && (
-          <Button variant="text" fullWidth onPress={() => router.back()}>
-            Retour à la connexion
-          </Button>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+          {step !== 'done' && (
+            <Button variant="text" fullWidth onPress={() => router.back()}>
+              Retour à la connexion
+            </Button>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeScreen>
   );
 }
 

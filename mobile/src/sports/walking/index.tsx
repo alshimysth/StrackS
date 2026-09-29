@@ -87,6 +87,7 @@ function deriveLiveMetrics(session: SessionState): LiveMetric[] {
 export const walkingModule: SportModule = {
   code: 'walking',
   label: 'Marche',
+  icon: 'sport-walk',
   usesGps: true,
   maxGpsSpeedKmh: MAX_GPS_SPEED_KMH,
   TrackingScreen,

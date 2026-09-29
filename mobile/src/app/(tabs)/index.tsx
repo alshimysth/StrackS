@@ -17,12 +17,14 @@ import { GoalProgressCard } from '../../design-system/components/GoalProgressCar
 import { useAuthStore } from '../../core/auth/use-auth-store';
 import { useSessionStore } from '../../core/session/use-session-store';
 import { Button } from '../../design-system/components/Button';
+import { Icon } from '../../design-system/components/Icon';
 import { ErrorState } from '../../design-system/components/ErrorState';
 import { LoadingState } from '../../design-system/components/LoadingState';
 import { SportBadge } from '../../design-system/components/SportBadge';
-import { radius, shadows, spacing, typography } from '../../design-system/theme';
+import { colors, radius, shadows, spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
 import { sportRegistry } from '../../sports/registry';
+import { SafeScreen } from '../../design-system/components/SafeScreen';
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -82,63 +84,78 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView
-      style={{ backgroundColor: theme.surfaceApp }}
-      contentContainerStyle={styles.container}
-    >
-      <Text style={[typography.h2, { color: theme.textPrimary }]}>
-        Salut {user?.displayName ?? 'toi'} !
-      </Text>
-      <Text style={[typography.bodyLg, { color: theme.textSecondary }]}>
-        Choisis ton sport et démarre.
-      </Text>
+    <SafeScreen edges={['top']}>
+      <ScrollView
+        style={{ backgroundColor: theme.surfaceApp }}
+        contentContainerStyle={styles.container}
+      >
+        <Text style={[typography.h2, { color: theme.textPrimary }]}>
+          Salut {user?.displayName ?? 'toi'} !
+        </Text>
+        <Text style={[typography.bodyLg, { color: theme.textSecondary }]}>
+          Choisis ton sport et démarre.
+        </Text>
 
-      <WeeklyGoal />
+        <WeeklyGoal />
 
-      {sportTypes.isLoading && <LoadingState message="Récupération des sports" />}
-      {sportTypes.isError && (
-        <ErrorState error={sportTypes.error} onRetry={() => void sportTypes.refetch()} />
-      )}
+        {sportTypes.isLoading && <LoadingState message="Récupération des sports" />}
+        {sportTypes.isError && (
+          <ErrorState error={sportTypes.error} onRetry={() => void sportTypes.refetch()} />
+        )}
 
-      <View style={styles.sportList}>
-        {sports.map((sport) => {
-          const isSelected = selected === sport.code;
-          return (
-            <Pressable
-              key={sport.code}
-              onPress={() => choose(sport.code)}
-              style={[
-                styles.sportCard,
-                shadows.card,
-                {
-                  backgroundColor: theme.surfaceCard,
-                  borderColor: isSelected ? '#3d78e6' : theme.borderSubtle,
-                },
-              ]}
-              testID={`sport-${sport.code}`}
-            >
-              <SportBadge sport={sport.code} />
-              <Text style={[typography.h3, { color: theme.textPrimary }]}>{sport.label}</Text>
-              <Text style={[typography.caption, { color: theme.textTertiary }]}>
-                {sport.usesGps ? 'GPS · carte · allure' : 'Saisie manuelle'}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+        <View style={styles.sportList}>
+          {sports.map((sport) => {
+            const isSelected = selected === sport.code;
+            return (
+              <Pressable
+                key={sport.code}
+                onPress={() => choose(sport.code)}
+                // Choix exclusif : un lecteur d'écran annonce « bouton radio, sélectionné »
+                // plutôt qu'une carte muette dont seule la bordure change (#42).
+                accessibilityRole="radio"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={sport.label}
+                style={[
+                  styles.sportCard,
+                  shadows.card,
+                  {
+                    backgroundColor: theme.surfaceCard,
+                    borderColor: isSelected ? colors.primary500 : theme.borderSubtle,
+                  },
+                ]}
+                testID={`sport-${sport.code}`}
+              >
+                <View style={styles.sportHeader}>
+                  {sportRegistry[sport.code]?.icon != null && (
+                    <Icon
+                      name={sportRegistry[sport.code]?.icon ?? 'state-empty'}
+                      color={isSelected ? colors.primary500 : theme.textSecondary}
+                    />
+                  )}
+                  <SportBadge sport={sport.code} />
+                </View>
+                <Text style={[typography.h3, { color: theme.textPrimary }]}>{sport.label}</Text>
+                <Text style={[typography.caption, { color: theme.textSecondary }]}>
+                  {sport.usesGps ? 'GPS · carte · allure' : 'Saisie manuelle'}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
-      {selected != null && (
-        <Button
-          size="lg"
-          fullWidth
-          disabled={sessionStatus !== 'idle'}
-          onPress={() => void handleStart()}
-          style={{ marginTop: spacing.lg }}
-        >
-          {sessionStatus === 'starting' ? 'Démarrage…' : 'Démarrer la séance'}
-        </Button>
-      )}
-    </ScrollView>
+        {selected != null && (
+          <Button
+            size="lg"
+            fullWidth
+            disabled={sessionStatus !== 'idle'}
+            onPress={() => void handleStart()}
+            style={{ marginTop: spacing.lg }}
+          >
+            {sessionStatus === 'starting' ? 'Démarrage…' : 'Démarrer la séance'}
+          </Button>
+        )}
+      </ScrollView>
+    </SafeScreen>
   );
 }
 
@@ -193,6 +210,7 @@ const styles = StyleSheet.create({
   goals: { gap: spacing.md, marginTop: spacing.base },
   container: { padding: spacing.layoutGutter, gap: spacing.sm },
   sportList: { gap: spacing.md, marginTop: spacing.lg },
+  sportHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   sportCard: {
     borderWidth: 2,
     borderRadius: radius.lg,

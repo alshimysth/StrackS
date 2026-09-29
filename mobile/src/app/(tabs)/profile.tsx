@@ -11,9 +11,11 @@ import { exportPersonalData } from '../../core/account/export-data';
 import { accountErrorMessage } from '../../core/api/use-account';
 import { useDeleteAccount, useProfile } from '../../core/api/use-auth';
 import { AllTimeStats } from '../../core/profile/AllTimeStats';
+import { DisplayName } from '../../core/profile/DisplayName';
 import { PhysicalProfile } from '../../core/profile/PhysicalProfile';
 import { PrivacyZones } from '../../core/profile/PrivacyZones';
 import { Avatar } from '../../design-system/components/Avatar';
+import { Icon } from '../../design-system/components/Icon';
 import { useFormat } from '../../core/format/use-format';
 import { DEFAULT_PREFERENCES, speedDisplayFor } from '../../core/preferences/schema';
 import { usePreferences, useUpdatePreferences } from '../../core/preferences/use-preferences';
@@ -26,6 +28,7 @@ import { useAuthStore } from '../../core/auth/use-auth-store';
 import { Button } from '../../design-system/components/Button';
 import { spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
+import { SafeScreen } from '../../design-system/components/SafeScreen';
 
 /** « septembre 2026 » : le jour n'apporte rien à une ancienneté. */
 function memberSince(createdAt: string): string {
@@ -58,63 +61,66 @@ export default function ProfileScreen() {
   // L'écran défile depuis #7 : avec les réglages, le contenu dépasse la hauteur
   // disponible et les actions de compte sortaient de l'écran.
   return (
-    <ScrollView
-      style={{ backgroundColor: theme.surfaceApp }}
-      contentContainerStyle={styles.container}
-    >
-      <Text style={[typography.h2, { color: theme.textPrimary }]}>Profil</Text>
+    <SafeScreen edges={['top']}>
+      <ScrollView
+        style={{ backgroundColor: theme.surfaceApp }}
+        contentContainerStyle={styles.container}
+      >
+        <Text style={[typography.h2, { color: theme.textPrimary }]}>Profil</Text>
 
-      <View style={styles.header}>
-        <Avatar displayName={user?.displayName} email={user?.email} />
-        <View style={styles.identity}>
-          <Text style={[typography.h3, { color: theme.textPrimary }]}>
-            {user?.displayName ?? '—'}
-          </Text>
-          <Text style={[typography.body, { color: theme.textSecondary }]}>{user?.email ?? '—'}</Text>
-          {user != null && (
-            <Text
-              testID="email-status"
-              style={[
-                typography.body,
-                { color: user.emailVerified === true ? theme.textSuccess : theme.textWarning },
-              ]}
-            >
-              {user.emailVerified === true ? 'Adresse vérifiée' : 'Adresse non vérifiée'}
-            </Text>
-          )}
-          {user?.createdAt != null && (
-            <Text testID="member-since" style={[typography.caption, { color: theme.textTertiary }]}>
-              Membre depuis {memberSince(user.createdAt)}
-            </Text>
-          )}
+        <View style={styles.header}>
+          <Avatar displayName={user?.displayName} email={user?.email} />
+          <View style={styles.identity}>
+            <DisplayName value={user?.displayName} />
+            <Text style={[typography.body, { color: theme.textSecondary }]}>{user?.email ?? '—'}</Text>
+            {user != null && (
+              // Le texte porte l'information en `textSecondary` (contraste AA) ; la couleur
+              // d'état passe à l'icône, qui ne fait que la souligner (#42).
+              <View style={styles.status}>
+                <Icon
+                  name={user.emailVerified === true ? 'state-privacy' : 'state-warning'}
+                  color={user.emailVerified === true ? theme.textSuccess : theme.textWarning}
+                  size="sm"
+                />
+                <Text testID="email-status" style={[typography.body, { color: theme.textSecondary }]}>
+                  {user.emailVerified === true ? 'Adresse vérifiée' : 'Adresse non vérifiée'}
+                </Text>
+              </View>
+            )}
+            {user?.createdAt != null && (
+              <Text testID="member-since" style={[typography.caption, { color: theme.textSecondary }]}>
+                Membre depuis {memberSince(user.createdAt)}
+              </Text>
+            )}
+          </View>
         </View>
-      </View>
 
-      <View style={styles.section}>
-        <AllTimeStats />
-      </View>
+        <View style={styles.section}>
+          <AllTimeStats />
+        </View>
 
-      <AccountSecurity verified={user?.emailVerified === true} />
+        <AccountSecurity verified={user?.emailVerified === true} />
 
-      <View style={styles.section}>
-        <PhysicalProfile />
-      </View>
+        <View style={styles.section}>
+          <PhysicalProfile />
+        </View>
 
-      <Preferences />
+        <Preferences />
 
-      <View style={styles.section}>
-        <PrivacyZones />
-      </View>
+        <View style={styles.section}>
+          <PrivacyZones />
+        </View>
 
-      <View style={styles.actions}>
-        <Button variant="secondary" fullWidth onPress={logout}>
-          Se déconnecter
-        </Button>
-        <Button variant="text" fullWidth onPress={confirmDelete}>
-          Supprimer mon compte
-        </Button>
-      </View>
-    </ScrollView>
+        <View style={styles.actions}>
+          <Button variant="secondary" fullWidth onPress={logout}>
+            Se déconnecter
+          </Button>
+          <Button variant="text" fullWidth onPress={confirmDelete}>
+            Supprimer mon compte
+          </Button>
+        </View>
+      </ScrollView>
+    </SafeScreen>
   );
 }
 
@@ -349,5 +355,6 @@ const styles = StyleSheet.create({
   section: { marginTop: spacing.xl, gap: spacing.base },
   header: { marginTop: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.base },
   identity: { flex: 1, gap: spacing.xs },
+  status: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   actions: { marginTop: spacing.xl, gap: spacing.md },
 });

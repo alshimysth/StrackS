@@ -42,6 +42,7 @@ import { radius, shadows, spacing, typography } from '../../design-system/theme'
 import { useTheme } from '../../design-system/use-theme';
 import { useFormat } from '../../core/format/use-format';
 import type { StatsSummary } from '../../types/api';
+import { SafeScreen } from '../../design-system/components/SafeScreen';
 
 const PERIOD_OPTIONS: ChipOption<StatsPeriod>[] = [
   { value: 'week', label: 'Semaine' },
@@ -81,50 +82,52 @@ export default function StatsScreen() {
   const forward = canGoForward(period, anchor);
 
   return (
-    <ScrollView
-      style={{ backgroundColor: theme.surfaceApp }}
-      contentContainerStyle={styles.container}
-      testID="stats-screen"
-    >
-      <Text style={[typography.h2, { color: theme.textPrimary }]}>Statistiques</Text>
+    <SafeScreen edges={['top']}>
+      <ScrollView
+        style={{ backgroundColor: theme.surfaceApp }}
+        contentContainerStyle={styles.container}
+        testID="stats-screen"
+      >
+        <Text style={[typography.h2, { color: theme.textPrimary }]}>Statistiques</Text>
 
-      <View style={styles.filters}>
-        <FilterChips
-          options={PERIOD_OPTIONS}
-          value={period}
-          onChange={changePeriod}
-          accessibilityLabel="Choisir la période"
-        />
-        <FilterChips
-          options={sportOptions}
-          value={sport}
-          onChange={setSport}
-          accessibilityLabel="Filtrer par sport"
-        />
-      </View>
+        <View style={styles.filters}>
+          <FilterChips
+            options={PERIOD_OPTIONS}
+            value={period}
+            onChange={changePeriod}
+            accessibilityLabel="Choisir la période"
+          />
+          <FilterChips
+            options={sportOptions}
+            value={sport}
+            onChange={setSport}
+            accessibilityLabel="Filtrer par sport"
+          />
+        </View>
 
-      <View style={styles.periodNav}>
-        <NavArrow
-          direction="prev"
-          onPress={() => setAnchor(shiftAnchor(period, anchor, -1))}
-          enabled
-        />
-        <Text style={[typography.bodyLg, { color: theme.textPrimary }]}>
-          {periodTitle(period, anchor)}
-        </Text>
-        <NavArrow
-          direction="next"
-          onPress={() => setAnchor(shiftAnchor(period, anchor, 1))}
-          enabled={forward}
-        />
-      </View>
+        <View style={styles.periodNav}>
+          <NavArrow
+            direction="prev"
+            onPress={() => setAnchor(shiftAnchor(period, anchor, -1))}
+            enabled
+          />
+          <Text style={[typography.bodyLg, { color: theme.textPrimary }]}>
+            {periodTitle(period, anchor)}
+          </Text>
+          <NavArrow
+            direction="next"
+            onPress={() => setAnchor(shiftAnchor(period, anchor, 1))}
+            enabled={forward}
+          />
+        </View>
 
-      {!isOnline && summary.data != null && (
-        <OfflineBanner lastUpdatedAt={summary.dataUpdatedAt} />
-      )}
+        {!isOnline && summary.data != null && (
+          <OfflineBanner lastUpdatedAt={summary.dataUpdatedAt} />
+        )}
 
-      <Body summary={summary} timeline={timeline} />
-    </ScrollView>
+        <Body summary={summary} timeline={timeline} />
+      </ScrollView>
+    </SafeScreen>
   );
 }
 

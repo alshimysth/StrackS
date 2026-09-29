@@ -11,7 +11,18 @@ import React from 'react';
 
 import { classifyError, errorCopy, type ErrorKind } from '../../core/api/error-kind';
 import { Button } from './Button';
+import { Icon, type IconName } from './Icon';
 import { StateView } from './StateView';
+import { useTheme } from '../use-theme';
+
+/** Le pictogramme dit la nature du problème avant le texte : réseau, serveur, ou autre (#39). */
+const KIND_ICON: Record<ErrorKind, IconName> = {
+  offline: 'state-offline',
+  server: 'state-server-error',
+  unauthorized: 'state-warning',
+  'rate-limited': 'state-warning',
+  client: 'state-warning',
+};
 
 interface Props {
   error: unknown;
@@ -25,6 +36,7 @@ function isRetryable(kind: ErrorKind): boolean {
 }
 
 export function ErrorState({ error, onRetry, testID }: Props) {
+  const theme = useTheme();
   const kind = classifyError(error);
   const copy = errorCopy[kind];
 
@@ -33,9 +45,10 @@ export function ErrorState({ error, onRetry, testID }: Props) {
       testID={testID ?? `error-state-${kind}`}
       title={copy.title}
       message={copy.message}
+      glyph={<Icon name={KIND_ICON[kind]} color={theme.textTertiary} size="xl" />}
       action={
         onRetry != null && isRetryable(kind) ? (
-          <Button variant="secondary" onPress={onRetry}>
+          <Button variant="secondary" icon="action-retry" onPress={onRetry}>
             Réessayer
           </Button>
         ) : undefined

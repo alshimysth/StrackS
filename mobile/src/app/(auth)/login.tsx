@@ -14,6 +14,7 @@ import { Button } from '../../design-system/components/Button';
 import { Input } from '../../design-system/components/Input';
 import { spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
+import { SafeScreen } from '../../design-system/components/SafeScreen';
 
 export default function LoginScreen() {
   const theme = useTheme();
@@ -44,66 +45,68 @@ export default function LoginScreen() {
         : null;
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.flex, { backgroundColor: theme.surfaceApp }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={[typography.h1, { color: theme.textPrimary }]}>StrackS</Text>
-        <Text style={[typography.bodyLg, { color: theme.textSecondary, marginTop: spacing.xs }]}>
-          Connecte-toi pour retrouver tes séances.
-        </Text>
-
-        <View style={styles.form}>
-          <Input
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            error={fieldErrors.email}
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            testID="login-email"
-          />
-          <Input
-            label="Mot de passe"
-            value={password}
-            onChangeText={setPassword}
-            error={fieldErrors.password}
-            secureTextEntry
-            autoComplete="password"
-            testID="login-password"
-          />
-          {apiError != null && (
-            <Text style={[typography.body, { color: theme.textError }]}>{apiError}</Text>
-          )}
-          <Button size="lg" fullWidth onPress={submit} disabled={login.isPending}>
-            {login.isPending ? 'Connexion…' : 'Se connecter'}
-          </Button>
-          {/* #74. L'adresse déjà saisie suit : l'utilisateur ne la retape pas. */}
-          <Button
-            variant="text"
-            fullWidth
-            onPress={() =>
-              router.push({ pathname: '/(auth)/forgot-password', params: { email: email.trim() } })
-            }
-          >
-            Mot de passe oublié ?
-          </Button>
-        </View>
-
-        {/* Bouton « texte » du design system plutôt qu'un lien à la couleur codée en dur :
-            aucun jeton de couleur de lien n'existe, et le bouton suit le thème. */}
-        <View style={styles.footer}>
-          <Text style={[typography.body, { color: theme.textSecondary }]}>
-            Pas encore de compte ?
+    <SafeScreen edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={[styles.flex, { backgroundColor: theme.surfaceApp }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          <Text style={[typography.h1, { color: theme.textPrimary }]}>StrackS</Text>
+          <Text style={[typography.bodyLg, { color: theme.textSecondary, marginTop: spacing.xs }]}>
+            Connecte-toi pour retrouver tes séances.
           </Text>
-          <Button variant="text" onPress={() => router.push('/(auth)/register')}>
-            Créer un compte
-          </Button>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+          <View style={styles.form}>
+            <Input
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              error={fieldErrors.email}
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              testID="login-email"
+            />
+            <Input
+              label="Mot de passe"
+              value={password}
+              onChangeText={setPassword}
+              error={fieldErrors.password}
+              secureTextEntry
+              autoComplete="password"
+              testID="login-password"
+            />
+            {apiError != null && (
+              <Text style={[typography.body, { color: theme.textError }]}>{apiError}</Text>
+            )}
+            <Button size="lg" fullWidth onPress={submit} disabled={login.isPending}>
+              {login.isPending ? 'Connexion…' : 'Se connecter'}
+            </Button>
+            {/* #74. L'adresse déjà saisie suit : l'utilisateur ne la retape pas. */}
+            <Button
+              variant="text"
+              fullWidth
+              onPress={() =>
+                router.push({ pathname: '/(auth)/forgot-password', params: { email: email.trim() } })
+              }
+            >
+              Mot de passe oublié ?
+            </Button>
+          </View>
+
+          {/* Bouton « texte » du design system plutôt qu'un lien à la couleur codée en dur :
+              aucun jeton de couleur de lien n'existe, et le bouton suit le thème. */}
+          <View style={styles.footer}>
+            <Text style={[typography.body, { color: theme.textSecondary }]}>
+              Pas encore de compte ?
+            </Text>
+            <Button variant="text" onPress={() => router.push('/(auth)/register')}>
+              Créer un compte
+            </Button>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeScreen>
   );
 }
 

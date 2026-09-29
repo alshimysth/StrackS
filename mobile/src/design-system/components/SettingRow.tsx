@@ -37,7 +37,7 @@ export function SettingRow<T extends string>({
     <View style={styles.row} testID={testID}>
       <Text style={[typography.label, { color: theme.textSecondary }]}>{label}</Text>
       {helper != null && (
-        <Text style={[typography.caption, { color: theme.textTertiary }]}>{helper}</Text>
+        <Text style={[typography.caption, { color: theme.textSecondary }]}>{helper}</Text>
       )}
       <FilterChips
         options={options}

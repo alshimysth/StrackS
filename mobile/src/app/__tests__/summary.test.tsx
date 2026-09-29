@@ -23,6 +23,7 @@ import type { Activity, Page, StatsSummary } from '../../types/api';
 
 const mockApi = jest.fn();
 const mockBannerRenders: string[] = [];
+let mockBannerRecords: string[] | undefined;
 
 jest.mock('../../core/api/client', () => ({
   ...jest.requireActual('../../core/api/client'),
@@ -35,8 +36,9 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('../../design-system/components/CelebrationBanner', () => ({
-  CelebrationBanner: ({ reason }: { reason: string }) => {
+  CelebrationBanner: ({ reason, records }: { reason: string; records?: string[] }) => {
     mockBannerRenders.push(reason);
+    mockBannerRecords = records;
     return null;
   },
 }));
@@ -95,9 +97,43 @@ const later = <T,>(value: T) =>
     setTimeout(() => resolve(value), 30);
   });
 
+interface RecordHolders {
+  /** Détenteur du record de distance ; par défaut une séance plus ancienne. */
+  distance?: string;
+  duration?: string;
+  fail?: boolean;
+}
+
+function records(sportSessions: number, holders: RecordHolders) {
+  return {
+    bySport: [
+      {
+        sportType: 'running',
+        label: 'Course à pied',
+        sessions: sportSessions,
+        records: [
+          { key: 'durationS', label: 'Plus longue séance', unit: 's', value: 1800,
+            activityId: holders.duration ?? 'act-old', startedAt: '2025-01-01T08:00:00Z' },
+          { key: 'distanceM', label: 'Plus longue distance', unit: 'm', value: 9000,
+            activityId: holders.distance ?? 'act-old', startedAt: '2025-01-01T08:00:00Z' },
+        ],
+      },
+    ],
+  };
+}
+
 /** Réponses du serveur **après** la séance. */
-function serverAfterSession(opts: { weekSessions: number; sportSessions: number }) {
+function serverAfterSession(opts: {
+  weekSessions: number;
+  sportSessions: number;
+  records?: RecordHolders;
+}) {
   mockApi.mockImplementation((path: string) => {
+    if (path.startsWith('/api/v1/stats/records')) {
+      return opts.records?.fail === true
+        ? Promise.reject(new Error('hors ligne'))
+        : later(records(opts.sportSessions, opts.records ?? {}));
+    }
     if (path.startsWith('/api/v1/stats/summary')) {
       return later(weekStats(opts.weekSessions));
     }
@@ -222,3 +258,53 @@ describe('Résumé — sonde « première séance » en cache (#69)', () => {
     expect(new Set(mockBannerRenders)).toEqual(new Set(['first-session']));
   });
 });
+
+describe('Résumé — record personnel (#61)', () => {
+  it('célèbre le record battu par cette séance, avec le libellé du serveur', async () => {
+    serverAfterSession({ weekSessions: 2, sportSessions: 12, records: { distance: 'act-4' } });
+
+    await render(<SummaryScreen />, { wrapper: Wrapper });
+
+    await waitFor(() => expect(mockBannerRenders).toContain('personal-record'));
+    expect(new Set(mockBannerRenders)).toEqual(new Set(['personal-record']));
+    expect(mockBannerRecords).toEqual(['Plus longue distance']);
+  });
+
+  /** Record et objectif sur la même séance : un seul bandeau, le plus rare. */
+  it('préfère le record à l’objectif hebdomadaire franchi par la même séance', async () => {
+    withSessionGoal(3);
+    client.setQueryData(STATS_KEY, weekStats(2), { updatedAt: ENDED_AT_MS - 60_000 });
+    await invalidateLikeStop();
+    serverAfterSession({ weekSessions: 3, sportSessions: 12, records: { distance: 'act-4' } });
+
+    await render(<SummaryScreen />, { wrapper: Wrapper });
+
+    await waitFor(() => expect(mockBannerRenders).toContain('personal-record'));
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+    expect(mockBannerRenders).not.toContain('weekly-goal');
+  });
+
+  it('ne célèbre rien quand le record appartient à une autre séance', async () => {
+    serverAfterSession({ weekSessions: 2, sportSessions: 12 });
+
+    await render(<SummaryScreen />, { wrapper: Wrapper });
+
+    await waitFor(() => expect(screen.getByTestId('activity-title')).toBeOnTheScreen());
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+    expect(mockBannerRenders).toEqual([]);
+  });
+
+  /** Sans réponse des records, les autres raisons de célébrer restent valables. */
+  it('laisse passer l’objectif hebdomadaire quand les records sont injoignables', async () => {
+    withSessionGoal(3);
+    client.setQueryData(STATS_KEY, weekStats(2), { updatedAt: ENDED_AT_MS - 60_000 });
+    await invalidateLikeStop();
+    serverAfterSession({ weekSessions: 3, sportSessions: 12, records: { fail: true } });
+
+    await render(<SummaryScreen />, { wrapper: Wrapper });
+
+    await waitFor(() => expect(mockBannerRenders).toContain('weekly-goal'));
+    expect(mockBannerRenders).not.toContain('personal-record');
+  });
+});
+

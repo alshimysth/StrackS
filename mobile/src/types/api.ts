@@ -114,3 +114,28 @@ export interface StatsTimeline {
   bucket: 'day' | 'week' | 'month';
   buckets: TimelineBucket[];
 }
+
+/** Détenteur d'un record personnel (#61) — la plus ancienne séance à égalité. */
+export interface PersonalRecord {
+  /** Clé nommée par le module de sport (« distanceM ») ou par le socle (« durationS »). */
+  key: string;
+  /** Libellé rédigé par le serveur (« Plus longue distance »). */
+  label: string;
+  /** Unité SI de `value` : `m` ou `s`. */
+  unit: string;
+  value: number;
+  activityId: string;
+  startedAt: string;
+}
+
+export interface SportRecords {
+  sportType: string;
+  label: string;
+  sessions: number;
+  records: PersonalRecord[];
+}
+
+export interface PersonalRecords {
+  bySport: SportRecords[];
+}
+

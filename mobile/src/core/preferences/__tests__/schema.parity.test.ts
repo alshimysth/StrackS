@@ -27,7 +27,9 @@ import {
   DEFAULT_PREFERENCES,
   physicalSchema,
   preferencesSchema,
+  privacyZoneSchema,
   weeklyGoalSchema,
+  MAX_PRIVACY_ZONES,
 } from '../schema';
 
 const JAVA_PATH = resolve(
@@ -48,7 +50,8 @@ function javaStrings(name: string): string[] {
 /** Bornes des appels `positiveNumber(parent, "chemin", valeur, min, max)`. */
 function javaBounds(): Map<string, { min: number; max: number }> {
   const bounds = new Map<string, { min: number; max: number }>();
-  const re = /positiveNumber\(\s*\w+,\s*"([^"]+)",[^;]*?,\s*([\d_.]+),\s*([\d_.]+)\s*\);/g;
+  // Bornes éventuellement négatives (latitude, longitude des zones de confidentialité).
+  const re = /positiveNumber\(\s*\w+,\s*"([^"]+)",[^;]*?,\s*(-?[\d_.]+),\s*(-?[\d_.]+)\s*\);/g;
   for (const m of java.matchAll(re)) {
     bounds.set(m[1], { min: Number(m[2].replace(/_/g, '')), max: Number(m[3].replace(/_/g, '')) });
   }
@@ -58,12 +61,15 @@ function javaBounds(): Map<string, { min: number; max: number }> {
 const bounds = javaBounds();
 
 describe('lecture du source Java (garde-fou du test lui-même)', () => {
-  it('trouve les quatre bornes numériques', () => {
+  it('trouve toutes les bornes numériques', () => {
     // Si le Java est refactoré, ce test doit casser bruyamment plutôt que de ne plus
     // rien comparer du tout.
     expect([...bounds.keys()].sort()).toEqual([
       'physical.heightCm',
       'physical.weightKg',
+      'privacyZones.lat',
+      'privacyZones.lng',
+      'privacyZones.radiusM',
       'weeklyGoal.distanceM',
       'weeklyGoal.sessions',
     ]);
@@ -92,6 +98,15 @@ describe('clés connues', () => {
     expect(Object.keys(physicalSchema.shape).sort()).toEqual(javaStrings('PHYSICAL_KEYS').sort());
   });
 
+  it('les clés d’une zone de confidentialité sont les mêmes', () => {
+    expect(Object.keys(privacyZoneSchema.shape).sort()).toEqual(javaStrings('PRIVACY_ZONE_KEYS').sort());
+  });
+
+  it('le nombre maximal de zones est le même', () => {
+    const match = /MAX_PRIVACY_ZONES\s*=\s*(\d+)/.exec(java);
+    expect(MAX_PRIVACY_ZONES).toBe(Number(match?.[1]));
+  });
+
   it('les clés de l’objectif hebdomadaire sont les mêmes', () => {
     expect(Object.keys(weeklyGoalSchema.shape).sort()).toEqual(javaStrings('GOAL_KEYS').sort());
   });
@@ -103,6 +118,9 @@ describe('bornes numériques — mêmes valeurs limites que PreferencesService.v
     'physical.heightCm': (v) => physicalSchema.shape.heightCm.safeParse(v).success,
     'weeklyGoal.distanceM': (v) => weeklyGoalSchema.shape.distanceM.safeParse(v).success,
     'weeklyGoal.sessions': (v) => weeklyGoalSchema.shape.sessions.safeParse(v).success,
+    'privacyZones.lat': (v) => privacyZoneSchema.shape.lat.safeParse(v).success,
+    'privacyZones.lng': (v) => privacyZoneSchema.shape.lng.safeParse(v).success,
+    'privacyZones.radiusM': (v) => privacyZoneSchema.shape.radiusM.safeParse(v).success,
   };
 
   it.each([...bounds.entries()])('%s accepte ses deux bornes', (path, { min, max }) => {

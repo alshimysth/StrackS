@@ -13,6 +13,10 @@ import {
   formatPaceValue,
   formatSpeed,
   speedUnit,
+  formatLongDuration,
+  fromDisplayWeight,
+  toDisplayWeight,
+  weightUnit,
 } from '../units';
 
 describe('formatDistance', () => {
@@ -130,3 +134,36 @@ describe('formatDuration', () => {
     expect(formatDuration(119.7)).toBe('2:00');
   });
 });
+
+describe('formatLongDuration (#7)', () => {
+  it.each([
+    [0, '0 min'],
+    [59, '1 min'],
+    [3600, '1 h 00 min'],
+    [45 * 3600 + 12 * 60 + 29, '45 h 12 min'],
+  ])('%s s → %s', (seconds, expected) => {
+    expect(formatLongDuration(seconds)).toBe(expected);
+  });
+});
+
+describe('poids (#32)', () => {
+  it('reste en kg en métrique', () => {
+    expect(weightUnit('metric')).toBe('kg');
+    expect(toDisplayWeight(72.35, 'metric')).toBe(72.4);
+    expect(fromDisplayWeight(72.35, 'metric')).toBe(72.4);
+  });
+
+  it('saisit et affiche en livres, stocke en kg', () => {
+    expect(weightUnit('imperial')).toBe('lb');
+    expect(toDisplayWeight(72, 'imperial')).toBe(158.7);
+    expect(fromDisplayWeight(158.7, 'imperial')).toBe(72);
+  });
+
+  /** Une bascule métrique ↔ impérial ne doit pas faire dériver le poids stocké. */
+  it('fait l’aller-retour sans dérive', () => {
+    for (const kg of [30, 55.5, 72, 99.9, 300]) {
+      expect(fromDisplayWeight(toDisplayWeight(kg, 'imperial'), 'imperial')).toBeCloseTo(kg, 1);
+    }
+  });
+});
+

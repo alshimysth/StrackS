@@ -169,6 +169,7 @@ describe('start', () => {
       maxSpeedKmh: 25,
       pausedTotalS: 0,
       pausedAtMs: null,
+      gpsMode: 'balanced',
     });
   });
 
@@ -727,3 +728,45 @@ describe('courses entre reprise, clôture et purge locale', () => {
     expect(await buffer.loadSession()).toBeNull();
   });
 });
+
+describe('mode GPS (#36)', () => {
+  it('démarre en mode équilibré quand rien n’est précisé', async () => {
+    await startSession();
+    expect(gps.startGpsWatch).toHaveBeenCalledWith(expect.any(Function), 'balanced');
+    expect(gps.startBackgroundUpdates).toHaveBeenCalledWith('balanced');
+  });
+
+  it('applique le mode choisi au démarrage et le garde à la reprise', async () => {
+    api.startActivity.mockResolvedValue(activity());
+    await useSessionStore.getState().start('running', 25, 'saver');
+    expect(gps.startGpsWatch).toHaveBeenLastCalledWith(expect.any(Function), 'saver');
+    expect(gps.startBackgroundUpdates).toHaveBeenCalledWith('saver');
+
+    await useSessionStore.getState().pause();
+    await useSessionStore.getState().resume();
+    expect(gps.startGpsWatch).toHaveBeenLastCalledWith(expect.any(Function), 'saver');
+  });
+});
+
+describe('mode GPS après un kill (revue PR #80)', () => {
+  it('reprend une séance récupérée avec son propre mode, pas le mode par défaut', async () => {
+    api.startActivity.mockResolvedValue(activity());
+    await useSessionStore.getState().start('running', 25, 'saver');
+    const saved = await buffer.loadSession();
+
+    // L'app est tuée : nouveau module, même buffer.
+    jest.resetModules();
+    jest.doMock('../buffer', () => buffer);
+    jest.doMock('../../api/activities', () => api);
+    jest.doMock('../uploader', () => uploader);
+    useSessionStore = require('../use-session-store').useSessionStore;
+    gps = require('../../gps');
+    gps.startGpsWatch.mockResolvedValue({ remove: removeWatch });
+    await buffer.saveSession(saved as NonNullable<typeof saved>);
+
+    expect(await useSessionStore.getState().recover()).toBe(true);
+    await useSessionStore.getState().resume();
+    expect(gps.startGpsWatch).toHaveBeenLastCalledWith(expect.any(Function), 'saver');
+  });
+});
+

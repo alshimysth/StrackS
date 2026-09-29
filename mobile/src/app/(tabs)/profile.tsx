@@ -1,5 +1,6 @@
 /**
- * Profil — infos du compte, sécurité (#73, #75), export (#76), préférences, déconnexion,
+ * Profil — identité et totaux (#7), sécurité (#73, #75), export (#76), profil physique
+ * (#32), préférences dont le mode GPS (#36), zones de confidentialité (#37), déconnexion,
  * suppression (droit à l'effacement).
  */
 import { router } from 'expo-router';
@@ -9,6 +10,10 @@ import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { exportPersonalData } from '../../core/account/export-data';
 import { accountErrorMessage } from '../../core/api/use-account';
 import { useDeleteAccount, useProfile } from '../../core/api/use-auth';
+import { AllTimeStats } from '../../core/profile/AllTimeStats';
+import { PhysicalProfile } from '../../core/profile/PhysicalProfile';
+import { PrivacyZones } from '../../core/profile/PrivacyZones';
+import { Avatar } from '../../design-system/components/Avatar';
 import { useFormat } from '../../core/format/use-format';
 import { DEFAULT_PREFERENCES, speedDisplayFor } from '../../core/preferences/schema';
 import { usePreferences, useUpdatePreferences } from '../../core/preferences/use-preferences';
@@ -21,6 +26,11 @@ import { useAuthStore } from '../../core/auth/use-auth-store';
 import { Button } from '../../design-system/components/Button';
 import { spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
+
+/** « septembre 2026 » : le jour n'apporte rien à une ancienneté. */
+function memberSince(createdAt: string): string {
+  return new Date(createdAt).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+}
 
 export default function ProfileScreen() {
   const theme = useTheme();
@@ -54,31 +64,47 @@ export default function ProfileScreen() {
     >
       <Text style={[typography.h2, { color: theme.textPrimary }]}>Profil</Text>
 
-      <View style={styles.info}>
-        <Text style={[typography.label, { color: theme.textSecondary }]}>Nom affiché</Text>
-        <Text style={[typography.bodyLg, { color: theme.textPrimary }]}>
-          {user?.displayName ?? '—'}
-        </Text>
-        <Text style={[typography.label, { color: theme.textSecondary, marginTop: spacing.md }]}>
-          Email
-        </Text>
-        <Text style={[typography.bodyLg, { color: theme.textPrimary }]}>{user?.email ?? '—'}</Text>
-        {user != null && (
-          <Text
-            testID="email-status"
-            style={[
-              typography.body,
-              { color: user.emailVerified === true ? theme.textSuccess : theme.textWarning },
-            ]}
-          >
-            {user.emailVerified === true ? 'Adresse vérifiée' : 'Adresse non vérifiée'}
+      <View style={styles.header}>
+        <Avatar displayName={user?.displayName} email={user?.email} />
+        <View style={styles.identity}>
+          <Text style={[typography.h3, { color: theme.textPrimary }]}>
+            {user?.displayName ?? '—'}
           </Text>
-        )}
+          <Text style={[typography.body, { color: theme.textSecondary }]}>{user?.email ?? '—'}</Text>
+          {user != null && (
+            <Text
+              testID="email-status"
+              style={[
+                typography.body,
+                { color: user.emailVerified === true ? theme.textSuccess : theme.textWarning },
+              ]}
+            >
+              {user.emailVerified === true ? 'Adresse vérifiée' : 'Adresse non vérifiée'}
+            </Text>
+          )}
+          {user?.createdAt != null && (
+            <Text testID="member-since" style={[typography.caption, { color: theme.textTertiary }]}>
+              Membre depuis {memberSince(user.createdAt)}
+            </Text>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <AllTimeStats />
       </View>
 
       <AccountSecurity verified={user?.emailVerified === true} />
 
+      <View style={styles.section}>
+        <PhysicalProfile />
+      </View>
+
       <Preferences />
+
+      <View style={styles.section}>
+        <PrivacyZones />
+      </View>
 
       <View style={styles.actions}>
         <Button variant="secondary" fullWidth onPress={logout}>
@@ -141,6 +167,14 @@ function AccountSecurity({ verified }: { verified: boolean }) {
     </View>
   );
 }
+
+const GPS_MODE_HELP: Record<'max' | 'balanced' | 'saver', string> = {
+  max: 'Un point à chaque mesure : le tracé le plus fidèle, la batterie la plus sollicitée. S’applique à la prochaine séance.',
+  balanced: 'Le réglage de référence : un point tous les 2 m environ. S’applique à la prochaine séance.',
+  // iOS ignore l'intervalle de temps d'expo-location et ne suit que la distance (revue
+  // PR #80) : on ne promet donc pas de cadence fixe.
+  saver: 'Moins de points (tous les 5 m environ, et au plus un toutes les 3 s sur Android) : devrait économiser la batterie, au prix d’un tracé moins fin dans les virages. S’applique à la prochaine séance.',
+};
 
 /**
  * Section Préférences (#7, #30, #4, #31).
@@ -208,6 +242,22 @@ function Preferences() {
         disabled={saving}
         value={current.theme}
         onChange={(next) => update.mutate({ theme: next })}
+      />
+
+      {/* #36. `balanced` reproduit les réglages historiques ; l'impact batterie des deux
+          autres n'est pas encore mesuré sur device (#18) — d'où le conditionnel. */}
+      <SettingRow
+        testID="setting-gps-mode"
+        label="Précision GPS"
+        helper={GPS_MODE_HELP[current.gpsMode]}
+        options={[
+          { value: 'max', label: 'Maximale' },
+          { value: 'balanced', label: 'Équilibrée' },
+          { value: 'saver', label: 'Économie' },
+        ]}
+        disabled={saving}
+        value={current.gpsMode}
+        onChange={(gpsMode) => update.mutate({ gpsMode })}
       />
 
       {/* Objectifs proposés par paliers plutôt qu'en saisie libre : un objectif
@@ -297,6 +347,7 @@ function Preferences() {
 const styles = StyleSheet.create({
   container: { padding: spacing.layoutGutter, paddingBottom: spacing.xxl },
   section: { marginTop: spacing.xl, gap: spacing.base },
-  info: { marginTop: spacing.xl, gap: spacing.xs },
+  header: { marginTop: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.base },
+  identity: { flex: 1, gap: spacing.xs },
   actions: { marginTop: spacing.xl, gap: spacing.md },
 });

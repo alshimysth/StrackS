@@ -47,12 +47,28 @@ function isPersistable(query: Query): boolean {
   return typeof root === 'string' && PERSISTED_QUERY_PREFIXES.includes(root);
 }
 
+const persister = createAsyncStoragePersister({
+  storage: AsyncStorage,
+  key: 'stracks.query-cache',
+  throttleTime: 2_000,
+});
+
+/**
+ * Efface tout ce que le compte courant a mis en cache, en mémoire ET sur le disque.
+ *
+ * Appelé à la déconnexion (revue PR #80). Aucune clé de requête ne porte l'identité du
+ * compte : sans ce ménage, le compte suivant sur le même téléphone verrait, le temps
+ * d'un rechargement, l'historique, les statistiques et les records du précédent — et
+ * l'historique persisté survivrait même à un redémarrage de l'app.
+ */
+export async function clearUserCache(): Promise<void> {
+  await queryClient.cancelQueries();
+  queryClient.clear();
+  await persister.removeClient();
+}
+
 export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
-  persister: createAsyncStoragePersister({
-    storage: AsyncStorage,
-    key: 'stracks.query-cache',
-    throttleTime: 2_000,
-  }),
+  persister,
   maxAge: CACHE_MAX_AGE_MS,
   /**
    * Change de valeur à chaque évolution de forme des données mises en cache.

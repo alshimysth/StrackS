@@ -45,6 +45,15 @@ public interface SportPlugin {
     }
 
     /**
+     * Mesures dont ce sport tient un record personnel (#61), en plus de la durée que le
+     * socle suit pour tout sport. Par défaut aucune : un nouveau sport n'a rien à écrire
+     * pour que ses records de durée fonctionnent.
+     */
+    default List<PersonalRecordMetric> personalRecordMetrics() {
+        return List.of();
+    }
+
+    /**
      * Vitesse plafond (km/h) pour le filtre de plausibilité GPS de ce sport.
      * Ignoré si usesGps() est faux.
      */

@@ -35,6 +35,7 @@ import {
   startGpsWatch,
   stopBackgroundUpdates,
   type GpsFix,
+  type GpsMode,
   type GpsSubscription,
 } from '../gps';
 
@@ -64,7 +65,8 @@ interface SessionStore {
    */
   backgroundTracking: boolean;
 
-  start(sportType: string, maxGpsSpeedKmh: number): Promise<void>;
+  /** @param gpsMode préférence #36 ; `balanced` = réglages historiques */
+  start(sportType: string, maxGpsSpeedKmh: number, gpsMode?: GpsMode): Promise<void>;
   pause(): Promise<void>;
   resume(): Promise<void>;
   /** Flush final + stop serveur. Résout avec l'activité complétée (métriques serveur). */
@@ -83,6 +85,11 @@ let seq = 0;
 let startedAtMs = 0;
 let pausedTotalS = 0;
 let pausedAtMs: number | null = null;
+/**
+ * Mode GPS de la séance en cours (#36), réutilisé à la reprise. Persisté dans le buffer :
+ * une séance récupérée après un kill reprend avec ses propres réglages (revue PR #80).
+ */
+let gpsMode: GpsMode = 'balanced';
 /** Reprise en cours : les appels concurrents de `resume()` partagent la même promesse. */
 let resuming: Promise<void> | null = null;
 
@@ -181,7 +188,7 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
      * Tant que le watch n'est pas obtenu, rien ne bouge : ni `pausedAtMs`, ni
      * `pausedTotalS`, ni le buffer.
      */
-    const watch = await startGpsWatch(handleFix);
+    const watch = await startGpsWatch(handleFix, gpsMode);
     if (!stillPaused()) {
       watch.remove(); // clôturée (ou abandonnée) pendant l'obtention du GPS
       return;
@@ -218,6 +225,7 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
     seq = 0;
     pausedTotalS = 0;
     pausedAtMs = null;
+    gpsMode = 'balanced';
     set({
       status: 'idle',
       activityId: null,
@@ -240,7 +248,7 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
     signalLost: false,
     backgroundTracking: false,
 
-    async start(sportType, maxGpsSpeedKmh) {
+    async start(sportType, maxGpsSpeedKmh, mode = 'balanced') {
       if (get().status !== 'idle') {
         throw new Error('Une séance est déjà en cours.');
       }
@@ -255,6 +263,7 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
         seq = 0;
         acc = new GpsAccumulator(maxGpsSpeedKmh);
         await clearBuffer();
+        gpsMode = mode;
         await saveSession({
           activityId: activity.id,
           sportType,
@@ -262,12 +271,13 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
           maxSpeedKmh: maxGpsSpeedKmh,
           pausedTotalS: 0,
           pausedAtMs: null,
+          gpsMode,
         });
-        gpsSub = await startGpsWatch(handleFix);
+        gpsSub = await startGpsWatch(handleFix, gpsMode);
         // Demandée APRÈS le démarrage, jamais au lancement de l'app : hors contexte,
         // iOS la refuse en bloc. Un refus n'interrompt pas la séance — on reste en
         // premier plan, ce que l'écran de tracking signale (dégradation, pas échec).
-        const background = await startBackgroundUpdates().catch(() => false);
+        const background = await startBackgroundUpdates(gpsMode).catch(() => false);
         set({ backgroundTracking: background });
         startTimers();
         set({
@@ -386,6 +396,7 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
       const points = await allPoints();
       startedAtMs = session.startedAtMs;
       pausedTotalS = session.pausedTotalS;
+      gpsMode = session.gpsMode ?? 'balanced';
       acc = new GpsAccumulator(session.maxSpeedKmh);
       for (const p of points) {
         acc.add(p);

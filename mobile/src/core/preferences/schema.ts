@@ -57,6 +57,21 @@ export const weeklyGoalSchema = z.object({
   sessions: z.number().int().min(1).max(50).nullable().default(null),
 });
 
+/**
+ * Zone de confidentialité (#37) : les points du tracé situés dans le cercle ne sont pas
+ * dessinés. Bornes miroir de `PreferencesService.validatePrivacyZones`.
+ */
+export const privacyZoneSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  radiusM: z.number().min(100).max(2000),
+  label: z.string().max(40).nullable().default(null),
+});
+
+export type PrivacyZone = z.infer<typeof privacyZoneSchema>;
+
+export const MAX_PRIVACY_ZONES = 5;
+
 export const preferencesSchema = z
   .object({
     units: z.enum(UNITS).default('metric'),
@@ -68,6 +83,7 @@ export const preferencesSchema = z
     countdownEnabled: z.boolean().default(true),
     autoPauseEnabled: z.boolean().default(false),
     weeklyGoal: weeklyGoalSchema.default({ distanceM: null, sessions: null }),
+    privacyZones: z.array(privacyZoneSchema).max(MAX_PRIVACY_ZONES).default([]),
     physical: physicalSchema.default({
       weightKg: null,
       heightCm: null,
@@ -84,7 +100,19 @@ export type Preferences = z.infer<typeof preferencesSchema>;
  * la seule façon d'effacer une valeur, il n'y a pas de DELETE par clé.
  */
 export type PreferencesPatch = {
-  [K in keyof Preferences]?: Preferences[K] | null;
+  /**
+   * Les objets imbriqués (`physical`, `weeklyGoal`, `sportDisplay`) sont fusionnés clé par
+   * clé côté serveur : un patch n'en porte que les clés modifiées. Les exiger complets
+   * pousserait à recopier des valeurs périmées, que le serveur appliquerait (revue PR #80).
+   * Les listes, elles, sont remplacées d'un bloc.
+   */
+  [K in keyof Preferences]?:
+    | (Preferences[K] extends unknown[]
+        ? Preferences[K]
+        : Preferences[K] extends Record<string, unknown>
+          ? Partial<Preferences[K]>
+          : Preferences[K])
+    | null;
 };
 
 export const DEFAULT_PREFERENCES: Preferences = preferencesSchema.parse({});

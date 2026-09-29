@@ -41,7 +41,9 @@ export default function TrackingRoute() {
     }
     setCounting(false);
     try {
-      await useSessionStore.getState().start(module.code, module.maxGpsSpeedKmh ?? 25);
+      await useSessionStore
+        .getState()
+        .start(module.code, module.maxGpsSpeedKmh ?? 25, preferences.data?.gpsMode ?? 'balanced');
     } catch (error) {
       Alert.alert(
         'Impossible de démarrer',
@@ -49,7 +51,7 @@ export default function TrackingRoute() {
       );
       router.replace('/(tabs)');
     }
-  }, [module, router]);
+  }, [module, router, preferences.data?.gpsMode]);
 
   // Décompte désactivé en préférence : on démarre dès que la réponse est connue.
   React.useEffect(() => {

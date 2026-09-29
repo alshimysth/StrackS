@@ -9,13 +9,13 @@ import { typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
 
 interface Props {
-  path: { latitude: number; longitude: number }[];
+  segments: { latitude: number; longitude: number }[][];
   testID?: string;
 }
 
-export function RouteMap({ path, testID = 'route-map' }: Props) {
+export function RouteMap({ segments, testID = 'route-map' }: Props) {
   const theme = useTheme();
-  if (path.length === 0) {
+  if (segments.every((segment) => segment.length === 0)) {
     return null;
   }
   return (

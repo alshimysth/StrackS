@@ -1,0 +1,37 @@
+meta {
+  name: Zones de confidentialité
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/users/me/preferences
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "privacyZones": [
+      { "lat": 48.8566, "lng": 2.3522, "radiusM": 500, "label": "Domicile" }
+    ]
+  }
+}
+
+tests {
+  test("200 + liste remplacée d'un bloc", function () {
+    expect(res.getStatus()).to.equal(200);
+    const zones = res.getBody().privacyZones;
+    expect(zones).to.have.length(1);
+    expect(zones[0].radiusM).to.equal(500);
+  });
+}
+
+docs {
+  #37. Masquage à l'affichage seulement : le tracé stocké et exporté reste complet. 5 zones
+  au plus, rayon 100–2000 m. `"privacyZones": null` remet la liste vide.
+}

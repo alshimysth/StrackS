@@ -25,7 +25,7 @@ import { SportBadge } from '../../design-system/components/SportBadge';
 import { spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
 import type { Activity, Page } from '../../types/api';
-import { useStatsSummary } from '../../core/api/use-stats';
+import { usePersonalRecords, useStatsSummary } from '../../core/api/use-stats';
 import { usePreferences } from '../../core/preferences/use-preferences';
 import { goalJustReached } from '../../core/preferences/weekly-goal';
 
@@ -118,6 +118,37 @@ function useGoalJustReached(activity: Activity | undefined): boolean {
   return goalJustReached(before, after, goal);
 }
 
+/**
+ * Records battus par CETTE séance (#61). Le serveur désigne le détenteur de chaque record
+ * sur tout l'historique : l'écran vérifie seulement qu'il s'agit de cette séance.
+ *
+ * `settled` reste faux tant que la réponse n'est pas postérieure à la séance (même garde
+ * que #69) : un record lu dans un cache d'avant désignerait l'ancien détenteur.
+ */
+function useRecordsBroken(activity: Activity | undefined): { settled: boolean; labels: string[] } {
+  const records = usePersonalRecords(activity?.sportType);
+  if (activity == null) {
+    return { settled: false, labels: [] };
+  }
+  // Records injoignables (hors ligne, panne) : on ne célèbre aucun record, mais on ne
+  // bloque pas pour autant les autres raisons — elles ont leurs propres données.
+  if (records.isError && !records.isFetching) {
+    return { settled: true, labels: [] };
+  }
+  if (!isFreshFor(records, activity)) {
+    return { settled: false, labels: [] };
+  }
+  const sport = records.data?.bySport.find((s) => s.sportType === activity.sportType);
+  // Une première séance détient forcément tous les records : c'est l'autre célébration.
+  if (sport == null || sport.sessions <= 1) {
+    return { settled: true, labels: [] };
+  }
+  return {
+    settled: true,
+    labels: sport.records.filter((r) => r.activityId === activity.id).map((r) => r.label),
+  };
+}
+
 export default function SummaryScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -131,6 +162,7 @@ export default function SummaryScreen() {
   const firstSession = useIsFirstSession(activity?.sportType);
   const goalReached = useGoalJustReached(activity);
   const firstSessionSettled = activity != null && isFreshFor(firstSession, activity);
+  const recordsBroken = useRecordsBroken(activity);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.surfaceApp }} edges={['top', 'bottom']}>
@@ -145,16 +177,23 @@ export default function SummaryScreen() {
         {activity != null && (
           <>
             {/* Une seule célébration à la fois : deux bandeaux volt côte à côte
-                diluent exactement ce qu'ils sont censés souligner. La première
-                séance prime — elle ne se produit qu'une fois. */}
+                diluent exactement ce qu'ils sont censés souligner. Priorité à la plus
+                rare : la première séance (une fois par sport), puis le record, puis
+                l'objectif de la semaine (qui revient chaque semaine). */}
             {/* Rien tant que la première requête n'a pas tranché sur une donnée
                 postérieure à la séance : sinon le bandeau « objectif » s'affiche puis
                 cède la place à « première séance », ou une sonde en cache fête une
                 première séance qui n'en est plus une (#69). */}
-            {!firstSessionSettled ? null : firstSession.data === true ? (
+            {!firstSessionSettled || !recordsBroken.settled ? null : firstSession.data === true ? (
               <CelebrationBanner
                 reason="first-session"
                 sportLabel={sportLabel(activity.sportType)}
+              />
+            ) : recordsBroken.labels.length > 0 ? (
+              <CelebrationBanner
+                reason="personal-record"
+                sportLabel={sportLabel(activity.sportType)}
+                records={recordsBroken.labels}
               />
             ) : (
               goalReached && (

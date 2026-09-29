@@ -8,7 +8,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 
-import type { StatsSummary, StatsTimeline } from '../../types/api';
+import type { PersonalRecords, StatsSummary, StatsTimeline } from '../../types/api';
 import { api } from './client';
 
 /** Fenêtres proposées par l'écran, alignées sur le calendrier. */
@@ -64,6 +64,35 @@ export function useStatsSummary(query: StatsQuery) {
   return useQuery({
     queryKey: statsKey('summary', query),
     queryFn: () => api<StatsSummary>(buildStatsPath('summary', query)),
+  });
+}
+
+/**
+ * Totaux « depuis toujours » (#7), pour le profil. Même route que les périodes, avec
+ * `period=all` : aucune fenêtre de calendrier, aucune comparaison.
+ */
+export function useAllTimeSummary() {
+  return useQuery({
+    queryKey: ['stats', 'summary', 'all', deviceTimeZone()] as const,
+    queryFn: () =>
+      api<StatsSummary>(
+        `/api/v1/stats/summary?${new URLSearchParams({ period: 'all', tz: deviceTimeZone() }).toString()}`,
+      ),
+  });
+}
+
+/**
+ * Records personnels (#61), calculés par le serveur sur tout l'historique. Sous la clé
+ * `['stats', …]` : la fin d'une séance l'invalide avec le reste des agrégats (#69).
+ */
+export function usePersonalRecords(sport: string | undefined) {
+  return useQuery({
+    queryKey: ['stats', 'records', sport ?? 'all'] as const,
+    queryFn: () =>
+      api<PersonalRecords>(
+        `/api/v1/stats/records${sport != null ? `?sport=${encodeURIComponent(sport)}` : ''}`,
+      ),
+    enabled: sport != null,
   });
 }
 

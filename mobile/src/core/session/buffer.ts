@@ -5,7 +5,7 @@
  */
 import * as SQLite from 'expo-sqlite';
 
-import type { GpsFix } from '../gps';
+import type { GpsFix, GpsMode } from '../gps';
 
 export interface BufferedSession {
   activityId: string;
@@ -14,6 +14,11 @@ export interface BufferedSession {
   maxSpeedKmh: number;
   pausedTotalS: number;
   pausedAtMs: number | null;
+  /**
+   * Mode GPS de la séance (#36), pour qu'une séance récupérée après un kill reprenne
+   * avec les mêmes réglages. Absent sur une séance écrite avant son ajout → `balanced`.
+   */
+  gpsMode?: GpsMode;
 }
 
 export interface BufferedPoint extends GpsFix {
@@ -45,6 +50,13 @@ function db(): Promise<SQLite.SQLiteDatabase> {
         uploaded INTEGER NOT NULL DEFAULT 0
       );
     `);
+    // Migration locale (#36, revue PR #80) : `CREATE TABLE IF NOT EXISTS` ne touche pas
+    // une table déjà créée par une version précédente de l'app. La colonne est ajoutée
+    // si elle manque, nullable — une séance en cours au moment de la mise à jour survit.
+    const columns = await database.getAllAsync<{ name: string }>('PRAGMA table_info(session)');
+    if (!columns.some((column) => column.name === 'gps_mode')) {
+      await database.execAsync('ALTER TABLE session ADD COLUMN gps_mode TEXT');
+    }
     return database;
   });
   return dbPromise;
@@ -52,14 +64,15 @@ function db(): Promise<SQLite.SQLiteDatabase> {
 
 export async function saveSession(session: BufferedSession): Promise<void> {
   await (await db()).runAsync(
-    `INSERT OR REPLACE INTO session (id, activity_id, sport_type, started_at_ms, max_speed_kmh, paused_total_s, paused_at_ms)
-     VALUES (1, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO session (id, activity_id, sport_type, started_at_ms, max_speed_kmh, paused_total_s, paused_at_ms, gps_mode)
+     VALUES (1, ?, ?, ?, ?, ?, ?, ?)`,
     session.activityId,
     session.sportType,
     session.startedAtMs,
     session.maxSpeedKmh,
     session.pausedTotalS,
     session.pausedAtMs,
+    session.gpsMode ?? null,
   );
 }
 
@@ -71,6 +84,7 @@ export async function loadSession(): Promise<BufferedSession | null> {
     max_speed_kmh: number;
     paused_total_s: number;
     paused_at_ms: number | null;
+    gps_mode: string | null;
   }>('SELECT * FROM session WHERE id = 1');
   if (row == null) {
     return null;
@@ -82,7 +96,13 @@ export async function loadSession(): Promise<BufferedSession | null> {
     maxSpeedKmh: row.max_speed_kmh,
     pausedTotalS: row.paused_total_s,
     pausedAtMs: row.paused_at_ms,
+    ...(isGpsMode(row.gps_mode) ? { gpsMode: row.gps_mode } : {}),
   };
+}
+
+/** Lecture tolérante : une valeur inconnue (version future, corruption) vaut absence. */
+function isGpsMode(value: string | null): value is GpsMode {
+  return value === 'max' || value === 'balanced' || value === 'saver';
 }
 
 export async function updatePauseState(pausedTotalS: number, pausedAtMs: number | null): Promise<void> {

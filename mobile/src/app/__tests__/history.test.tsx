@@ -132,6 +132,16 @@ describe('Historique — états système', () => {
   });
 });
 
+/** #5 : sur iPhone à encoche, le titre ne passe plus sous la barre de statut. */
+it('se rend dans une zone sûre qui protège le haut de l’écran', async () => {
+  respond(() => pageOf([activity('a')]));
+  await renderScreen();
+  const safe = await screen.findByTestId('safe-screen');
+  // Forme native des bords : le haut est protégé, le bas est laissé à la barre d'onglets.
+  expect(safe.props.edges).toMatchObject({ top: 'additive', bottom: 'off' });
+  expect(screen.getByText('Historique')).toBeOnTheScreen();
+});
+
 describe('Historique — filtrage serveur (DoD #23)', () => {
   it('demande le filtre au backend plutôt que de trier la page reçue', async () => {
     respond(() => pageOf([activity('a')]));

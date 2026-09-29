@@ -8,6 +8,7 @@ import type React from 'react';
 import type { ZodSchema } from 'zod';
 
 import type { LiveMetric, SessionState } from '../core/session/types';
+import type { IconName } from '../design-system/components/Icon';
 import type { Activity } from '../types/api';
 
 export type { LiveMetric, SessionState };
@@ -15,6 +16,12 @@ export type { LiveMetric, SessionState };
 export interface SportModule {
   code: string;
   label: string;
+  /**
+   * Pictogramme du sport (#39), choisi par le module dans le vocabulaire du design system.
+   * Le socle l'affiche sans savoir de quel sport il s'agit ; un nouveau sport en déclare un
+   * nouveau sans toucher aux écrans.
+   */
+  icon?: IconName;
   usesGps: boolean;
   /**
    * Seuil de plausibilité GPS (miroir de SportPlugin.maxGpsSpeedKmh backend) —

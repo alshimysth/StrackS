@@ -20,6 +20,9 @@ module.exports = {
 
   // Même alias que tsconfig.json, pour que les tests puissent importer `@/…`.
   moduleNameMapper: {
+    // Icônes (#39) : le paquet expose un build `.mjs` que la transformation Babel de jest
+    // ne traite pas ; son build CommonJS, lui, se charge tel quel.
+    '^lucide-react-native$': '<rootDir>/node_modules/lucide-react-native/dist/cjs/lucide-react-native.js',
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@/assets/(.*)$': '<rootDir>/assets/$1',
   },

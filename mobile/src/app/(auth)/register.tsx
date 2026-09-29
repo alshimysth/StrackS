@@ -9,6 +9,7 @@ import { Button } from '../../design-system/components/Button';
 import { Input } from '../../design-system/components/Input';
 import { spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
+import { SafeScreen } from '../../design-system/components/SafeScreen';
 
 export default function RegisterScreen() {
   const theme = useTheme();
@@ -44,60 +45,62 @@ export default function RegisterScreen() {
         : null;
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.flex, { backgroundColor: theme.surfaceApp }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={[typography.h1, { color: theme.textPrimary }]}>Crée ton compte</Text>
-        <Text style={[typography.bodyLg, { color: theme.textSecondary, marginTop: spacing.xs }]}>
-          Toutes tes séances, un seul endroit.
-        </Text>
+    <SafeScreen edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={[styles.flex, { backgroundColor: theme.surfaceApp }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          <Text style={[typography.h1, { color: theme.textPrimary }]}>Crée ton compte</Text>
+          <Text style={[typography.bodyLg, { color: theme.textSecondary, marginTop: spacing.xs }]}>
+            Toutes tes séances, un seul endroit.
+          </Text>
 
-        <View style={styles.form}>
-          <Input
-            label="Nom affiché"
-            value={displayName}
-            onChangeText={setDisplayName}
-            helper="Optionnel"
-            testID="register-display-name"
-          />
-          <Input
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            error={fieldErrors.email}
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            testID="register-email"
-          />
-          <Input
-            label="Mot de passe"
-            value={password}
-            onChangeText={setPassword}
-            error={fieldErrors.password}
-            helper="Au moins 8 caractères"
-            secureTextEntry
-            autoComplete="new-password"
-            testID="register-password"
-          />
-          {apiError != null && (
-            <Text style={[typography.body, { color: theme.textError }]}>{apiError}</Text>
-          )}
-          <Button size="lg" fullWidth onPress={submit} disabled={register.isPending}>
-            {register.isPending ? 'Création…' : 'Créer mon compte'}
-          </Button>
-        </View>
+          <View style={styles.form}>
+            <Input
+              label="Nom affiché"
+              value={displayName}
+              onChangeText={setDisplayName}
+              helper="Optionnel"
+              testID="register-display-name"
+            />
+            <Input
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              error={fieldErrors.email}
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              testID="register-email"
+            />
+            <Input
+              label="Mot de passe"
+              value={password}
+              onChangeText={setPassword}
+              error={fieldErrors.password}
+              helper="Au moins 8 caractères"
+              secureTextEntry
+              autoComplete="new-password"
+              testID="register-password"
+            />
+            {apiError != null && (
+              <Text style={[typography.body, { color: theme.textError }]}>{apiError}</Text>
+            )}
+            <Button size="lg" fullWidth onPress={submit} disabled={register.isPending}>
+              {register.isPending ? 'Création…' : 'Créer mon compte'}
+            </Button>
+          </View>
 
-        <View style={styles.footer}>
-          <Text style={[typography.body, { color: theme.textSecondary }]}>Déjà inscrit ?</Text>
-          <Button variant="text" onPress={() => router.replace('/(auth)/login')}>
-            Se connecter
-          </Button>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <View style={styles.footer}>
+            <Text style={[typography.body, { color: theme.textSecondary }]}>Déjà inscrit ?</Text>
+            <Button variant="text" onPress={() => router.replace('/(auth)/login')}>
+              Se connecter
+            </Button>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeScreen>
   );
 }
 

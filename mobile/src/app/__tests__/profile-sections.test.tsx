@@ -260,3 +260,31 @@ describe('Avatar (#7)', () => {
     expect(initialsOf(name, email)).toBe(expected);
   });
 });
+
+describe('Nom affiché (#7)', () => {
+  const { DisplayName } = jest.requireActual('../../core/profile/DisplayName');
+
+  it('modifie le nom et met à jour l’utilisateur affiché', async () => {
+    const updated = { id: 'u', email: 'a@example.com', displayName: 'Marie', createdAt: '2026-01-01T00:00:00Z' };
+    mockApi.mockResolvedValue(updated);
+    await render(<DisplayName value="Ancien nom" />, { wrapper: Wrapper });
+
+    await fireEvent.press(screen.getByText('Modifier'));
+    await fireEvent.changeText(screen.getByTestId('display-name-input'), '  Marie  ');
+    await fireEvent.press(screen.getByText('Enregistrer'));
+
+    await waitFor(() =>
+      expect(mockApi).toHaveBeenCalledWith('/api/v1/users/me', { method: 'PATCH', body: { displayName: 'Marie' } }),
+    );
+    expect(client.getQueryData(['me'])).toEqual(updated);
+    await waitFor(() => expect(screen.queryByTestId('display-name-input')).toBeNull());
+  });
+
+  it('annule sans rien envoyer', async () => {
+    await render(<DisplayName value="Ancien nom" />, { wrapper: Wrapper });
+    await fireEvent.press(screen.getByText('Modifier'));
+    await fireEvent.press(screen.getByText('Annuler'));
+    expect(screen.getByTestId('display-name')).toHaveTextContent('Ancien nom');
+    expect(mockApi).not.toHaveBeenCalled();
+  });
+});

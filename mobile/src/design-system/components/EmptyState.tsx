@@ -10,7 +10,9 @@
  */
 import React, { type ReactNode } from 'react';
 
+import { Icon } from './Icon';
 import { StateView } from './StateView';
+import { useTheme } from '../use-theme';
 
 interface Props {
   variant?: 'initial' | 'filtered';
@@ -21,8 +23,10 @@ interface Props {
 }
 
 export function EmptyState({ variant = 'initial', title, message, action, testID }: Props) {
+  const theme = useTheme();
   return (
     <StateView
+      glyph={<Icon name="state-empty" color={theme.textTertiary} size="xl" />}
       testID={testID ?? `empty-state-${variant}`}
       title={title}
       message={message}

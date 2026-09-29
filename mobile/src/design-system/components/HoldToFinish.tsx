@@ -6,9 +6,10 @@
  */
 import * as Haptics from 'expo-haptics';
 import React from 'react';
-import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Animated, Easing, Pressable, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
+import { Icon } from './Icon';
 import { useTheme } from '../use-theme';
 import { colors, motion } from '../theme';
 
@@ -77,7 +78,18 @@ export function HoldToFinish({ onFinish, disabled = false }: Props) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Terminer la séance (maintenir 1,5 s)"
+      accessibilityLabel="Terminer la séance"
+      accessibilityHint="Maintiens 1,5 seconde, ou utilise l’action « Terminer »."
+      accessibilityState={{ disabled }}
+      // Un lecteur d'écran ne permet pas de maintenir un appui de façon fiable (#42).
+      // L'action accessible demande une confirmation : c'est l'équivalent, pour lui, de
+      // la protection contre l'arrêt accidentel que l'appui maintenu offre au doigt.
+      accessibilityActions={disabled ? [] : [{ name: 'activate', label: 'Terminer' }]}
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === 'activate') {
+          confirmFinish(onFinish);
+        }
+      }}
       disabled={disabled}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
@@ -104,7 +116,7 @@ export function HoldToFinish({ onFinish, disabled = false }: Props) {
           strokeDashoffset={dashOffset}
         />
       </Svg>
-      <View style={styles.stopGlyph} />
+      <Icon name="action-finish" color={colors.primary500} size="sm" />
     </Pressable>
   );
 }
@@ -121,10 +133,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     transform: [{ rotate: '-90deg' }],
   },
-  stopGlyph: {
-    width: 14,
-    height: 14,
-    borderRadius: 2,
-    backgroundColor: colors.primary500,
-  },
 });
+
+/** Confirmation de l'arrêt pour le lecteur d'écran (#42) : même garde-fou que l'appui maintenu. */
+export function confirmFinish(onFinish: () => void): void {
+  Alert.alert('Terminer la séance ?', 'La séance sera enregistrée et envoyée.', [
+    { text: 'Continuer', style: 'cancel' },
+    { text: 'Terminer', style: 'destructive', onPress: onFinish },
+  ]);
+}
+

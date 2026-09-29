@@ -27,6 +27,7 @@ import { radius, shadows, spacing, typography } from '../../design-system/theme'
 import { useTheme } from '../../design-system/use-theme';
 import { useFormat } from '../../core/format/use-format';
 import type { Activity } from '../../types/api';
+import { SafeScreen } from '../../design-system/components/SafeScreen';
 
 const PERIOD_OPTIONS: ChipOption<PeriodFilter>[] = [
   { value: 'all', label: 'Tout' },
@@ -96,41 +97,43 @@ export default function HistoryScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.surfaceApp }]}>
-      <Text style={[typography.h2, { color: theme.textPrimary }]}>Historique</Text>
+    <SafeScreen edges={['top']}>
+      <View style={[styles.container, { backgroundColor: theme.surfaceApp }]}>
+        <Text style={[typography.h2, { color: theme.textPrimary }]}>Historique</Text>
 
-      <View style={styles.filters}>
-        <FilterChips
-          options={sportOptions}
-          value={sport}
-          onChange={setSport}
-          accessibilityLabel="Filtrer par sport"
-        />
-        <FilterChips
-          options={PERIOD_OPTIONS}
-          value={period}
-          onChange={setPeriod}
-          accessibilityLabel="Filtrer par période"
+        <View style={styles.filters}>
+          <FilterChips
+            options={sportOptions}
+            value={sport}
+            onChange={setSport}
+            accessibilityLabel="Filtrer par sport"
+          />
+          <FilterChips
+            options={PERIOD_OPTIONS}
+            value={period}
+            onChange={setPeriod}
+            accessibilityLabel="Filtrer par période"
+          />
+        </View>
+
+        {/* Le bandeau accompagne les données au lieu de les remplacer : la donnée
+            périmée reste lisible, mais jamais sans son horodatage (DoD #27). */}
+        {!isOnline && activities.length > 0 && (
+          <OfflineBanner lastUpdatedAt={history.dataUpdatedAt} />
+        )}
+
+        <Body
+          history={history}
+          sections={sections}
+          isEmpty={activities.length === 0}
+          isFiltered={isFiltered}
+          onResetFilters={resetFilters}
+          theme={theme}
+          onOpen={(activity) => router.push(`/activity/${activity.id}`)}
+          onDelete={confirmDelete}
         />
       </View>
-
-      {/* Le bandeau accompagne les données au lieu de les remplacer : la donnée
-          périmée reste lisible, mais jamais sans son horodatage (DoD #27). */}
-      {!isOnline && activities.length > 0 && (
-        <OfflineBanner lastUpdatedAt={history.dataUpdatedAt} />
-      )}
-
-      <Body
-        history={history}
-        sections={sections}
-        isEmpty={activities.length === 0}
-        isFiltered={isFiltered}
-        onResetFilters={resetFilters}
-        theme={theme}
-        onOpen={(activity) => router.push(`/activity/${activity.id}`)}
-        onDelete={confirmDelete}
-      />
-    </View>
+    </SafeScreen>
   );
 }
 
@@ -282,7 +285,7 @@ function ActivityCard({
           : '—'}
         {activity.durationS != null ? `  ·  ${format.duration(activity.durationS)}` : ''}
       </Text>
-      <Text style={[typography.caption, { color: theme.textTertiary }]}>
+      <Text style={[typography.caption, { color: theme.textSecondary }]}>
         {new Date(activity.startedAt).toLocaleDateString('fr-FR', {
           weekday: 'long',
           day: 'numeric',

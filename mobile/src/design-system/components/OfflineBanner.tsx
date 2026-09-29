@@ -13,6 +13,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, spacing, typography } from '../theme';
+import { Icon } from './Icon';
 import { useTheme } from '../use-theme';
 
 interface Props {
@@ -43,7 +44,10 @@ export function OfflineBanner({ lastUpdatedAt, testID = 'offline-banner' }: Prop
       accessibilityRole="alert"
       style={[styles.banner, { backgroundColor: colors.warning100 }]}
     >
-      <Text style={[typography.caption, { color: colors.warning600 }]}>
+      <Icon name="state-offline" color={colors.warning600} size="sm" />
+      {/* Texte sombre sur fond d'alerte clair : warning600 sur warning100 ne dépasse pas
+          2,6:1 (#42). L'icône, décorative, garde la couleur d'alerte. */}
+      <Text style={[typography.caption, { color: colors.neutral900 }]}>
         Hors ligne
         {freshness != null ? ` · données synchronisées ${freshness}` : ' · données en cache'}
       </Text>
@@ -57,5 +61,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
 });

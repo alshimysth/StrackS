@@ -51,6 +51,9 @@ export function FilterChips<T extends string>({
             disabled={disabled}
             accessibilityRole="tab"
             accessibilityState={{ selected, disabled }}
+            // Zone tactile de 44 px (#42) sans changer le dessin : la puce mesure 32 px de
+            // haut, la zone s'étend de 6 px au-dessus et au-dessous.
+            hitSlop={CHIP_HIT_SLOP}
             style={[
               styles.chip,
               {
@@ -75,6 +78,8 @@ export function FilterChips<T extends string>({
   );
 }
 
+const CHIP_HIT_SLOP = { top: 6, bottom: 6 } as const;
+
 const styles = StyleSheet.create({
   row: { gap: spacing.sm, paddingVertical: spacing.xs },
   chip: {
@@ -82,5 +87,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
+    // En largeur, la marge tactile chevaucherait la puce voisine : c'est la puce elle-même
+    // qui atteint 44 px (« 2 », « 3 » dans les objectifs).
+    minWidth: 44,
+    alignItems: 'center',
   },
 });

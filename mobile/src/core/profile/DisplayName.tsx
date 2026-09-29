@@ -53,7 +53,12 @@ export function DisplayName({ value }: { value: string | null | undefined }) {
       <Input
         label="Nom affiché"
         value={draft}
-        onChangeText={setDraft}
+        onChangeText={(next) => {
+          // Une erreur ne doit pas rester à côté d'une saisie qu'on est en train de corriger.
+          setDraft(next);
+          setError(undefined);
+          update.reset();
+        }}
         error={error ?? apiError ?? undefined}
         helper="Laisse vide pour ne pas afficher de nom."
         autoCapitalize="words"

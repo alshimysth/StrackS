@@ -264,10 +264,22 @@ describe('Avatar (#7)', () => {
 describe('Nom affiché (#7)', () => {
   const { DisplayName } = jest.requireActual('../../core/profile/DisplayName');
 
-  it('modifie le nom et met à jour l’utilisateur affiché', async () => {
+  /**
+   * Revue PR #85 : le parent lit l'utilisateur dans le cache `['me']`, comme l'écran Profil
+   * via `useProfile`. C'est le nom réellement affiché après l'enregistrement qui compte.
+   */
+  function ProfileLike() {
+    const { useQuery } = jest.requireActual('@tanstack/react-query');
+    const me = useQuery({ queryKey: ['me'], queryFn: () => client.getQueryData(['me']), staleTime: Infinity });
+    return <DisplayName value={me.data?.displayName} />;
+  }
+
+  it('modifie le nom et affiche le nouveau nom', async () => {
     const updated = { id: 'u', email: 'a@example.com', displayName: 'Marie', createdAt: '2026-01-01T00:00:00Z' };
+    client.setQueryData(['me'], { ...updated, displayName: 'Ancien nom' });
     mockApi.mockResolvedValue(updated);
-    await render(<DisplayName value="Ancien nom" />, { wrapper: Wrapper });
+    await render(<ProfileLike />, { wrapper: Wrapper });
+    expect(screen.getByTestId('display-name')).toHaveTextContent('Ancien nom');
 
     await fireEvent.press(screen.getByText('Modifier'));
     await fireEvent.changeText(screen.getByTestId('display-name-input'), '  Marie  ');
@@ -277,7 +289,20 @@ describe('Nom affiché (#7)', () => {
       expect(mockApi).toHaveBeenCalledWith('/api/v1/users/me', { method: 'PATCH', body: { displayName: 'Marie' } }),
     );
     expect(client.getQueryData(['me'])).toEqual(updated);
-    await waitFor(() => expect(screen.queryByTestId('display-name-input')).toBeNull());
+    await waitFor(() => expect(screen.getByTestId('display-name')).toHaveTextContent('Marie'));
+  });
+
+  it('efface l’erreur dès qu’on corrige la saisie', async () => {
+    mockApi.mockRejectedValueOnce(new (jest.requireActual('../../core/api/client').ApiError)({
+      status: 400, title: 'Requête invalide', detail: 'Nom refusé par le serveur.',
+    }));
+    await render(<DisplayName value="Ancien nom" />, { wrapper: Wrapper });
+    await fireEvent.press(screen.getByText('Modifier'));
+    await fireEvent.press(screen.getByText('Enregistrer'));
+    expect(await screen.findByText('Nom refusé par le serveur.')).toBeOnTheScreen();
+
+    await fireEvent.changeText(screen.getByTestId('display-name-input'), 'Marie');
+    expect(screen.queryByText('Nom refusé par le serveur.')).toBeNull();
   });
 
   it('annule sans rien envoyer', async () => {

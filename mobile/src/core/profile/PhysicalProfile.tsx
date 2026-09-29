@@ -74,7 +74,11 @@ export function PhysicalProfile() {
       <Input
         label={`Poids (${weightUnit(units)})`}
         value={draft}
-        onChangeText={setDraft}
+        onChangeText={(next) => {
+          setDraft(next);
+          setError(undefined);
+          update.reset();
+        }}
         error={error}
         helper="Facultatif. Sert uniquement à estimer les calories de tes séances ; sans lui, aucune calorie n’est affichée."
         keyboardType="decimal-pad"

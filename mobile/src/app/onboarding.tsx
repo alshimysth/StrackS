@@ -27,7 +27,7 @@ const POINTS: { icon: IconName; title: string; text: string }[] = [
   {
     icon: 'action-pause',
     title: '« Toujours », pour l’écran verrouillé',
-    text: 'Au démarrage de ta première séance, ton téléphone te proposera « Toujours » : c’est ce qui permet de continuer l’enregistrement téléphone en poche. Tu peux refuser ; la séance s’arrêtera alors si l’écran s’éteint.',
+    text: 'Au démarrage de ta première séance, ton téléphone te proposera « Toujours » : c’est ce qui permet de continuer l’enregistrement téléphone en poche. Si tu choisis « Une fois » maintenant, iPhone ne le proposera pas : il faudra alors passer par Réglages › StrackS › Position. Tu peux aussi refuser ; la séance s’arrêtera si l’écran s’éteint.',
   },
   {
     icon: 'state-place',

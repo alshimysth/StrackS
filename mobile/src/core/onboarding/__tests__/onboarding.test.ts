@@ -50,3 +50,28 @@ it('reste à faire si la permission ne peut pas être lue', async () => {
   await useOnboarding.getState().load();
   expect(useOnboarding.getState().status).toBe('pending');
 });
+
+/**
+ * Revue PR #85 : deux lectures lancées avant et après la connexion. Si l'utilisateur
+ * termine l'onboarding pendant que la plus lente attend, elle ne doit pas le rouvrir.
+ */
+it('ne rouvre pas un onboarding terminé pendant une lecture en cours', async () => {
+  let releasePermission: (granted: boolean) => void = () => undefined;
+  mockGranted.mockImplementation(
+    () => new Promise<boolean>((resolve) => (releasePermission = resolve)),
+  );
+  const getItem = jest.spyOn(AsyncStorage, 'getItem');
+
+  const first = useOnboarding.getState().load();
+  const second = useOnboarding.getState().load(); // partage la lecture en vol
+  await Promise.resolve();
+  await Promise.resolve();
+
+  await useOnboarding.getState().complete(); // l'utilisateur a terminé entre-temps
+  releasePermission(false); // la lecture lente revient avec « à faire »
+  await Promise.all([first, second]);
+
+  expect(useOnboarding.getState().status).toBe('done');
+  expect(getItem).toHaveBeenCalledTimes(1);
+});
+

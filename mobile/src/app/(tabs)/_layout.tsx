@@ -21,7 +21,9 @@ export default function TabsLayout() {
   // Anti-crash (DoD Epic 3) : une séance orpheline dans le buffer SQLite
   // (app tuée en plein tracking) est récupérée et rouverte en pause.
   React.useEffect(() => {
-    if (!token) {
+    // Pas de reprise de séance avant la fin de l'onboarding (revue PR #85) : la redirection
+    // vers le tracking passerait par-dessus l'explication de la localisation.
+    if (!token || onboarding !== 'done') {
       return;
     }
     void useSessionStore
@@ -33,7 +35,7 @@ export default function TabsLayout() {
         }
       })
       .catch(() => {});
-  }, [token, router]);
+  }, [token, router, onboarding]);
 
   if (!token) {
     return <Redirect href="/(auth)/login" />;

@@ -21,26 +21,47 @@ interface OnboardingState {
   complete(): Promise<void>;
 }
 
+/**
+ * Lecture en cours, partagée : deux `load()` rapprochés (la mise en page des onglets se
+ * monte avant et après la connexion) ne doivent pas lancer deux lectures, dont la plus
+ * lente écraserait un `complete()` survenu entre-temps (revue PR #85).
+ */
+let inFlight: Promise<void> | null = null;
+
 export const useOnboarding = create<OnboardingState>((set, get) => ({
   status: 'unknown',
 
-  async load() {
+  load() {
     if (get().status !== 'unknown') {
-      return;
+      return Promise.resolve();
     }
-    const seen = await AsyncStorage.getItem(ONBOARDING_KEY).catch(() => null);
-    if (seen != null) {
-      set({ status: 'done' });
-      return;
+    inFlight ??= read().finally(() => {
+      inFlight = null;
+    });
+    return inFlight;
+
+    async function read(): Promise<void> {
+      const seen = await AsyncStorage.getItem(ONBOARDING_KEY).catch(() => null);
+      if (seen != null) {
+        settle('done');
+        return;
+      }
+      // Déjà autorisé (mise à jour de l'app, réinstallation) : il n'y a plus rien à
+      // expliquer avant de demander, puisque plus rien ne sera demandé.
+      const granted = await hasForegroundPermission().catch(() => false);
+      if (granted) {
+        await get().complete();
+        return;
+      }
+      settle('pending');
     }
-    // Déjà autorisé (mise à jour de l'app, réinstallation) : il n'y a plus rien à expliquer
-    // avant de demander, puisque plus rien ne sera demandé.
-    const granted = await hasForegroundPermission().catch(() => false);
-    if (granted) {
-      await get().complete();
-      return;
+
+    /** Une lecture ne revient jamais sur un onboarding terminé pendant qu'elle attendait. */
+    function settle(status: Status): void {
+      if (get().status !== 'done') {
+        set({ status });
+      }
     }
-    set({ status: 'pending' });
   },
 
   async complete() {

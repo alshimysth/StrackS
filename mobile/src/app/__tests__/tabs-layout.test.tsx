@@ -1,0 +1,58 @@
+/**
+ * Mise en page des onglets : l'onboarding passe avant tout (#82), y compris avant la
+ * reprise d'une séance orpheline (revue PR #85).
+ */
+import { render, waitFor } from '@testing-library/react-native';
+import React from 'react';
+
+import TabsLayout from '../(tabs)/_layout';
+import { useOnboarding } from '../../core/onboarding/onboarding';
+
+const mockRecover = jest.fn();
+const mockReplace = jest.fn();
+const mockRedirects: string[] = [];
+
+jest.mock('expo-router', () => {
+  const Tabs = () => null;
+  Tabs.Screen = () => null;
+  return {
+    Tabs,
+    Redirect: ({ href }: { href: string }) => {
+      mockRedirects.push(href);
+      return null;
+    },
+    useRouter: () => ({ replace: (...a: unknown[]) => mockReplace(...a) }),
+  };
+});
+jest.mock('../../core/auth/use-auth-store', () => ({
+  useAuthStore: (selector: (s: unknown) => unknown) => selector({ token: 'jwt' }),
+}));
+jest.mock('../../core/session/use-session-store', () => ({
+  useSessionStore: { getState: () => ({ recover: () => mockRecover() }) },
+}));
+jest.mock('../../core/gps/position', () => ({ hasForegroundPermission: jest.fn().mockResolvedValue(false) }));
+jest.mock('../../design-system/use-theme', () => ({
+  useTheme: () => jest.requireActual('../../design-system/theme').lightTheme,
+}));
+
+beforeEach(() => {
+  mockRedirects.length = 0;
+  mockRecover.mockResolvedValue(true); // une séance orpheline existe
+});
+
+it('envoie vers l’onboarding sans reprendre la séance tant qu’il n’est pas terminé', async () => {
+  useOnboarding.setState({ status: 'pending' });
+  await render(<TabsLayout />);
+
+  expect(mockRedirects).toContain('/onboarding');
+  expect(mockRecover).not.toHaveBeenCalled();
+  expect(mockReplace).not.toHaveBeenCalled();
+});
+
+it('reprend la séance orpheline une fois l’onboarding terminé', async () => {
+  useOnboarding.setState({ status: 'done' });
+  await render(<TabsLayout />);
+
+  await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/tracking'));
+  expect(mockRedirects).not.toContain('/onboarding');
+});

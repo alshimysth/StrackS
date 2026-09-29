@@ -18,8 +18,8 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 
 /**
- * Parcours complet : démarrer → tracé → pause/reprise → stop → historique → stats.
- * Vérifie aussi l'idempotence de l'upload de tracé et l'anti-IDOR.
+ * Full journey: start → track → pause/resume → stop → history → stats.
+ * Also checks track upload idempotency and anti-IDOR.
  */
 @QuarkusTest
 class ActivityFlowTest {
@@ -28,16 +28,16 @@ class ActivityFlowTest {
         return AuthResourceTest.register("flow-" + UUID.randomUUID() + "@example.com", "motdepasse8");
     }
 
-    /** Tracé synthétique : ~500 m plein nord, montée régulière de 10 m. */
+    /** Synthetic track: ~500 m due north, steady 10 m climb. */
     private static List<Map<String, Object>> syntheticTrack(Instant start, int offsetSeq) {
         List<Map<String, Object>> points = new ArrayList<>();
         for (int i = 0; i < 50; i++) {
             points.add(Map.of(
                     "seq", offsetSeq + i,
                     "recordedAt", start.plusSeconds(i * 6L).toString(),
-                    "lat", 45.0 + i * 0.0001,       // ≈ 11,1 m par pas
+                    "lat", 45.0 + i * 0.0001,       // ≈ 11.1 m per step
                     "lng", 5.0,
-                    "altitudeM", 200.0 + i * 0.2,   // +10 m réguliers
+                    "altitudeM", 200.0 + i * 0.2,   // steady +10 m
                     "accuracyM", 5.0));
         }
         return points;
@@ -56,7 +56,7 @@ class ActivityFlowTest {
                 .body("status", equalTo("in_progress"))
                 .extract().path("id");
 
-        // Upload du tracé — deux fois le même lot : le rejeu ne duplique rien
+        // Track upload, the same batch twice: the replay duplicates nothing
         List<Map<String, Object>> track = syntheticTrack(start, 0);
         given().header("Authorization", "Bearer " + token)
                 .contentType("application/json")
@@ -72,7 +72,7 @@ class ActivityFlowTest {
                 .then().statusCode(201)
                 .body("inserted", equalTo(0)); // idempotent
 
-        // Pause puis reprise
+        // Pause then resume
         given().header("Authorization", "Bearer " + token)
                 .when().post("/api/v1/activities/" + activityId + "/pause")
                 .then().statusCode(200).body("status", equalTo("paused"));
@@ -80,7 +80,7 @@ class ActivityFlowTest {
                 .when().post("/api/v1/activities/" + activityId + "/resume")
                 .then().statusCode(200).body("status", equalTo("in_progress"));
 
-        // Stop : le serveur recalcule métriques et distance depuis le tracé
+        // Stop: the server recomputes metrics and distance from the track
         given().header("Authorization", "Bearer " + token)
                 .contentType("application/json")
                 .body(Map.of("endedAt", start.plusSeconds(300).toString(), "durationS", 294,
@@ -94,20 +94,20 @@ class ActivityFlowTest {
                 .body("metrics.elevationGainM", greaterThan(5))
                 .body("metrics.avgPaceSecPerKm", greaterThan(0));
 
-        // Historique
+        // History
         given().header("Authorization", "Bearer " + token)
                 .when().get("/api/v1/activities?sport=running")
                 .then().statusCode(200)
                 .body("items", hasSize(1))
                 .body("items[0].id", equalTo(activityId));
 
-        // Tracé relu
+        // Track read back
         given().header("Authorization", "Bearer " + token)
                 .when().get("/api/v1/activities/" + activityId + "/track-points")
                 .then().statusCode(200)
                 .body("size()", equalTo(50));
 
-        // Stats de la semaine
+        // Weekly stats
         given().header("Authorization", "Bearer " + token)
                 .when().get("/api/v1/stats/summary?period=week")
                 .then().statusCode(200)
@@ -135,7 +135,7 @@ class ActivityFlowTest {
                 .when().post("/api/v1/activities")
                 .then().statusCode(201).extract().path("id");
 
-        // Anti-IDOR : l'existence même de l'activité n'est pas révélée
+        // Anti-IDOR: not even the activity's existence is revealed
         given().header("Authorization", "Bearer " + tokenB)
                 .when().get("/api/v1/activities/" + activityId)
                 .then().statusCode(404);
@@ -153,7 +153,7 @@ class ActivityFlowTest {
                 .when().post("/api/v1/activities")
                 .then().statusCode(201).extract().path("id");
 
-        // resume sans pause préalable
+        // resume without a prior pause
         given().header("Authorization", "Bearer " + token)
                 .when().post("/api/v1/activities/" + activityId + "/resume")
                 .then().statusCode(409);
@@ -170,7 +170,7 @@ class ActivityFlowTest {
 
     @Test
     void offline_scenario_activity_created_a_posteriori() {
-        // Cas « séance hors ligne » : création + tracé + stop envoyés après coup
+        // "Offline session" case: creation + track + stop sent after the fact
         String token = freshToken();
         Instant start = Instant.now().minusSeconds(3600);
 

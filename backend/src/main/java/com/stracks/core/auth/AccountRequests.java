@@ -4,13 +4,13 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/** Corps des requêtes de gestion du compte (#73, #74, #75). */
+/** Request bodies for account management (#73, #74, #75). */
 public final class AccountRequests {
 
     private AccountRequests() {
     }
 
-    /** Même règle qu'à l'inscription ({@link RegisterRequest}) : 8 caractères minimum. */
+    /** Same rule as at registration ({@link RegisterRequest}): 8 characters minimum. */
     public record ChangePassword(@NotBlank String currentPassword, @NotBlank @Size(min = 8) String newPassword) {
     }
 

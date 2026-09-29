@@ -7,29 +7,30 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Moteur de calcul GPS partagé entre les sports géolocalisés (course, marche,
- * demain vélo/trail). Recalcule tout depuis les track_points bruts stockés :
- * la donnée brute reste la source de vérité, les métriques sont rejouables.
+ * GPS computation engine shared by geolocated sports (running, walking, later cycling/trail).
+ * Recomputes everything from the stored raw track_points: raw data stays the source of
+ * truth, metrics can be replayed.
  *
- * Filtres (cf. wiki Running-App-Mechanics, 2026-07-13) :
- *  - précision horizontale : points au-delà de MAX_ACCURACY_M écartés ;
- *  - plausibilité : segments plus rapides que maxSpeedKmh écartés (bruit GPS) ;
- *  - dénivelé : altitude lissée (moyenne mobile 5 points) + hystérésis de 2 m
- *    avant d'accumuler — l'altitude GPS brute surestime fortement le D+.
+ * Filters (see wiki Running-App-Mechanics, 2026-07-13):
+ *  - horizontal accuracy: points beyond MAX_ACCURACY_M are dropped;
+ *  - plausibility: segments faster than maxSpeedKmh are dropped (GPS noise);
+ *  - elevation: smoothed altitude (5-point moving average) + 2 m hysteresis before
+ *    accumulating, since raw GPS altitude heavily overestimates the gain.
  */
 public final class GpsComputations {
 
     public static final double MAX_ACCURACY_M = 50.0;
 
     /**
-     * Au-delà de ce trou entre deux points retenus, le signal est considéré comme perdu et
-     * le segment n'est PAS compté (#19). Sans cette règle, une traversée de tunnel ajoute la
-     * corde entre l'entrée et la sortie : le filtre de plausibilité ne l'attrape pas (1 km en
-     * 5 min = 12 km/h, plausible pour un coureur), et une distance parcourue en ligne droite
-     * est comptée alors qu'elle ne l'a pas été.
+     * Beyond this gap between two kept points, the signal is considered lost and the
+     * segment is NOT counted (#19). Without this rule, going through a tunnel adds the
+     * chord between entry and exit: the plausibility filter doesn't catch it (1 km in
+     * 5 min = 12 km/h, plausible for a runner), and a straight-line distance gets counted
+     * although it was never covered.
      *
-     * MIROIR EXACT de metrics.ts SIGNAL_LOST_MS — toute modification ici doit être répercutée
-     * côté client, sinon l'affichage live diverge du recalcul au stop (parité verrouillée #40).
+     * EXACT MIRROR of metrics.ts SIGNAL_LOST_MS: any change here must be carried over to
+     * the client, otherwise the live display diverges from the recomputation at stop
+     * (parity locked by #40).
      */
     public static final long SIGNAL_LOST_MS = 15_000L;
     public static final double ELEVATION_HYSTERESIS_M = 2.0;
@@ -43,7 +44,7 @@ public final class GpsComputations {
             List<Split> splits) {
     }
 
-    /** Split kilométrique : allure en secondes par km. */
+    /** Kilometre split: pace in seconds per km. */
     public record Split(int km, int paceSecPerKm) {
     }
 
@@ -62,8 +63,8 @@ public final class GpsComputations {
             TrackPointEntity a = usable.get(i - 1);
             TrackPointEntity b = usable.get(i);
             long gapMs = b.recordedAt.toEpochMilli() - a.recordedAt.toEpochMilli();
-            // Trou trop long : le point rouvre le tracé mais le segment n'est pas compté —
-            // on ignore quel chemin a été suivi entre les deux.
+            // Gap too long: the point reopens the track but the segment isn't counted,
+            // since we don't know which path was taken in between.
             if (gapMs < SIGNAL_LOST_MS) {
                 distance += haversineM(a.lat, a.lng, b.lat, b.lng);
             }
@@ -80,7 +81,7 @@ public final class GpsComputations {
         return new Result(distance, elevation[0], elevation[1], splits);
     }
 
-    /** Distance haversine en mètres entre deux coordonnées. */
+    /** Haversine distance in metres between two coordinates. */
     public static double haversineM(double lat1, double lng1, double lat2, double lng2) {
         double dLat = Math.toRadians(lat2 - lat1);
         double dLng = Math.toRadians(lng2 - lng1);
@@ -125,7 +126,7 @@ public final class GpsComputations {
             return new double[] { 0, 0 };
         }
 
-        // Moyenne mobile centrée sur SMOOTHING_WINDOW points
+        // Moving average centred on SMOOTHING_WINDOW points
         List<Double> smoothed = new ArrayList<>(altitudes.size());
         int half = SMOOTHING_WINDOW / 2;
         for (int i = 0; i < altitudes.size(); i++) {
@@ -138,7 +139,7 @@ public final class GpsComputations {
             smoothed.add(sum / (to - from + 1));
         }
 
-        // Hystérésis : n'accumuler qu'une variation confirmée au-delà du seuil
+        // Hysteresis: only accumulate a change confirmed beyond the threshold
         double gain = 0;
         double loss = 0;
         double reference = smoothed.get(0);
@@ -156,16 +157,16 @@ public final class GpsComputations {
     }
 
     /**
-     * Totaux d'un lot d'activités GPS, sous les clés attendues par {@link SportStats}.
+     * Totals of a batch of GPS activities, under the keys expected by {@link SportStats}.
      *
-     * <p><strong>Outil, pas contrat.</strong> Le socle ne l'appelle jamais de lui-même :
-     * c'est le plugin d'un sport géolocalisé qui choisit de s'en servir, exactement
-     * comme il choisit {@link #compute}. Un sport sans GPS ne le voit pas et ne
-     * déclare donc ni distance ni dénivelé — ce qui est tout l'intérêt.
+     * <p><strong>A tool, not a contract.</strong> The core never calls it on its own: the
+     * plugin of a geolocated sport chooses to use it, exactly as it chooses
+     * {@link #compute}. A sport without GPS never sees it and therefore declares neither
+     * distance nor elevation, which is the whole point.
      *
-     * <p>Les deux clés sont toujours présentes, y compris à zéro : le sport déclare
-     * ici ce qu'il <em>sait mesurer</em>, pas ce qu'il a mesuré cette semaine. Sans
-     * ça, une semaine sans dénivelé ferait disparaître la ligne « D+ » de l'écran.
+     * <p>Both keys are always present, even at zero: here the sport declares what it
+     * <em>can measure</em>, not what it measured this week. Otherwise a week without
+     * elevation would make the "D+" row disappear from the screen.
      */
     public static Map<String, Double> gpsTotals(List<ActivityEntity> activities) {
         double distanceM = 0;

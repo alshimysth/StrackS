@@ -9,8 +9,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Alternative;
 
 /**
- * Transport de test : garde les emails en mémoire pour que les tests lisent les codes.
- * Sélectionné d'office dans toutes les suites {@code @QuarkusTest} (alternative prioritaire).
+ * Test transport: keeps emails in memory so that tests can read the codes.
+ * Selected by default in every {@code @QuarkusTest} suite (priority alternative).
  */
 @Alternative
 @Priority(1)
@@ -28,7 +28,7 @@ public class CapturingEmailSender implements EmailSender {
         return sent.stream().filter(m -> m.to().equalsIgnoreCase(address)).toList();
     }
 
-    /** Dernier code reçu par cette adresse. */
+    /** Last code received by this address. */
     public Optional<String> lastCodeFor(String address) {
         List<EmailMessage> mine = sentTo(address);
         for (int i = mine.size() - 1; i >= 0; i--) {

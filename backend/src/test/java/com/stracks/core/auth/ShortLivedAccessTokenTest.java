@@ -16,13 +16,13 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 
 /**
- * #49 : une séance qui dure plus longtemps que le JWT d'accès, **réellement expiré**.
+ * #49: a session lasting longer than the access JWT, **actually expired**.
  *
- * <p>Le test de #44 renouvelait un jeton encore valide. Ici, la durée de vie est ramenée à
- * 2 s (plus 1 s de tolérance d'horloge) et le test attend vraiment qu'elle s'écoule : le serveur refuse l'ancien jeton (401),
- * le renouvellement en délivre un neuf, et l'envoi du tracé reprend. Trois cycles
- * reproduisent en accéléré une séance de 45 min à 15 min de durée de vie — sans perte d'un
- * seul point.
+ * <p>The #44 test refreshed a still-valid token. Here, the lifetime is brought down to 2 s
+ * (plus 1 s of clock tolerance) and the test really waits for it to elapse: the server
+ * rejects the old token (401), the refresh issues a new one, and the track upload resumes.
+ * Three cycles replay, sped up, a 45 min session with a 15 min lifetime, without losing a
+ * single point.
  */
 @QuarkusTest
 @TestProfile(ShortLivedAccessTokenTest.TwoSecondsProfile.class)
@@ -31,9 +31,9 @@ class ShortLivedAccessTokenTest {
     public static class TwoSecondsProfile implements QuarkusTestProfile {
         @Override
         public Map<String, String> getConfigOverrides() {
-            // SmallRye tolère 60 s de dérive d'horloge par défaut, et une valeur de 0 est
-            // lue comme « non réglé » — d'où l'échec du lot D avec `clock.skew=0`, contourné
-            // alors en attendant plus d'une minute. 1 s est la plus petite tolérance effective.
+            // SmallRye tolerates 60 s of clock skew by default, and a value of 0 is read as
+            // "not set": hence lot D's failure with `clock.skew=0`, worked around back then by
+            // waiting over a minute. 1 s is the smallest effective tolerance.
             return Map.of("stracks.jwt.ttl-seconds", "2",
                     "mp.jwt.verify.clock.skew", "1",
                     "smallrye.jwt.expiration.grace", "1");
@@ -41,7 +41,7 @@ class ShortLivedAccessTokenTest {
     }
 
     @Test
-    void une_seance_plus_longue_que_le_jwt_ne_perd_aucun_point() throws Exception {
+    void a_session_longer_than_the_jwt_loses_no_point() throws Exception {
         JsonPath session = given().contentType("application/json")
                 .body(Map.of("email", "short-" + UUID.randomUUID() + "@example.com",
                         "password", "motdepasse8"))
@@ -60,7 +60,7 @@ class ShortLivedAccessTokenTest {
                 .extract().path("id");
 
         for (int round = 0; round < 3; round++) {
-            Thread.sleep(3_500); // 2 s de vie + 1 s de tolérance : le JWT est expiré, pour de vrai
+            Thread.sleep(3_500); // 2 s of life + 1 s of tolerance: the JWT is expired, for real
 
             given().header("Authorization", "Bearer " + access)
                     .contentType("application/json")
@@ -76,7 +76,7 @@ class ShortLivedAccessTokenTest {
             access = renewed.getString("token");
             refresh = renewed.getString("refreshToken");
 
-            // Le rejeu du même lot, comme le fait le client mobile après un 401.
+            // Replay of the same batch, as the mobile client does after a 401.
             given().header("Authorization", "Bearer " + access)
                     .contentType("application/json")
                     .body(Map.of("points", track(start, round * 25)))

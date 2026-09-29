@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** #76 : portabilité — tout ce qui appartient à l'utilisateur, rien d'autre, aucun secret. */
+/** #76: portability, everything that belongs to the user, nothing else, no secret. */
 @QuarkusTest
 class DataExportTest {
 
@@ -58,7 +58,7 @@ class DataExportTest {
     }
 
     @Test
-    void contient_toutes_les_activites_et_tous_les_points_et_rien_d_un_autre_compte() {
+    void contains_every_activity_and_every_point_and_nothing_from_another_account() {
         Account me = register();
         Account other = register();
         String first = activityWithPoints(me, 30);
@@ -82,7 +82,7 @@ class DataExportTest {
     }
 
     @Test
-    void ne_contient_aucun_secret_d_authentification() {
+    void contains_no_authentication_secret() {
         Account me = register();
         activityWithPoints(me, 3);
         String body = export(me).then().statusCode(200).extract().asString();
@@ -94,14 +94,14 @@ class DataExportTest {
     }
 
     @Test
-    void un_compte_sans_activite_exporte_un_document_valide() {
+    void an_account_without_activity_exports_a_valid_document() {
         Account me = register();
         JsonPath json = export(me).then().statusCode(200).extract().jsonPath();
         assertTrue(json.getList("activities").isEmpty());
     }
 
     @Test
-    void exige_une_authentification() {
+    void requires_authentication() {
         given().when().get("/api/v1/users/me/export").then().statusCode(401);
     }
 }

@@ -7,37 +7,37 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.stracks.core.user.AthleteProfile;
 
 /**
- * Contrat d'un module de sport. Le socle ne connaît aucun sport : toute logique
- * spécifique passe par une implémentation de cette interface, découverte par CDI
- * et indexée dans {@link SportRegistry}. Ajouter un sport = ajouter une classe
- * dans sports/<code>/ — aucun fichier de core/ ne doit être modifié.
+ * Contract of a sport module. The core knows no sport: all sport-specific logic goes
+ * through an implementation of this interface, discovered by CDI and indexed in
+ * {@link SportRegistry}. Adding a sport = adding a class under sports/<code>/, with no
+ * file of core/ modified.
  */
 public interface SportPlugin {
 
-    /** Descripteur du sport (code, label, usesGps, version du schéma de métriques). */
+    /** Sport descriptor (code, label, usesGps, metrics schema version). */
     SportTypeDescriptor descriptor();
 
-    /** Valide le JSONB metrics d'une activité de ce sport. Jette une 422 sinon. */
+    /** Validates the metrics JSONB of an activity of this sport. Throws a 422 otherwise. */
     void validateMetrics(JsonNode metrics);
 
     /**
-     * Calcule/complète les métriques à la clôture d'une activité
-     * (ex. running : allure moyenne, D+/D- à partir des track_points).
+     * Computes/completes the metrics when an activity is closed
+     * (e.g. running: average pace, elevation gain/loss from the track_points).
      */
     JsonNode computeFinalMetrics(ActivityEntity activity, List<TrackPointEntity> track);
 
-    /** Agrège les stats de ce sport sur une liste d'activités (pour /stats). */
+    /** Aggregates this sport's stats over a list of activities (for /stats). */
     SportStats computeStats(List<ActivityEntity> activities);
 
     /**
-     * Estime la dépense énergétique de l'activité, en kilocalories.
+     * Estimates the energy expenditure of the activity, in kilocalories.
      *
-     * <p>Le socle ne sait pas ce que coûte un effort : seul le module du sport
-     * connaît le MET qui correspond au sien. Un sport qui ne sait pas estimer ne
-     * renvoie rien — {@code activities.calories} reste alors {@code null} et
-     * l'interface n'affiche pas de valeur, plutôt qu'un chiffre inventé.
+     * <p>The core doesn't know what an effort costs: only the sport module knows the MET
+     * matching its own. A sport that can't estimate returns nothing: {@code
+     * activities.calories} then stays {@code null} and the UI shows no value rather than
+     * a made-up number.
      *
-     * @param athlete profil physique, éventuellement vide (champs facultatifs)
+     * @param athlete athlete profile, possibly empty (optional fields)
      */
     default OptionalInt estimateCalories(ActivityEntity activity, List<TrackPointEntity> track,
             AthleteProfile athlete) {
@@ -45,17 +45,17 @@ public interface SportPlugin {
     }
 
     /**
-     * Mesures dont ce sport tient un record personnel (#61), en plus de la durée que le
-     * socle suit pour tout sport. Par défaut aucune : un nouveau sport n'a rien à écrire
-     * pour que ses records de durée fonctionnent.
+     * Measures for which this sport keeps a personal record (#61), on top of the duration
+     * the core tracks for every sport. None by default: a new sport has nothing to write
+     * for its duration records to work.
      */
     default List<PersonalRecordMetric> personalRecordMetrics() {
         return List.of();
     }
 
     /**
-     * Vitesse plafond (km/h) pour le filtre de plausibilité GPS de ce sport.
-     * Ignoré si usesGps() est faux.
+     * Maximum speed (km/h) for this sport's GPS plausibility filter.
+     * Ignored when usesGps() is false.
      */
     default double maxGpsSpeedKmh() {
         return 30.0;

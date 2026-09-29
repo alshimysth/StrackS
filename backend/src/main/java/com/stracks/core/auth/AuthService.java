@@ -36,8 +36,8 @@ public class AuthService {
         user.passwordHash = BcryptUtil.bcryptHash(request.password());
         user.displayName = request.displayName();
         user.persist();
-        // Vérification d'adresse (#75) : proposée, jamais bloquante en Phase 1. Un compte
-        // non vérifié se connecte et enregistre normalement.
+        // Address verification (#75): offered, never blocking in Phase 1. An unverified
+        // account logs in and records normally.
         accountService.sendVerificationCode(user);
         return issueSession(user);
     }
@@ -53,11 +53,11 @@ public class AuthService {
     }
 
     /**
-     * Renouvelle la session à partir du seul jeton de renouvellement.
+     * Refreshes the session from the refresh token alone.
      *
-     * <p>Anti-IDOR : l'utilisateur servi est celui inscrit sur la ligne du jeton, jamais
-     * une valeur venue de la requête. Il n'existe aucun paramètre à substituer pour viser
-     * le compte d'autrui.
+     * <p>Anti-IDOR: the user served is the one written on the token's row, never a value
+     * taken from the request. There is no parameter to substitute to target someone
+     * else's account.
      */
     @Transactional
     public AuthResult refresh(String presentedRefreshToken) {
@@ -71,7 +71,7 @@ public class AuthService {
         refreshTokenService.revokeSession(presentedRefreshToken);
     }
 
-    /** Ouvre une session neuve : JWT d'accès + nouvelle famille de refresh tokens. */
+    /** Opens a fresh session: access JWT + new refresh token family. */
     AuthResult issueSession(UserEntity user) {
         return new AuthResult(
                 tokenService.issue(user),
@@ -80,8 +80,8 @@ public class AuthService {
     }
 
     /**
-     * Le {@code ON DELETE CASCADE} de V5 efface les jetons avec le compte ; ce garde-fou
-     * couvre la fenêtre où un jeton survivrait à son utilisateur.
+     * V5's {@code ON DELETE CASCADE} deletes the tokens with the account; this guard covers
+     * the window where a token would outlive its user.
      */
     private UserEntity findActiveUser(UUID userId) {
         UserEntity user = UserEntity.findById(userId);

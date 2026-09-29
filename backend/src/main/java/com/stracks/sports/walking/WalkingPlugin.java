@@ -22,15 +22,15 @@ import com.stracks.core.user.AthleteProfile;
 import jakarta.enterprise.context.ApplicationScoped;
 
 /**
- * Module marche. Réutilise le moteur GPS partagé de core — zéro copier-coller.
- * Schéma metrics v1 : { schemaVersion, avgSpeedKmh, elevationGainM, elevationLossM }
- * (vitesse moyenne plutôt qu'allure : mental model marcheur).
+ * Walking module. Reuses core's shared GPS engine, no copy-paste.
+ * Metrics schema v1: { schemaVersion, avgSpeedKmh, elevationGainM, elevationLossM }
+ * (average speed rather than pace: a walker's mental model).
  */
 @ApplicationScoped
 public class WalkingPlugin implements SportPlugin {
 
     static final int SCHEMA_VERSION = 1;
-    private static final double MAX_SPEED_KMH = 12.0; // au-delà : bruit GPS pour un marcheur
+    private static final double MAX_SPEED_KMH = 12.0; // beyond: GPS noise for a walker
     private static final JsonNodeFactory json = JsonNodeFactory.instance;
 
     @Override
@@ -84,9 +84,9 @@ public class WalkingPlugin implements SportPlugin {
     }
 
     /**
-     * MET de la marche selon la vitesse (Compendium of Physical Activities).
-     * Table propre à ce sport : marcher vite coûte bien moins que courir
-     * doucement à la même vitesse, d'où deux tables distinctes.
+     * Walking MET by speed (Compendium of Physical Activities).
+     * A table specific to this sport: walking fast costs much less than running slowly at
+     * the same speed, hence two separate tables.
      */
     private static double met(double speedKmh) {
         if (speedKmh < 3.2) {
@@ -117,9 +117,9 @@ public class WalkingPlugin implements SportPlugin {
     }
 
     /**
-     * Records de ce sport (#61) : la plus longue distance, en plus de la durée que le
-     * socle suit pour tous. Lue sur la colonne recalculée par le serveur au stop,
-     * jamais sur une valeur envoyée par le client.
+     * This sport's records (#61): the longest distance, on top of the duration the core
+     * tracks for every sport. Read from the column recomputed by the server at stop, never
+     * from a value sent by the client.
      */
     @Override
     public List<PersonalRecordMetric> personalRecordMetrics() {
@@ -129,9 +129,9 @@ public class WalkingPlugin implements SportPlugin {
 
     @Override
     public SportStats computeStats(List<ActivityEntity> activities) {
-        // Distance et dénivelé sont nommés ici, par le sport, et non listés comme
-        // champs de SportStats : c'est ce qui permet à un sport sans GPS de n'en
-        // déclarer aucun sans que le socle ait à changer (#46).
+        // Distance and elevation are named here, by the sport, not listed as SportStats
+        // fields: that's what lets a sport without GPS declare none of them without the
+        // core having to change (#46).
         return new SportStats(
                 "walking",
                 "Marche",

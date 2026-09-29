@@ -5,16 +5,15 @@ import java.util.OptionalInt;
 import com.stracks.core.user.AthleteProfile;
 
 /**
- * Conversion MET → kilocalories. Générique par construction, au même titre que
- * {@link GpsComputations} : le socle porte l'arithmétique, chaque module de sport
- * fournit le MET qui correspond à SON effort.
+ * MET to kilocalories conversion. Generic by design, like {@link GpsComputations}:
+ * the core holds the arithmetic, each sport module supplies the MET matching ITS effort.
  *
- * <p>Formule du Compendium of Physical Activities :
- * {@code kcal = MET × 3,5 × poids(kg) / 200 × durée(min)}.
+ * <p>Formula from the Compendium of Physical Activities:
+ * {@code kcal = MET × 3.5 × weight(kg) / 200 × duration(min)}.
  *
- * <p>Sans poids connu, la méthode ne renvoie rien. C'est délibéré : une estimation
- * calorique sans le poids de la personne serait un chiffre inventé, et le PRD
- * interdit d'en afficher.
+ * <p>Without a known weight, the method returns nothing. This is deliberate: a calorie
+ * estimate without the person's weight would be a made-up number, and the PRD forbids
+ * displaying one.
  */
 public final class CalorieEstimator {
 
@@ -31,7 +30,7 @@ public final class CalorieEstimator {
         return rounded > 0 ? OptionalInt.of(rounded) : OptionalInt.empty();
     }
 
-    /** Vitesse moyenne en km/h, ou 0 si elle n'est pas calculable. */
+    /** Average speed in km/h, or 0 when it can't be computed. */
     public static double averageSpeedKmh(double distanceM, Integer durationS) {
         if (durationS == null || durationS <= 0 || distanceM <= 0) {
             return 0;

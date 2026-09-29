@@ -18,22 +18,21 @@ import org.junit.jupiter.api.Test;
 import static io.restassured.RestAssured.given;
 
 /**
- * Story #28 — « p95 < 300 ms mesuré et documenté » sur l'historique et les stats.
+ * Story #28: "p95 < 300 ms measured and documented" on history and stats.
  *
- * <p>Le jeu de données est inséré en SQL et non par l'API : 600 séances créées au
- * rythme de start/upload/stop prendraient plusieurs minutes pour mesurer une lecture.
- * Deux comptes voisins portent autant de séances — sans eux la table tiendrait
- * entièrement dans le jeu d'un seul utilisateur et l'index
- * {@code (user_id, started_at DESC)} n'aurait rien à filtrer, ce qui rendrait la
- * mesure optimiste.
+ * <p>The dataset is inserted in SQL rather than through the API: 600 sessions created at
+ * the pace of start/upload/stop would take several minutes just to measure a read. Two
+ * neighbouring accounts hold as many sessions; without them the table would consist
+ * entirely of a single user's rows and the {@code (user_id, started_at DESC)} index would
+ * have nothing to filter, which would make the measurement optimistic.
  *
- * <p>Le budget est mesuré côté client HTTP, JVM chauffée : c'est la latence que
- * l'application observe, pas le temps SQL seul.
+ * <p>The budget is measured on the HTTP client side, with a warm JVM: it's the latency the
+ * app observes, not the SQL time alone.
  */
 @QuarkusTest
 class StatsPerformanceTest {
 
-    /** Volume cible : « plusieurs centaines de séances » (DoD #28). */
+    /** Target volume: "several hundred sessions" (DoD #28). */
     private static final int SESSIONS_PER_USER = 600;
     private static final int NEIGHBOURS = 2;
     private static final int WARMUP = 8;
@@ -62,31 +61,31 @@ class StatsPerformanceTest {
         List<Measure> measures = List.of(
                 measure(token, "GET /activities (page 1)", "/api/v1/activities?page=0&size=20"),
                 measure(token, "GET /activities (page 10)", "/api/v1/activities?page=10&size=20"),
-                measure(token, "GET /activities (filtré sport)",
+                measure(token, "GET /activities (sport filter)",
                         "/api/v1/activities?page=0&size=20&sport=running"),
-                measure(token, "GET /stats/summary (mois)",
+                measure(token, "GET /stats/summary (month)",
                         "/api/v1/stats/summary?period=month&tz=Europe/Paris"),
-                measure(token, "GET /stats/summary (année)",
+                measure(token, "GET /stats/summary (year)",
                         "/api/v1/stats/summary?period=year&tz=Europe/Paris"),
-                measure(token, "GET /stats/timeline (année)",
+                measure(token, "GET /stats/timeline (year)",
                         "/api/v1/stats/timeline?period=year&tz=Europe/Paris"));
 
         System.out.println();
-        System.out.printf("=== #28 — p95 sur %d séances/compte, %d comptes ===%n",
+        System.out.printf("=== #28: p95 over %d sessions/account, %d accounts ===%n",
                 SESSIONS_PER_USER, NEIGHBOURS + 1);
-        System.out.printf("%-34s %8s %8s %8s%n", "endpoint", "médiane", "p95", "max");
+        System.out.printf("%-34s %8s %8s %8s%n", "endpoint", "median", "p95", "max");
         for (Measure m : measures) {
             System.out.printf("%-34s %6d ms %6d ms %6d ms%n",
                     m.label(), m.median(), m.p95(), m.max());
         }
-        System.out.printf("budget : %d ms · %d mesures après %d tours de chauffe%n%n",
+        System.out.printf("budget: %d ms · %d samples after %d warm-up rounds%n%n",
                 BUDGET_MS, SAMPLES, WARMUP);
 
         List<String> over = measures.stream()
                 .filter(m -> m.p95() >= BUDGET_MS)
                 .map(m -> m.label() + " → " + m.p95() + " ms")
                 .toList();
-        Assertions.assertTrue(over.isEmpty(), "p95 au-dessus du budget : " + over);
+        Assertions.assertTrue(over.isEmpty(), "p95 over budget: " + over);
     }
 
     // ------------------------------------------------------------------
@@ -105,7 +104,7 @@ class StatsPerformanceTest {
             samples.add((System.nanoTime() - start) / 1_000_000);
         }
         List<Long> sorted = samples.stream().sorted().toList();
-        // Index du 95e centile, borné : avec 40 mesures c'est la 38e.
+        // Index of the 95th percentile, bounded: with 40 samples it's the 38th.
         int p95Index = Math.min(sorted.size() - 1, (int) Math.ceil(sorted.size() * 0.95) - 1);
         return new Measure(label, sorted.get(sorted.size() / 2), sorted.get(p95Index),
                 sorted.get(sorted.size() - 1));
@@ -122,8 +121,8 @@ class StatsPerformanceTest {
     }
 
     /**
-     * Séances étalées sur ~10 mois, deux sports, métriques réalistes.
-     * Un seul INSERT : 600 aller-retours JDBC coûteraient plus cher que la mesure.
+     * Sessions spread over ~10 months, two sports, realistic metrics.
+     * A single INSERT: 600 JDBC round trips would cost more than the measurement.
      */
     private void seed(UUID userId, int count) throws Exception {
         tx.begin();

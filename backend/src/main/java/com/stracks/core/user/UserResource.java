@@ -76,9 +76,9 @@ public class UserResource {
     }
 
     /**
-     * Préférences complètes : les défauts, écrasés par ce que l'utilisateur a
-     * enregistré. Un compte neuf reçoit donc un document exploitable, jamais un
-     * objet vide que le client devrait interpréter.
+     * Full preferences: the defaults, overridden by what the user saved. A new account
+     * therefore gets a usable document, never an empty object the client would have to
+     * interpret.
      */
     @GET
     @Path("/preferences")
@@ -87,9 +87,9 @@ public class UserResource {
     }
 
     /**
-     * Mise à jour partielle. Une valeur {@code null} remet la préférence à son
-     * défaut. Une clé inconnue est refusée en 422 — accepter silencieusement une
-     * faute de frappe fabriquerait une préférence que personne ne lira jamais.
+     * Partial update. A {@code null} value resets the preference to its default. An unknown
+     * key is rejected with a 422: silently accepting a typo would create a preference
+     * nobody will ever read.
      */
     @PATCH
     @Path("/preferences")
@@ -100,25 +100,25 @@ public class UserResource {
         return preferences.withDefaults(user.preferences);
     }
 
-    // --- Sécurité du compte (#73, #75) -------------------------------------------
+    // --- Account security (#73, #75) -------------------------------------------
 
     /**
-     * Changement de mot de passe (#73). Rend une session neuve pour cet appareil ; les
-     * autres sessions sont révoquées. Mauvais mot de passe actuel → 403, jamais 401.
+     * Password change (#73). Returns a fresh session for this device; the other sessions
+     * are revoked. Wrong current password → 403, never 401.
      */
     @POST
     @Path("/password")
     public AuthResponse changePassword(@Valid AccountRequests.ChangePassword request,
             @Context HttpServerRequest http) {
-        limits.codeConfirm(AuthResource.clientIp(http)); // même famille : un secret est vérifié
+        limits.codeConfirm(AuthResource.clientIp(http)); // same family: a secret is checked
         return AuthResource.toResponse(
                 account.changePassword(userId(), request.currentPassword(), request.newPassword()));
     }
 
-    /** Vérification de l'adresse actuelle (#75) : (r)envoie un code. 202 même si déjà vérifiée. */
+    /** Verification of the current address (#75): (re)sends a code. 202 even if already verified. */
     @POST
     @Path("/email-verifications")
-    @Consumes(MediaType.WILDCARD) // sans corps : le client n'envoie pas de Content-Type
+    @Consumes(MediaType.WILDCARD) // no body: the client sends no Content-Type
     public Response requestEmailVerification(@Context HttpServerRequest http) {
         limits.codeRequest(AuthResource.clientIp(http), "user:" + userId());
         account.requestEmailVerification(userId());
@@ -133,13 +133,13 @@ public class UserResource {
         return UserResponse.of(account.confirmEmailVerification(userId(), request.code()));
     }
 
-    /** Changement d'adresse (#75) : le code part vers la nouvelle adresse. */
+    /** Address change (#75): the code goes to the new address. */
     @POST
     @Path("/email-changes")
     public Response requestEmailChange(@Valid AccountRequests.EmailChange request,
             @Context HttpServerRequest http) {
-        // Clé « compte » = le demandeur : sans elle, un compte pourrait inonder n'importe
-        // quelle adresse de codes en changeant de cible à chaque requête.
+        // "Account" key = the requester: without it, an account could flood any address
+        // with codes by changing target on each request.
         limits.codeRequest(AuthResource.clientIp(http), "user:" + userId());
         account.requestEmailChange(userId(), request.newEmail(), request.currentPassword());
         return Response.accepted().build();
@@ -153,7 +153,7 @@ public class UserResource {
         return UserResponse.of(account.confirmEmailChange(userId(), request.code()));
     }
 
-    /** Export RGPD (#76) : tout ce que l'utilisateur a confié à l'app, en JSON. */
+    /** GDPR export (#76): everything the user entrusted to the app, as JSON. */
     @GET
     @Path("/export")
     public Response export() {
@@ -170,7 +170,7 @@ public class UserResource {
     @DELETE
     @Transactional
     public Response delete() {
-        // ON DELETE CASCADE supprime activités et track_points (droit à l'effacement)
+        // ON DELETE CASCADE deletes activities and track_points (right to erasure)
         currentUser().delete();
         return Response.noContent().build();
     }

@@ -18,15 +18,15 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * #50 : la table ne croît plus sans borne, et la purge ne touche jamais un jeton utile.
+ * #50: the table no longer grows without bound, and the purge never touches a useful token.
  *
- * <p>La purge est appelée avec un instant explicite plutôt que d'attendre l'ordonnanceur :
- * c'est la règle de sélection qui est testée, pas l'horloge.
+ * <p>The purge is called with an explicit instant rather than waiting for the scheduler:
+ * it's the selection rule being tested, not the clock.
  *
- * <p><b>Toujours l'horloge réelle</b> comme instant de purge. La base est partagée par toutes
- * les suites {@code @QuarkusTest} et la purge ne filtre pas par utilisateur : un instant
- * dans le futur supprimerait des jetons encore valides d'autres suites, et leurs tests
- * échoueraient selon l'ordre d'exécution (revue CodeRabbit, PR #78).
+ * <p><b>Always the real clock</b> as the purge instant. The database is shared by every
+ * {@code @QuarkusTest} suite and the purge doesn't filter by user: an instant in the future
+ * would delete still-valid tokens of other suites, and their tests would fail depending on
+ * the execution order (CodeRabbit review, PR #78).
  */
 @QuarkusTest
 class RefreshTokenPurgeTest {
@@ -66,7 +66,7 @@ class RefreshTokenPurgeTest {
     }
 
     @Test
-    void ne_supprime_que_les_jetons_expires_depuis_plus_que_la_retention() {
+    void only_deletes_tokens_expired_for_longer_than_the_retention() {
         Instant now = Instant.now();
         UUID user = newUser();
 
@@ -79,16 +79,16 @@ class RefreshTokenPurgeTest {
         long deleted = purge.purge(now);
 
         assertTrue(deleted >= 1);
-        assertNull(find(oldExpired), "expiré depuis plus de 30 j : purgé");
-        assertNotNull(find(justInsideRetention), "à 1 s de la limite : conservé");
-        assertNotNull(find(expiredYesterday), "expiré hier : conservé pour l'analyse d'incident");
-        assertNotNull(find(stillValid), "valide : jamais touché");
-        assertNotNull(find(validButRevoked), "révoqué mais pas expiré : sert la détection de rejeu");
+        assertNull(find(oldExpired), "expired for more than 30 days: purged");
+        assertNotNull(find(justInsideRetention), "1 s from the limit: kept");
+        assertNotNull(find(expiredYesterday), "expired yesterday: kept for incident analysis");
+        assertNotNull(find(stillValid), "valid: never touched");
+        assertNotNull(find(validButRevoked), "revoked but not expired: serves replay detection");
     }
 
-    /** `replaced_by` pointe sur des jetons purgés : le ON DELETE SET NULL de V5 doit tenir. */
+    /** `replaced_by` points to purged tokens: V5's ON DELETE SET NULL must hold. */
     @Test
-    void purger_un_maillon_ne_casse_pas_la_chaine_de_rotation() {
+    void purging_a_link_does_not_break_the_rotation_chain() {
         Instant now = Instant.now();
         UUID user = newUser();
         UUID purged = token(user, now.minus(Duration.ofDays(90)), true);
@@ -108,7 +108,7 @@ class RefreshTokenPurgeTest {
     }
 
     @Test
-    void un_second_passage_ne_supprime_plus_rien() {
+    void a_second_run_deletes_nothing_more() {
         Instant now = Instant.now();
         purge.purge(now);
         assertEquals(0, purge.purge(now));

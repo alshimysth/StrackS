@@ -20,24 +20,23 @@ import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 
 /**
- * Export des données personnelles (#76, RGPD art. 20 — droit à la portabilité).
+ * Personal data export (#76, GDPR art. 20, right to data portability).
  *
- * <p><b>Ce qui sort</b> : profil, préférences, toutes les activités avec leurs métriques et
- * leurs tracés GPS — exactement les formes de l'API publique, pour qu'un export se relise
- * avec la même documentation. <b>Ce qui ne sort pas</b> : l'empreinte du mot de passe, les
- * jetons de session, les codes à usage unique. Ce sont des secrets d'authentification,
- * pas des données fournies par l'utilisateur.
+ * <p><b>What goes out</b>: profile, preferences, every activity with its metrics and GPS
+ * track, in exactly the shapes of the public API, so an export reads with the same
+ * documentation. <b>What doesn't</b>: the password hash, session tokens, one-time codes.
+ * Those are authentication secrets, not data provided by the user.
  *
- * <p><b>Mémoire.</b> Le document est sérialisé activité par activité, et le contexte de
- * persistance est vidé après chacune : les entités ne s'accumulent pas. Le JSON final est
- * en revanche tenu en mémoire (plusieurs dizaines de Mo pour des centaines de séances
- * longues). Le diffuser en flux supposerait de lire la base après la fin de la requête —
- * hors transaction ; c'est une évolution possible si les volumes l'exigent.
+ * <p><b>Memory.</b> The document is serialized activity by activity, and the persistence
+ * context is cleared after each one: entities don't pile up. The final JSON, however, is
+ * held in memory (several tens of MB for hundreds of long sessions). Streaming it would
+ * mean reading the database after the request ends, outside the transaction; that's a
+ * possible evolution if volumes require it.
  */
 @ApplicationScoped
 public class DataExportService {
 
-    /** Version du format d'export, indépendante de celle de l'API. */
+    /** Export format version, independent from the API version. */
     static final int FORMAT_VERSION = 1;
 
     @Inject
@@ -66,7 +65,7 @@ public class DataExportService {
             json.writeFieldName("preferences");
             mapper.writeValue(json, preferences.withDefaults(user.preferences));
 
-            // Anti-IDOR : la requête est bornée au sujet du JWT, jamais à un paramètre.
+            // Anti-IDOR: the query is bounded to the JWT subject, never to a parameter.
             List<UUID> activityIds = em.createQuery(
                     "select a.id from ActivityEntity a where a.userId = ?1 order by a.startedAt", UUID.class)
                     .setParameter(1, userId)
@@ -91,7 +90,7 @@ public class DataExportService {
                 }
                 json.writeEndArray();
                 json.writeEndObject();
-                em.clear(); // une activité à la fois dans le contexte de persistance
+                em.clear(); // one activity at a time in the persistence context
             }
             json.writeEndArray();
             json.writeEndObject();

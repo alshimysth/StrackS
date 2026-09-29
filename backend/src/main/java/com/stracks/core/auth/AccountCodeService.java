@@ -14,18 +14,17 @@ import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
- * Émission et vérification des codes à usage unique (#74, #75).
+ * Issuing and checking one-time codes (#74, #75).
  *
- * <p><b>Pourquoi un code et pas un lien.</b> Un lien de réinitialisation suppose une page
- * web ou un lien profond (`stracks://…`), et échoue dès que l'email est ouvert sur un
- * autre appareil que le téléphone. Un code se recopie partout.
+ * <p><b>Why a code and not a link.</b> A reset link requires a web page or a deep link
+ * (`stracks://…`), and fails as soon as the email is opened on a device other than the
+ * phone. A code can be copied anywhere.
  *
- * <p><b>Pourquoi c'est sûr malgré une entropie modeste.</b> 8 caractères sur un alphabet de
- * 32 (sans 0/O ni 1/I) font 40 bits. En ligne, un attaquant dispose de
- * {@code max-attempts} essais par code avant qu'il ne soit brûlé, sur une durée de vie de
- * quelques minutes, derrière la limitation de débit de #72. Hors ligne (fuite de la base),
- * l'empreinte est en BCrypt et non en SHA-256 : 2^40 essais BCrypt ne se font pas dans la
- * durée de vie du code.
+ * <p><b>Why it's safe despite a modest entropy.</b> 8 characters from a 32-letter alphabet
+ * (no 0/O or 1/I) make 40 bits. Online, an attacker gets {@code max-attempts} tries per
+ * code before it's burnt, over a lifetime of a few minutes, behind the rate limiting of
+ * #72. Offline (database leak), the hash is BCrypt, not SHA-256: 2^40 BCrypt attempts
+ * can't be done within the code's lifetime.
  */
 @ApplicationScoped
 public class AccountCodeService {
@@ -34,7 +33,7 @@ public class AccountCodeService {
     private static final String ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
     private static final int LENGTH = 8;
 
-    /** Motifs d'un code. Valeur stockée en TEXT, jamais d'ENUM SQL. */
+    /** Purposes of a code. Stored as TEXT, never as an SQL ENUM. */
     public enum Purpose {
         PASSWORD_RESET("password-reset"),
         EMAIL_CHANGE("email-change"),
@@ -47,7 +46,7 @@ public class AccountCodeService {
         }
     }
 
-    /** Un code émis : sa valeur en clair n'existe que dans l'email qui la porte. */
+    /** An issued code: its clear value only exists in the email carrying it. */
     public record Issued(String code, Instant expiresAt) {
     }
 
@@ -80,16 +79,16 @@ public class AccountCodeService {
     }
 
     /**
-     * Consomme le code présenté, ou lève une erreur 400 générique.
+     * Consumes the presented code, or throws a generic 400 error.
      *
-     * <p>Un seul message pour « inconnu », « expiré », « déjà utilisé », « épuisé » et
-     * « faux » : les distinguer dirait à un attaquant quand insister.
+     * <p>A single message for "unknown", "expired", "already used", "exhausted" and
+     * "wrong": telling them apart would tell an attacker when to insist.
      *
-     * <p>{@code dontRollbackOn} est indispensable : un essai faux doit être <b>compté même
-     * si la requête échoue</b>. Sans lui, l'exception annulerait l'incrément et le plafond
-     * d'essais ne protégerait de rien.
+     * <p>{@code dontRollbackOn} is essential: a wrong attempt must be <b>counted even when
+     * the request fails</b>. Without it, the exception would roll back the increment and the
+     * attempt cap would protect nothing.
      *
-     * @return la ligne consommée ({@code targetEmail} pour un changement d'adresse)
+     * @return the consumed row ({@code targetEmail} for an address change)
      */
     @Transactional(dontRollbackOn = ApiException.class)
     public AccountCodeEntity consume(UUID userId, Purpose purpose, String presented) {
@@ -103,7 +102,7 @@ public class AccountCodeService {
         if (!BcryptUtil.matches(normalize(presented), code.codeHash)) {
             code.attempts += 1;
             if (code.attempts >= maxAttempts) {
-                code.consumedAt = now; // brûlé : il faudra en redemander un
+                code.consumedAt = now; // burnt: a new one will have to be requested
             }
             throw invalidCode();
         }
@@ -112,8 +111,8 @@ public class AccountCodeService {
     }
 
     /**
-     * Coût BCrypt équivalent à une émission, sans rien émettre : appelé quand l'adresse
-     * n'a pas de compte, pour que le temps de réponse ne trahisse pas son existence.
+     * BCrypt cost equivalent to issuing a code, without issuing anything: called when the
+     * address has no account, so that the response time doesn't reveal whether it exists.
      */
     public void simulateIssue() {
         BcryptUtil.bcryptHash(generate());
@@ -140,12 +139,12 @@ public class AccountCodeService {
         return out.toString();
     }
 
-    /** {@code ABCD2345} → {@code ABCD-2345}, plus lisible à recopier. */
+    /** {@code ABCD2345} → {@code ABCD-2345}, easier to copy. */
     private static String format(String code) {
         return code.substring(0, 4) + "-" + code.substring(4);
     }
 
-    /** Tolère minuscules, tiret et espaces : l'utilisateur recopie, il ne tape pas au caractère près. */
+    /** Tolerates lowercase, dashes and spaces: the user copies the code, not character-perfect. */
     static String normalize(String presented) {
         return presented == null ? "" : presented.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
     }

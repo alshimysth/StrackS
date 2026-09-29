@@ -6,14 +6,13 @@ import jakarta.enterprise.context.ApplicationScoped;
 import org.jboss.logging.Logger;
 
 /**
- * Implémentation de développement : l'email est écrit dans le journal, rien ne part.
+ * Development implementation: the email is written to the log, nothing is sent.
  *
- * <p>En dev et en test, le message complet est journalisé — c'est ce qui permet de
- * récupérer un code sans boîte mail. <b>En prod, le secret est masqué</b> : les codes
- * donnent la main sur un compte, et un journal est lu par bien plus de monde qu'une
- * boîte mail. Tant qu'aucun fournisseur n'est branché, les fonctions qui envoient un
- * code ne fonctionnent donc pas en production — c'est voulu, et c'est signalé à
- * chaque envoi.
+ * <p>In dev and test, the full message is logged: that's what lets you get a code without
+ * a mailbox. <b>In prod, the secret is masked</b>: codes give control over an account, and
+ * a log is read by far more people than a mailbox. As long as no provider is plugged in,
+ * the features that send a code therefore don't work in production; that's intended, and
+ * it's reported on every send.
  */
 @DefaultBean
 @ApplicationScoped
@@ -24,14 +23,14 @@ public class LoggingEmailSender implements EmailSender {
     @Override
     public void send(EmailMessage message) {
         if (LaunchMode.current() == LaunchMode.NORMAL) {
-            LOG.warnf("Email NON envoyé (aucun fournisseur configuré) : « %s » à %s",
+            LOG.warnf("Email NOT sent (no provider configured): \"%s\" to %s",
                     message.subject(), mask(message.to()));
             return;
         }
-        LOG.infof("Email (journal de dev) à %s — %s%n%s", message.to(), message.subject(), message.body());
+        LOG.infof("Email (dev log) to %s: %s%n%s", message.to(), message.subject(), message.body());
     }
 
-    /** {@code jean.dupont@exemple.fr} → {@code j***@exemple.fr} : assez pour diagnostiquer. */
+    /** {@code jean.dupont@exemple.fr} → {@code j***@exemple.fr}: enough to diagnose. */
     static String mask(String email) {
         int at = email.indexOf('@');
         if (at <= 1) {

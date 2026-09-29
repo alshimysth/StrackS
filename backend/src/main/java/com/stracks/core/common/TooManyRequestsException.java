@@ -1,6 +1,6 @@
 package com.stracks.core.common;
 
-/** 429 RFC 7807, avec le délai à respecter rendu dans l'en-tête {@code Retry-After}. */
+/** RFC 7807 429, with the delay to respect returned in the {@code Retry-After} header. */
 public class TooManyRequestsException extends ApiException {
 
     private final long retryAfterSeconds;

@@ -10,12 +10,12 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
- * Purge des codes à usage unique (#87). Un code expiré ne sert plus à rien, mais sa ligne
- * garde l'identifiant de l'utilisateur et, pour un changement d'email, la nouvelle adresse
- * demandée en clair : la conserver indéfiniment contredirait la minimisation des données.
+ * Purge of one-time codes (#87). An expired code is useless, but its row keeps the user's
+ * id and, for an email change, the requested new address in clear text: keeping it forever
+ * would contradict data minimisation.
  *
- * <p>Ne supprime que les codes expirés depuis plus de {@code retention-days} — un code
- * encore utilisable n'est jamais touché ; la marge garde de quoi analyser un incident.
+ * <p>Only deletes codes expired for more than {@code retention-days}: a code that can
+ * still be used is never touched, and the margin keeps enough to investigate an incident.
  */
 @ApplicationScoped
 public class AccountCodePurge {
@@ -30,12 +30,12 @@ public class AccountCodePurge {
         purge(Instant.now());
     }
 
-    /** @return le nombre de codes supprimés */
+    /** @return the number of deleted codes */
     @Transactional
     public long purge(Instant now) {
         Instant before = now.minus(Duration.ofDays(retentionDays));
         long deleted = AccountCodeEntity.deleteExpiredBefore(before);
-        LOG.infof("Purge des codes de compte : %d supprimé(s), expirés avant %s", deleted, before);
+        LOG.infof("Account code purge: %d deleted, expired before %s", deleted, before);
         return deleted;
     }
 }

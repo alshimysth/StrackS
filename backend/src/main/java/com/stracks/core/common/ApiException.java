@@ -1,7 +1,7 @@
 package com.stracks.core.common;
 
 /**
- * Exception métier portée jusqu'au client en RFC 7807 (application/problem+json).
+ * Business exception carried to the client as RFC 7807 (application/problem+json).
  */
 public class ApiException extends RuntimeException {
 

@@ -3,19 +3,18 @@ package com.stracks.core.activity;
 import java.util.Map;
 
 /**
- * Agrégats d'un sport sur une période.
+ * Aggregates of one sport over a period.
  *
- * <p>Le socle ne connaît que ce que <em>toute</em> activité possède : un nombre de
- * séances et une durée. Tout le reste — distance, dénivelé, charge soulevée,
- * longueurs de bassin — est nommé par le plugin dans {@code totals}. Lister ces
- * métriques comme des champs de ce record obligerait à modifier {@code core/} à
- * chaque nouveau sport, ce que le pattern plugin interdit ; et le socle finirait
- * par additionner un dénivelé pour un sport en salle qui n'en a pas (#46).
+ * <p>The core only knows what <em>every</em> activity has: a session count and a
+ * duration. Everything else (distance, elevation, weight lifted, pool lengths) is named
+ * by the plugin in {@code totals}. Listing those metrics as fields of this record would
+ * force a change to {@code core/} for each new sport, which the plugin pattern forbids;
+ * and the core would end up summing elevation for an indoor sport that has none (#46).
  *
- * <p>Conventions des clés de {@code totals} : camelCase, unité en suffixe
- * («&nbsp;distanceM&nbsp;», «&nbsp;elevationGainM&nbsp;»). Deux sports qui mesurent
- * la même grandeur emploient la <strong>même clé</strong> — c'est précisément ce qui
- * permet au socle de les additionner sans rien comprendre à ce qu'il additionne.
+ * <p>Key conventions for {@code totals}: camelCase, unit as suffix
+ * ("distanceM", "elevationGainM"). Two sports measuring the same quantity use the
+ * <strong>same key</strong>: that is precisely what lets the core add them up without
+ * understanding what it adds.
  */
 public record SportStats(
         String sportType,

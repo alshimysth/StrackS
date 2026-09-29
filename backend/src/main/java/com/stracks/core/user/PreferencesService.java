@@ -18,24 +18,23 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 /**
- * Schéma des préférences utilisateur : valeurs par défaut, validation et fusion.
+ * User preferences schema: defaults, validation and merging.
  *
- * <p><b>Asymétrie volontaire entre lecture et écriture.</b> En lecture on est
- * tolérant : une clé inconnue stockée est conservée telle quelle et ignorée, une
- * clé absente prend son défaut — un client ancien et un client récent cohabitent
- * sans que rien ne casse. En écriture on est strict : une clé inconnue est
- * refusée en 422, parce qu'accepter silencieusement une faute de frappe
- * fabriquerait une préférence qui ne sera jamais lue.
+ * <p><b>Deliberate asymmetry between reading and writing.</b> Reading is tolerant: an
+ * unknown stored key is kept as is and ignored, a missing key gets its default, so an old
+ * client and a recent one coexist without anything breaking. Writing is strict: an
+ * unknown key is rejected with a 422, because silently accepting a typo would create a
+ * preference that is never read.
  *
- * <p>Le document complet vit dans une seule colonne JSONB — ajouter une
- * préférence ne demande aucune migration.
+ * <p>The whole document lives in a single JSONB column: adding a preference requires no
+ * migration.
  */
 @ApplicationScoped
 public class PreferencesService {
 
     private static final JsonNodeFactory json = JsonNodeFactory.instance;
 
-    /** Clés racine connues. Toute autre clé est refusée à l'écriture. */
+    /** Known root keys. Any other key is rejected on write. */
     private static final Set<String> ROOT_KEYS = Set.of(
             "units", "theme", "defaultSport", "sportDisplay", "gpsMode",
             "countdownEnabled", "autoPauseEnabled", "weeklyGoal", "physical", "privacyZones");
@@ -44,7 +43,7 @@ public class PreferencesService {
     private static final Set<String> GOAL_KEYS = Set.of("distanceM", "sessions");
     private static final Set<String> PRIVACY_ZONE_KEYS = Set.of("lat", "lng", "radiusM", "label");
 
-    /** Au-delà, c'est un usage détourné : une zone protège un domicile, un bureau. */
+    /** Beyond this, it's misuse: a zone protects a home, an office. */
     static final int MAX_PRIVACY_ZONES = 5;
     static final int MAX_PRIVACY_ZONE_LABEL = 40;
 
@@ -58,9 +57,9 @@ public class PreferencesService {
     SportRegistry registry;
 
     /**
-     * Document complet renvoyé au client : les défauts, écrasés par ce qui est
-     * stocké. Les clés inconnues éventuellement présentes en base sont recopiées
-     * telles quelles — on ne détruit jamais une préférence qu'on ne comprend pas.
+     * Full document returned to the client: the defaults, overridden by what is stored.
+     * Unknown keys possibly present in the database are copied as is: we never destroy a
+     * preference we don't understand.
      */
     public ObjectNode withDefaults(JsonNode stored) {
         ObjectNode out = defaults();
@@ -88,14 +87,14 @@ public class PreferencesService {
         root.set("sportDisplay", json.objectNode());
         root.put("gpsMode", "balanced");
         root.put("countdownEnabled", true);
-        // Hors PRD v2.0 — désactivée tant que la décision produit n'est pas prise (#20)
+        // Outside PRD v2.0: disabled until the product decision is made (#20)
         root.put("autoPauseEnabled", false);
 
         ObjectNode goal = root.putObject("weeklyGoal");
         goal.putNull("distanceM");
         goal.putNull("sessions");
 
-        // Zones de confidentialité (#37) : vide par défaut, rien n'est masqué.
+        // Privacy zones (#37): empty by default, nothing is masked.
         root.putArray("privacyZones");
 
         ObjectNode physical = root.putObject("physical");
@@ -107,9 +106,9 @@ public class PreferencesService {
     }
 
     /**
-     * Valide un patch puis le fusionne dans le document stocké. Une valeur
-     * {@code null} remet la préférence à son défaut (la clé est retirée du
-     * stockage plutôt que forcée à null).
+     * Validates a patch then merges it into the stored document. A {@code null} value
+     * resets the preference to its default (the key is removed from storage rather than
+     * forced to null).
      */
     public ObjectNode merge(JsonNode stored, JsonNode patch) {
         if (patch == null || !patch.isObject()) {
@@ -167,7 +166,7 @@ public class PreferencesService {
             if (!sport.isTextual()) {
                 throw ApiException.invalidPreference("defaultSport doit être un code de sport.");
             }
-            registry.require(sport.asText()); // 422 si le sport n'est pas au registre
+            registry.require(sport.asText()); // 422 if the sport isn't in the registry
         }
 
         JsonNode display = patch.get("sportDisplay");
@@ -205,8 +204,8 @@ public class PreferencesService {
         JsonNode physical = patch.get("physical");
         if (physical != null && !physical.isNull()) {
             requireObjectWithKeys(physical, "physical", PHYSICAL_KEYS);
-            // Bornes de plausibilité : elles attrapent l'unité inversée (livres
-            // pour des kilos) et la faute de frappe, pas l'utilisateur atypique.
+            // Plausibility bounds: they catch a swapped unit (pounds for kilos) and typos,
+            // not the atypical user.
             positiveNumber(physical, "physical.weightKg", physical.get("weightKg"), 30, 300);
             positiveNumber(physical, "physical.heightCm", physical.get("heightCm"), 80, 260);
 
@@ -236,8 +235,8 @@ public class PreferencesService {
     }
 
     /**
-     * Zones de confidentialité (#37) : la liste est remplacée d'un bloc, jamais fusionnée
-     * élément par élément — un tableau n'a pas de clé stable pour cela.
+     * Privacy zones (#37): the list is replaced as a whole, never merged item by item,
+     * since an array has no stable key for that.
      */
     private void validatePrivacyZones(JsonNode zones) {
         if (!zones.isArray()) {
@@ -256,8 +255,8 @@ public class PreferencesService {
             }
             positiveNumber(zone, "privacyZones.lat", zone.get("lat"), -90, 90);
             positiveNumber(zone, "privacyZones.lng", zone.get("lng"), -180, 180);
-            // En dessous de 100 m, le départ reste identifiable à la rue près ; au-delà
-            // de 2 km, c'est un quartier entier qui disparaît de chaque tracé.
+            // Below 100 m, the start stays identifiable down to the street; beyond 2 km, a
+            // whole neighbourhood disappears from every track.
             positiveNumber(zone, "privacyZones.radiusM", zone.get("radiusM"), 100, 2000);
             JsonNode label = zone.get("label");
             if (label != null && !label.isNull()
@@ -311,7 +310,7 @@ public class PreferencesService {
         }
     }
 
-    /** Extrait le profil physique sous la forme attendue par les modules de sport. */
+    /** Extracts the athlete profile in the form expected by sport modules. */
     public AthleteProfile athleteProfile(UserEntity user) {
         if (user == null || user.preferences == null) {
             return AthleteProfile.EMPTY;
@@ -342,7 +341,7 @@ public class PreferencesService {
         try {
             return LocalDate.parse(node.asText());
         } catch (DateTimeParseException e) {
-            return null; // lecture tolérante : une valeur illisible en base n'empêche pas de servir le reste
+            return null; // tolerant read: an unreadable stored value doesn't prevent serving the rest
         }
     }
 }

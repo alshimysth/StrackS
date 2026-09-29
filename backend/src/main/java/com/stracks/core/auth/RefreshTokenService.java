@@ -17,12 +17,12 @@ import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
- * Cycle de vie des jetons de renouvellement : émission, rotation, révocation.
+ * Refresh token lifecycle: issuing, rotation, revocation.
  *
- * <p>Le secret est un aléa de 256 bits encodé en base64url. Il n'est jamais persisté ;
- * la base ne contient que son SHA-256. Un hachage simple suffit là où BCrypt serait
- * requis pour un mot de passe : le secret est tiré au sort avec 256 bits d'entropie,
- * il n'y a pas de dictionnaire à opposer à une empreinte volée.
+ * <p>The secret is 256 random bits encoded in base64url. It's never persisted; the
+ * database only holds its SHA-256. A plain hash is enough where BCrypt would be required
+ * for a password: the secret is drawn at random with 256 bits of entropy, there is no
+ * dictionary to run against a stolen hash.
  */
 @ApplicationScoped
 public class RefreshTokenService {
@@ -37,41 +37,40 @@ public class RefreshTokenService {
     @Inject
     RefreshTokenRevoker revoker;
 
-    /** 60 jours par défaut : « une session reste valide plusieurs jours » (DoD #44). */
+    /** 60 days by default: "a session stays valid for several days" (DoD #44). */
     @ConfigProperty(name = "stracks.jwt.refresh-ttl-seconds", defaultValue = "5184000")
     long refreshTtlSeconds;
 
     /**
-     * Fenêtre de tolérance au rejeu d'un jeton tout juste tourné. Sans elle, une réponse
-     * de rotation perdue en route — banal en mobilité — déconnecterait l'utilisateur en
-     * pleine séance, exactement ce que #44 doit empêcher. Au-delà, le rejeu est traité
-     * comme un vol.
+     * Tolerance window for the replay of a just-rotated token. Without it, a rotation
+     * response lost on the way (common on the move) would log the user out mid-session,
+     * exactly what #44 must prevent. Beyond it, the replay is treated as theft.
      */
     @ConfigProperty(name = "stracks.jwt.refresh-replay-grace-seconds", defaultValue = "60")
     long replayGraceSeconds;
 
-    /** Résultat d'une rotation : le nouveau secret, et l'utilisateur déduit du jeton. */
+    /** Result of a rotation: the new secret, and the user derived from the token. */
     public record Rotation(String secret, UUID userId) {
     }
 
-    /** Ouvre une nouvelle famille : à la connexion et à l'inscription uniquement. */
+    /** Opens a new family: on login and registration only. */
     @Transactional
     public String issueForNewSession(UUID userId) {
         return issue(userId, UUID.randomUUID()).secret();
     }
 
     /**
-     * Consomme le jeton présenté et en émet un successeur dans la même famille.
+     * Consumes the presented token and issues a successor in the same family.
      *
-     * @throws com.stracks.core.common.ApiException 401 si le jeton est inconnu, expiré,
-     *         révoqué hors fenêtre de tolérance, ou si sa famille a été compromise.
+     * @throws com.stracks.core.common.ApiException 401 if the token is unknown, expired,
+     *         revoked outside the tolerance window, or if its family was compromised.
      */
     @Transactional
     public Rotation rotate(String presentedSecret) {
         Instant now = Instant.now();
-        // Verrou de ligne : deux rotations concurrentes du même jeton (deux requêtes
-        // parties avant que la première ne réponde) doivent se sérialiser, sinon la
-        // famille se retrouve avec deux jetons vivants.
+        // Row lock: two concurrent rotations of the same token (two requests sent before
+        // the first one answered) must be serialized, otherwise the family ends up with
+        // two live tokens.
         RefreshTokenEntity token = RefreshTokenEntity.findByHashForUpdate(hash(presentedSecret))
                 .orElseThrow(AuthErrors::invalidRefreshToken);
 
@@ -90,11 +89,11 @@ public class RefreshTokenService {
     }
 
     /**
-     * Déconnexion : révoque toute la famille du jeton présenté, pas seulement le jeton.
-     * Se déconnecter d'un appareil ne doit rien laisser de réutilisable derrière soi.
+     * Logout: revokes the whole family of the presented token, not just the token.
+     * Logging out of a device must leave nothing reusable behind.
      *
-     * <p>Idempotent et silencieux sur un jeton inconnu — répondre « connu / inconnu »
-     * transformerait l'endpoint en oracle de validité.
+     * <p>Idempotent and silent on an unknown token: answering "known / unknown" would turn
+     * the endpoint into a validity oracle.
      */
     @Transactional
     public void revokeSession(String presentedSecret) {
@@ -103,11 +102,11 @@ public class RefreshTokenService {
     }
 
     /**
-     * Rejeu d'un jeton révoqué. Deux lectures possibles :
+     * Replay of a revoked token. Two possible readings:
      * <ul>
-     *   <li>le client n'a pas reçu la réponse de la rotation précédente et réessaie —
-     *       on le rattrape en tournant depuis le jeton vivant de la famille ;</li>
-     *   <li>le jeton a été volé et rejoué plus tard — la famille entière tombe.</li>
+     *   <li>the client didn't receive the previous rotation's response and retries: we
+     *       catch up by rotating from the family's live token;</li>
+     *   <li>the token was stolen and replayed later: the whole family is dropped.</li>
      * </ul>
      */
     private Rotation handleReplay(RefreshTokenEntity replayed, Instant now) {
@@ -126,11 +125,11 @@ public class RefreshTokenService {
         return new Rotation(successor.secret(), live.userId);
     }
 
-    /** Remonte la chaîne {@code replaced_by} jusqu'au jeton encore actif de la famille. */
+    /** Walks the {@code replaced_by} chain up to the family's still-active token. */
     private RefreshTokenEntity followChain(RefreshTokenEntity from, Instant now) {
         RefreshTokenEntity current = from;
-        // La chaîne est bornée par le nombre de rotations de la famille ; la garde évite
-        // qu'une donnée incohérente ne fasse boucler la requête indéfiniment.
+        // The chain is bounded by the family's number of rotations; the guard prevents
+        // inconsistent data from looping the request forever.
         for (int hops = 0; hops < 64; hops++) {
             if (current.replacedBy == null) {
                 break;
@@ -176,7 +175,7 @@ public class RefreshTokenService {
         }
     }
 
-    /** Exposé pour les tests : état d'un jeton sans passer par la couche HTTP. */
+    /** Exposed for tests: a token's state without going through the HTTP layer. */
     static Optional<RefreshTokenEntity> peek(String secret) {
         return RefreshTokenEntity.findByHash(hash(secret));
     }

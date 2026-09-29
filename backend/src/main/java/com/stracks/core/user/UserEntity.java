@@ -33,13 +33,13 @@ public class UserEntity extends PanacheEntityBase {
     @Column(name = "display_name")
     public String displayName;
 
-    /** Adresse prouvée par un code reçu dessus (#75) ; null = jamais vérifiée. */
+    /** Address proven by a code received on it (#75); null = never verified. */
     @Column(name = "email_verified_at")
     public Instant emailVerifiedAt;
 
     /**
-     * Document de préférences (Story #29). Schéma tenu par PreferencesService,
-     * pas par la base : ajouter une préférence ne demande aucune migration.
+     * Preferences document (story #29). Schema owned by PreferencesService, not by the
+     * database: adding a preference requires no migration.
      */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false)

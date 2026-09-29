@@ -11,23 +11,22 @@ import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 
 /**
- * Limiteur de débit en mémoire, à fenêtre glissante (#72).
+ * In-memory sliding-window rate limiter (#72).
  *
- * <p>En mémoire parce que la prod tourne sur <b>un seul</b> backend : un compteur partagé
- * (Redis) n'apporterait rien d'autre qu'une dépendance. Le jour où il y aura deux
- * instances, chaque instance appliquera sa propre limite — le seuil effectif doublera,
- * ce qui reste une protection, pas une faille.
+ * <p>In memory because prod runs <b>a single</b> backend: a shared counter (Redis) would
+ * bring nothing but a dependency. The day there are two instances, each will apply its
+ * own limit; the effective threshold will double, which is still a protection, not a hole.
  *
- * <p>Fenêtre glissante plutôt que fixe : une fenêtre fixe laisse passer le double du
- * seuil à cheval sur deux fenêtres, précisément ce qu'un script de bourrage exploite.
+ * <p>Sliding rather than fixed window: a fixed window lets twice the threshold through
+ * across two windows, precisely what a credential-stuffing script exploits.
  */
 @ApplicationScoped
 public class RateLimiter {
 
-    /** Seuil : {@code limit} requêtes par {@code window}. */
+    /** Threshold: {@code limit} requests per {@code window}. */
     public record Limit(int limit, Duration window) {
 
-        /** Format de configuration : {@code 10/PT15M}. */
+        /** Configuration format: {@code 10/PT15M}. */
         public static Limit parse(String spec) {
             String[] parts = spec.split("/", 2);
             if (parts.length != 2) {
@@ -35,14 +34,14 @@ public class RateLimiter {
             }
             int limit = Integer.parseInt(parts[0].trim());
             Duration window = Duration.parse(parts[1].trim());
-            // Un seuil nul ferait planter la première requête (500 au lieu de 429) ; une
-            // fenêtre nulle désactiverait le limiteur sans rien dire. Les deux doivent
-            // faire échouer le démarrage, pas passer en silence.
+            // A zero limit would crash the first request (500 instead of 429); a zero
+            // window would silently disable the limiter. Both must fail startup, not pass
+            // quietly.
             if (limit < 1) {
-                throw new IllegalArgumentException("Seuil invalide (au moins 1 requête) : " + spec);
+                throw new IllegalArgumentException("Invalid threshold (at least 1 request): " + spec);
             }
             if (window.isZero() || window.isNegative()) {
-                throw new IllegalArgumentException("Seuil invalide (fenêtre positive attendue) : " + spec);
+                throw new IllegalArgumentException("Invalid threshold (positive window expected): " + spec);
             }
             return new Limit(limit, window);
         }
@@ -51,10 +50,10 @@ public class RateLimiter {
     private final Map<String, Deque<Instant>> hits = new ConcurrentHashMap<>();
 
     /**
-     * Compte une requête pour {@code key}, ou la refuse.
+     * Counts a request for {@code key}, or rejects it.
      *
-     * @throws TooManyRequestsException si le seuil est atteint ; la requête refusée
-     *         n'est pas comptée, sinon un client qui insiste ne sortirait jamais du blocage.
+     * @throws TooManyRequestsException when the threshold is reached; the rejected request
+     *         isn't counted, otherwise an insisting client would never get out of the block.
      */
     public void acquire(String key, Limit limit) {
         acquire(key, limit, Instant.now());
@@ -77,9 +76,9 @@ public class RateLimiter {
     }
 
     /**
-     * Ménage : sans lui, chaque IP jamais vue garderait une entrée pour toujours. Une clé
-     * dont le dernier passage est plus vieux que la plus longue fenêtre configurée (1 h)
-     * ne peut plus rien bloquer.
+     * Housekeeping: without it, every IP ever seen would keep an entry forever. A key
+     * whose last hit is older than the longest configured window (1 h) can no longer
+     * block anything.
      */
     @Scheduled(every = "10m", identity = "rate-limiter-cleanup")
     void evictIdle() {
@@ -92,7 +91,7 @@ public class RateLimiter {
         });
     }
 
-    /** Pour les tests : repart d'un état vierge. */
+    /** For tests: starts over from a blank state. */
     public void reset() {
         hits.clear();
     }

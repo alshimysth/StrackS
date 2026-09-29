@@ -14,18 +14,16 @@ import jakarta.enterprise.event.Observes;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
- * Monitoring des erreurs backend (lot 5) — Sentry, **inactif tant que {@code SENTRY_DSN}
- * n'est pas fourni**. Aucun compte n'est créé par le code : brancher le service est une
- * décision humaine (runbook : {@code docs/release/RUNBOOK.md}).
+ * Backend error monitoring (lot 5) with Sentry, **inactive as long as {@code SENTRY_DSN}
+ * isn't provided**. No account is created by the code: plugging in the service is a human
+ * decision (runbook: {@code docs/release/RUNBOOK.md}).
  *
- * <p>Ce qui part : les journaux de niveau ERROR — dont les exceptions non gérées qui
- * produisent un 500. Rien d'autre : pas de traces de performance, pas de fil d'Ariane
- * sous WARN.
+ * <p>What is sent: ERROR-level logs, including the unhandled exceptions that produce a 500.
+ * Nothing else: no performance traces, no breadcrumbs below WARN.
  *
- * <p>Ce qui ne part pas : aucune donnée personnelle. {@code sendDefaultPii} est coupé,
- * l'utilisateur et la requête HTTP sont retirés de chaque événement. Les journaux du
- * backend ne contiennent déjà ni position, ni mot de passe, ni code (les codes sont
- * masqués par {@code LoggingEmailSender} en prod).
+ * <p>What isn't sent: any personal data. {@code sendDefaultPii} is off, and the user and
+ * the HTTP request are removed from every event. Backend logs already contain no
+ * location, password or code (codes are masked by {@code LoggingEmailSender} in prod).
  */
 @ApplicationScoped
 public class SentryMonitoring {
@@ -52,10 +50,10 @@ public class SentryMonitoring {
         handler.setMinimumBreadcrumbLevel(Level.WARNING);
         Logger root = LogManager.getLogManager().getLogger("");
         root.addHandler(handler);
-        Logger.getLogger(SentryMonitoring.class.getName()).info("Monitoring Sentry actif");
+        Logger.getLogger(SentryMonitoring.class.getName()).info("Sentry monitoring active");
     }
 
-    /** Retire ce qui pourrait identifier une personne. Exposé pour les tests. */
+    /** Removes anything that could identify a person. Exposed for tests. */
     static SentryEvent strip(SentryEvent event) {
         event.setUser(null);
         event.setRequest(null);

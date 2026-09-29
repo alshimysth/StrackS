@@ -13,7 +13,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-/** DTOs du cycle de vie d'activité — agnostiques au sport. */
+/** Activity lifecycle DTOs, sport-agnostic. */
 public final class ActivityDtos {
 
     private ActivityDtos() {
@@ -26,18 +26,18 @@ public final class ActivityDtos {
 
     public record StopActivityRequest(
             @NotNull Instant endedAt,
-            /** Durée active mesurée par le client (pauses exclues) — prioritaire si fournie
-             *  (cas séance hors ligne créée a posteriori). */
+            /** Active duration measured by the client (pauses excluded). Takes precedence when
+             *  provided (offline session created after the fact). */
             Integer durationS,
-            /** Métriques calculées côté client ; re-validées puis complétées par le plugin. */
+            /** Client-computed metrics, re-validated then completed by the plugin. */
             JsonNode metrics,
             String notes) {
     }
 
     /**
-     * Édition partielle (#25). Un champ absent (`null`) n'est pas touché ; pour effacer
-     * un titre, le client envoie une chaîne vide, que la ressource convertit en `null`.
-     * Sans cette convention, « ne pas modifier » et « vider » seraient indiscernables.
+     * Partial edit (#25). An absent field (`null`) is left untouched; to clear a title
+     * the client sends an empty string, which the resource turns into `null`.
+     * Without this convention, "don't change" and "clear" would be indistinguishable.
      */
     public record UpdateActivityRequest(
             @Size(max = 120, message = "Le titre ne peut pas dépasser 120 caractères.") String title,

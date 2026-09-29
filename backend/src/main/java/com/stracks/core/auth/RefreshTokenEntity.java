@@ -13,12 +13,12 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 /**
- * Jeton de renouvellement (Story #44). Ne porte que l'empreinte SHA-256 du secret :
- * le secret lui-même n'existe qu'une fois, dans la réponse HTTP qui l'émet.
+ * Refresh token (story #44). Only stores the SHA-256 hash of the secret: the secret itself
+ * exists only once, in the HTTP response that issues it.
  *
- * <p>Le lien vers l'utilisateur est un simple UUID plutôt qu'un {@code @ManyToOne} :
- * {@code core/auth} n'a besoin que de l'identité, et la suppression de compte est prise
- * en charge par le {@code ON DELETE CASCADE} de la migration V5.
+ * <p>The link to the user is a plain UUID rather than a {@code @ManyToOne}:
+ * {@code core/auth} only needs the identity, and account deletion is handled by the
+ * {@code ON DELETE CASCADE} of migration V5.
  */
 @Entity
 @Table(name = "refresh_tokens")
@@ -33,11 +33,11 @@ public class RefreshTokenEntity extends PanacheEntityBase {
     @Column(name = "token_hash", nullable = false, unique = true)
     public String tokenHash;
 
-    /** Une famille = une connexion. La rotation garde le même identifiant de famille. */
+    /** One family = one login. Rotation keeps the same family id. */
     @Column(name = "family_id", nullable = false)
     public UUID familyId;
 
-    /** Successeur émis lors de la rotation — trace la chaîne, jamais le secret. */
+    /** Successor issued on rotation: traces the chain, never the secret. */
     @Column(name = "replaced_by")
     public UUID replacedBy;
 
@@ -80,7 +80,7 @@ public class RefreshTokenEntity extends PanacheEntityBase {
         return find("tokenHash", tokenHash).firstResultOptional();
     }
 
-    /** Idem, mais verrouille la ligne : réservé au chemin de rotation. */
+    /** Same, but locks the row: reserved for the rotation path. */
     public static Optional<RefreshTokenEntity> findByHashForUpdate(String tokenHash) {
         return find("tokenHash", tokenHash)
                 .withLock(LockModeType.PESSIMISTIC_WRITE)
@@ -88,21 +88,20 @@ public class RefreshTokenEntity extends PanacheEntityBase {
     }
 
     /**
-     * Révoque toutes les sessions d'un utilisateur : après un changement ou une
-     * réinitialisation de mot de passe (#73, #74), aucun appareil ne doit pouvoir
-     * prolonger une session ouverte avec l'ancien secret.
+     * Revokes all of a user's sessions: after a password change or reset (#73, #74), no
+     * device may extend a session opened with the old secret.
      */
     public static long revokeAllForUser(UUID userId, Instant when, String reason) {
         return update("revokedAt = ?1, revokedReason = ?2 where userId = ?3 and revokedAt is null",
                 when, reason, userId);
     }
 
-    /** Purge (#50) : ne touche qu'aux jetons expirés depuis avant {@code before}. */
+    /** Purge (#50): only touches tokens that expired before {@code before}. */
     public static long deleteExpiredBefore(Instant before) {
         return delete("expiresAt < ?1", before);
     }
 
-    /** Révoque d'un coup toute la famille — réaction au rejeu d'un jeton déjà tourné. */
+    /** Revokes the whole family at once: reaction to the replay of an already rotated token. */
     public static long revokeFamily(UUID familyId, Instant when, String reason) {
         return update("revokedAt = ?1, revokedReason = ?2 where familyId = ?3 and revokedAt is null",
                 when, reason, familyId);

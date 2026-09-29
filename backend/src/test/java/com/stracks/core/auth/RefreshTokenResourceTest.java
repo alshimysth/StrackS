@@ -18,12 +18,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /**
- * Renouvellement de session (Story #44) : émission, rotation, révocation, et surtout
- * la garantie qui motive le ticket — l'expiration du JWT en pleine séance ne doit
- * coûter aucun point de tracé.
+ * Session refresh (story #44): issuing, rotation, revocation, and above all the guarantee
+ * that motivates the ticket: the JWT expiring mid-session must not cost a single track
+ * point.
  *
- * <p>La détection de rejeu hors fenêtre de tolérance est couverte séparément par
- * {@link RefreshTokenReuseTest}, qui ramène la fenêtre à zéro.
+ * <p>Replay detection outside the grace window is covered separately by
+ * {@link RefreshTokenReuseTest}, which brings the window down to zero.
  */
 @QuarkusTest
 class RefreshTokenResourceTest {
@@ -59,7 +59,7 @@ class RefreshTokenResourceTest {
     }
 
     @Test
-    void login_delivre_aussi_un_refresh_token() {
+    void login_also_issues_a_refresh_token() {
         Session session = register();
 
         given().contentType("application/json")
@@ -72,22 +72,22 @@ class RefreshTokenResourceTest {
     }
 
     @Test
-    void refresh_rend_un_acces_utilisable_et_tourne_le_jeton() {
+    void refresh_returns_a_usable_access_token_and_rotates_the_token() {
         Session session = register();
 
         JsonPath renewed = refresh(session.refreshToken(), 200);
         String newAccess = renewed.getString("token");
         String rotated = renewed.getString("refreshToken");
 
-        // Rotation : le jeton présenté est consommé, un autre le remplace.
+        // Rotation: the presented token is consumed, another one replaces it.
         assertNotEquals(session.refreshToken(), rotated);
-        // Le JWT rendu ouvre bien les ressources protégées, sur le bon compte.
+        // The returned JWT does open the protected resources, on the right account.
         assertTokenBelongsTo(newAccess, session.email());
         assertEquals(session.email(), renewed.getString("user.email"));
     }
 
     @Test
-    void refresh_enchaine_sur_plusieurs_rotations() {
+    void refresh_chains_over_several_rotations() {
         Session session = register();
 
         String current = session.refreshToken();
@@ -101,7 +101,7 @@ class RefreshTokenResourceTest {
     }
 
     @Test
-    void refresh_avec_un_jeton_inconnu_est_401_problem_json() {
+    void refresh_with_an_unknown_token_is_401_problem_json() {
         given().contentType("application/json")
                 .body(Map.of("refreshToken", "jeton-qui-n-existe-pas"))
                 .when().post("/api/v1/auth/refresh")
@@ -112,7 +112,7 @@ class RefreshTokenResourceTest {
     }
 
     @Test
-    void refresh_sans_jeton_est_400() {
+    void refresh_without_token_is_400() {
         given().contentType("application/json")
                 .body(Map.of("refreshToken", ""))
                 .when().post("/api/v1/auth/refresh")
@@ -120,7 +120,7 @@ class RefreshTokenResourceTest {
     }
 
     @Test
-    void logout_revoque_la_session_cote_serveur() {
+    void logout_revokes_the_session_server_side() {
         Session session = register();
 
         given().contentType("application/json")
@@ -132,24 +132,24 @@ class RefreshTokenResourceTest {
     }
 
     @Test
-    void logout_revoque_toute_la_famille_pas_seulement_le_dernier_jeton() {
+    void logout_revokes_the_whole_family_not_just_the_last_token() {
         Session session = register();
         String rotated = refresh(session.refreshToken(), 200).getString("refreshToken");
 
-        // Déconnexion présentée avec le jeton courant…
+        // Logout presented with the current token...
         given().contentType("application/json")
                 .body(Map.of("refreshToken", rotated))
                 .when().post("/api/v1/auth/logout")
                 .then().statusCode(204);
 
-        // …aucun jeton de la famille ne survit, ni le courant ni son prédécesseur.
+        // ...no token of the family survives, neither the current one nor its predecessor.
         refresh(rotated, 401);
         refresh(session.refreshToken(), 401);
     }
 
     @Test
-    void logout_est_idempotent_et_muet_sur_un_jeton_inconnu() {
-        // Répondre « connu / inconnu » ferait de l'endpoint un oracle de validité.
+    void logout_is_idempotent_and_silent_on_an_unknown_token() {
+        // Answering "known / unknown" would turn the endpoint into a validity oracle.
         given().contentType("application/json")
                 .body(Map.of("refreshToken", "jeton-qui-n-existe-pas"))
                 .when().post("/api/v1/auth/logout")
@@ -157,12 +157,12 @@ class RefreshTokenResourceTest {
     }
 
     @Test
-    void refresh_ignore_le_bearer_et_sert_le_proprietaire_du_jeton() {
+    void refresh_ignores_the_bearer_and_serves_the_token_owner() {
         Session alice = register();
         Session bob = register();
 
-        // Alice présente son propre Bearer avec le jeton de renouvellement de Bob.
-        // L'identité servie doit venir de la ligne du jeton, jamais de la requête.
+        // Alice presents her own Bearer with Bob's refresh token.
+        // The identity served must come from the token's row, never from the request.
         JsonPath renewed = given().header("Authorization", "Bearer " + alice.token())
                 .contentType("application/json")
                 .body(Map.of("refreshToken", bob.refreshToken()))
@@ -175,7 +175,7 @@ class RefreshTokenResourceTest {
     }
 
     @Test
-    void refresh_apres_suppression_du_compte_est_401() {
+    void refresh_after_account_deletion_is_401() {
         Session session = register();
 
         given().header("Authorization", "Bearer " + session.token())
@@ -186,10 +186,10 @@ class RefreshTokenResourceTest {
     }
 
     @Test
-    void rejeu_immediat_dans_la_fenetre_de_tolerance_ne_deconnecte_pas() {
-        // Cas courant en mobilité : la réponse de rotation se perd, le client réessaie
-        // avec le jeton qu'il a encore. Le traiter comme un vol éjecterait l'utilisateur
-        // en pleine séance — exactement ce que #44 doit empêcher.
+    void immediate_replay_within_the_grace_window_does_not_log_out() {
+        // Common case on the move: the rotation response gets lost, the client retries
+        // with the token it still has. Treating it as theft would kick the user out
+        // mid-session, exactly what #44 must prevent.
         Session session = register();
         String rotated = refresh(session.refreshToken(), 200).getString("refreshToken");
 
@@ -199,7 +199,7 @@ class RefreshTokenResourceTest {
     }
 
     @Test
-    void refresh_pendant_une_seance_active_ne_perd_aucun_point() {
+    void refresh_during_an_active_session_loses_no_point() {
         Session session = register();
         Instant start = Instant.now().minusSeconds(600);
 
@@ -210,7 +210,7 @@ class RefreshTokenResourceTest {
                 .then().statusCode(201)
                 .extract().path("id");
 
-        // Premier lot envoyé avec le jeton d'origine.
+        // First batch sent with the original token.
         given().header("Authorization", "Bearer " + session.token())
                 .contentType("application/json")
                 .body(Map.of("points", track(start, 0)))
@@ -218,11 +218,11 @@ class RefreshTokenResourceTest {
                 .then().statusCode(201)
                 .body("inserted", equalTo(25));
 
-        // Le JWT expire ici : le client renouvelle en silence, séance toujours ouverte.
+        // The JWT expires here: the client refreshes silently, session still open.
         JsonPath renewed = refresh(session.refreshToken(), 200);
         String newAccess = renewed.getString("token");
 
-        // Second lot avec le nouveau jeton — c'est le rejeu que fait l'uploader mobile.
+        // Second batch with the new token: that's the replay the mobile uploader does.
         given().header("Authorization", "Bearer " + newAccess)
                 .contentType("application/json")
                 .body(Map.of("points", track(start, 25)))
@@ -230,7 +230,7 @@ class RefreshTokenResourceTest {
                 .then().statusCode(201)
                 .body("inserted", equalTo(25));
 
-        // La séance se termine normalement et porte bien les 50 points des deux lots.
+        // The session ends normally and does carry the 50 points of both batches.
         given().header("Authorization", "Bearer " + newAccess)
                 .contentType("application/json")
                 .body(Map.of("endedAt", start.plusSeconds(300).toString(), "durationS", 294))
@@ -244,7 +244,7 @@ class RefreshTokenResourceTest {
                 .body("size()", equalTo(50));
     }
 
-    /** Tracé synthétique de 25 points, aligné sur celui de ActivityFlowTest. */
+    /** Synthetic 25-point track, aligned with the one in ActivityFlowTest. */
     private static List<Map<String, Object>> track(Instant start, int offsetSeq) {
         List<Map<String, Object>> points = new ArrayList<>();
         for (int i = 0; i < 25; i++) {

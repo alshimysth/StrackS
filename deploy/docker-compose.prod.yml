@@ -45,6 +45,9 @@ services:
       # (un chemin absolu nu → MalformedURLException "no protocol").
       MP_JWT_VERIFY_PUBLICKEY_LOCATION: file:/deployments/keys/publicKey.pem
       SMALLRYE_JWT_SIGN_KEY_LOCATION: file:/deployments/keys/privateKey.pem
+      # Monitoring des erreurs (lot 5) : vide = désactivé.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
     volumes:
       - ${JWT_KEYS_DIR:-./keys}:/deployments/keys:ro
     healthcheck:
@@ -63,6 +66,38 @@ services:
     networks:
       - default
       - root_default
+    restart: unless-stopped
+
+  # Sauvegarde quotidienne chiffrée hors du VPS (#45). Profil `backup` : ce service ne
+  # démarre PAS avec le déploiement tant qu'il n'est pas activé par COMPOSE_PROFILES=backup
+  # dans .env — c'est-à-dire tant que le stockage distant et la clé publique GPG n'existent
+  # pas. Sans ce garde-fou, le prochain déploiement lancerait un conteneur en échec.
+  # Procédure complète : docs/release/RUNBOOK.md, section « Sauvegardes ».
+  backup:
+    image: postgres:18-alpine # même version majeure que la base : pg_dump doit la suivre
+    container_name: stracks-backup
+    profiles: ["backup"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["sh", "/backup/entrypoint.sh"]
+    environment:
+      DATABASE_USER: ${DATABASE_USER:-stracks}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD manquant dans .env}
+      PGHOST: postgres
+      BACKUP_BUCKET: ${BACKUP_BUCKET:-}
+      BACKUP_PREFIX: ${BACKUP_PREFIX:-}
+      BACKUP_AT: ${BACKUP_AT:-03:15}
+      BACKUP_PING_URL: ${BACKUP_PING_URL:-}
+      # Stockage S3 compatible, lu par rclone (distant nommé « store »).
+      RCLONE_CONFIG_STORE_TYPE: s3
+      RCLONE_CONFIG_STORE_PROVIDER: ${BACKUP_S3_PROVIDER:-Cloudflare}
+      RCLONE_CONFIG_STORE_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      RCLONE_CONFIG_STORE_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-}
+      RCLONE_CONFIG_STORE_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
+      RCLONE_CONFIG_STORE_REGION: ${BACKUP_S3_REGION:-auto}
+    volumes:
+      - ./backup:/backup:ro
     restart: unless-stopped
 
 networks:

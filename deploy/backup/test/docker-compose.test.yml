@@ -1,0 +1,60 @@
+# Essai local de bout en bout des sauvegardes (#45) : base source → backup.sh (scripts
+# réels) → MinIO (stockage S3 local, à la place de R2) → restore.sh → base vide.
+# Lancé par run-test.sh ; ne touche à rien d'autre que ses propres conteneurs.
+name: stracks-backup-test
+
+services:
+  source:
+    image: postgres:18-alpine
+    environment: { POSTGRES_USER: stracks, POSTGRES_PASSWORD: essai, POSTGRES_DB: stracks }
+    volumes: ["./seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U stracks -d stracks"], interval: 2s, retries: 30 }
+
+  restore-target:
+    image: postgres:18-alpine
+    environment: { POSTGRES_USER: stracks, POSTGRES_PASSWORD: essai, POSTGRES_DB: stracks_restore }
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U stracks -d stracks_restore"], interval: 2s, retries: 30 }
+
+  minio:
+    # Épinglée par empreinte (revue PR #88) : l'essai doit être reproductible.
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: server /data
+    environment: { MINIO_ROOT_USER: essai-cle, MINIO_ROOT_PASSWORD: essai-secret-123 }
+    healthcheck: { test: ["CMD", "mc", "ready", "local"], interval: 2s, retries: 30 }
+
+  backup:
+    image: postgres:18-alpine
+    depends_on: { source: { condition: service_healthy } }
+    entrypoint: ["sh", "/backup/entrypoint.sh"]
+    environment: &store
+      DATABASE_USER: stracks
+      DATABASE_PASSWORD: essai
+      PGHOST: source
+      BACKUP_BUCKET: stracks-backups
+      BACKUP_RUN_ONCE: "true"
+      RCLONE_CONFIG_STORE_TYPE: s3
+      RCLONE_CONFIG_STORE_PROVIDER: Minio
+      RCLONE_CONFIG_STORE_ENDPOINT: http://minio:9000
+      RCLONE_CONFIG_STORE_ACCESS_KEY_ID: essai-cle
+      RCLONE_CONFIG_STORE_SECRET_ACCESS_KEY: essai-secret-123
+    volumes:
+      - ../backup.sh:/backup/backup.sh:ro
+      - ../entrypoint.sh:/backup/entrypoint.sh:ro
+      - ${KEYS_DIR:?KEYS_DIR fourni par run-test.sh}/backup-public.asc:/backup/keys/backup-public.asc:ro
+
+  restorer:
+    image: postgres:18-alpine
+    depends_on: { restore-target: { condition: service_healthy } }
+    environment: *store
+    entrypoint: ["sh", "-c"]
+    volumes:
+      - ../restore.sh:/backup/restore.sh:ro
+      - ${KEYS_DIR:?KEYS_DIR fourni par run-test.sh}:/keys:ro
+
+  # Création du bucket avec rclone, le même outil que les scripts (pas d'image « mc »).
+  bucket:
+    image: alpine@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+    depends_on: { minio: { condition: service_healthy } }
+    environment: *store
+    entrypoint: ["sh", "-c", "apk add --no-cache --quiet rclone >/dev/null && rclone mkdir store:stracks-backups"]
+

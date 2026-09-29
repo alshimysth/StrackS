@@ -26,9 +26,9 @@ Design system : projet Claude Design `d8a01989-0514-45c1-9a9c-fe1015bb2ffc` (sou
 
 | Outil | Version | Pour quoi |
 |---|---|---|
-| Java | 21+ | Backend Quarkus |
+| Java | **25** | Backend Quarkus — `pom.xml` compile en `release 25`, l'image Docker tourne sur `openjdk-25-runtime` et la CI utilise le JDK 25 : les trois doivent rester alignés. Avec un JDK 21, `./mvnw quarkus:dev` échoue à la compilation |
 | Docker Desktop | — | PostgreSQL démarré automatiquement (Dev Services) — **doit être lancé avant `quarkus:dev`** |
-| Node.js | 20+ | Mobile Expo |
+| Node.js | 22 | Mobile Expo — version de la CI (Node 20 est en fin de vie, et `better-sqlite3`, utilisé par les tests, ne publie plus de binaire pour lui) |
 | Xcode (macOS) | optionnel | Simulateur iOS — non installé sur cette machine au 2026-07-14 (seuls les Command Line Tools le sont) |
 | Android Studio | optionnel | Émulateur Android — non installé sur cette machine au 2026-07-14 |
 | App **Expo Go** sur un téléphone | optionnel | Tester sur un vrai appareil sans simulateur |
@@ -74,7 +74,7 @@ curl -i http://localhost:8080/api/v1/sport-types
 **Lancer les tests automatisés** :
 
 ```bash
-./mvnw test    # 18 tests : auth, cycle de vie d'activité, idempotence, anti-IDOR, moteur GPS
+./mvnw test    # auth et sessions, compte, cycle de vie d'activité, idempotence, anti-IDOR, moteur GPS, stats, records, sauvegarde des préférences
 ```
 
 ---
@@ -243,6 +243,7 @@ par vous-même pour une confirmation complète du geste.
 | Téléphone physique (Expo Go) : « Serveur injoignable » sur l'écran de connexion | Deux causes possibles, à vérifier dans l'ordre : **(1)** `EXPO_PUBLIC_API_URL` pas défini avant `expo start` — le client tape alors sur `localhost`, qui sur le téléphone désigne le téléphone lui-même, pas le Mac. **(2)** Le backend n'écoute que sur `localhost` côté Mac (vérifier que les logs affichent `Listening on: http://0.0.0.0:8080`, pas `http://localhost:8080`) — dans ce cas même la bonne IP ne suffit pas | Relancer avec `EXPO_PUBLIC_API_URL=http://<IP-du-Mac>:8080 npx expo start` **et** vérifier que `application.properties` contient `quarkus.http.host=0.0.0.0` (déjà présent dans ce repo). Vérifier aussi que le téléphone est sur le **même réseau Wi-Fi** que le Mac (pas de VPN actif, pas d'isolation clients sur le routeur) |
 | Mode **web** (`npx expo start --web`) : requête bloquée dans l'onglet Network de Chrome, réponse vide/0 B, aucune erreur claire | CORS — le preview web tourne sur un port différent de l'API (ex. `localhost:8081` vs `localhost:8080`) : c'est cross-origin du point de vue du navigateur, qui bloque la requête sans en-têtes `Access-Control-Allow-*`. **Ne concerne pas** l'app native sur simulateur/téléphone (le `fetch` React Native n'applique pas CORS) | Déjà corrigé dans ce repo (`quarkus.http.cors.enabled=true` + origines `localhost:*` autorisées dans `application.properties`). Si l'erreur revient après une modification de cette config, redémarrer complètement `quarkus:dev` (`quarkus.http.cors.enabled` est une propriété *build-time*, non rechargée à chaud) |
 | Écran blanc/noir en mode web | Bundler encore en cours de compilation au premier chargement | Rafraîchir après quelques secondes |
+| `./mvnw test` échoue sur `QuarkusBindException: Port already bound: 8081` (2 erreurs, 34 tests sautés, sans mention d'Expo) | Les tests `@QuarkusTest` écoutent sur **8081**, le port par défaut du bundler Metro : `npx expo start` tourne en parallèle | Arrêter Metro, ou déplacer le port de test : `./mvnw test -Dquarkus.http.test-port=8093` |
 | `quarkus:dev` boucle sur `WARN ... Can not connect to Ryuk at localhost:PORT: Connection refused` | Le conteneur Ryuk (nettoyeur de conteneurs de Testcontainers) met parfois plus de temps que prévu à démarrer/publier son port — race condition avec Docker Desktop, pas un problème de config. Le backend ne finit jamais de démarrer tant que ça boucle, d'où une « erreur de connexion » côté app mobile (elle tape simplement dans le vide, il n'y a rien à `localhost:8080`) | `Ctrl+C`, relancer `./mvnw quarkus:dev` — repart généralement proprement en quelques secondes. Si ça persiste : vérifier `docker ps` (pas de conteneur `ryuk` bloqué), redémarrer Docker Desktop. En dernier recours, désactiver Ryuk : `TESTCONTAINERS_RYUK_DISABLED=true ./mvnw quarkus:dev` (les conteneurs ne seront alors plus auto-nettoyés à l'arrêt — `docker rm` manuel si besoin) |
 
 ---
@@ -256,7 +257,23 @@ par vous-même pour une confirmation complète du geste.
 
 ## 9. Ce qui n'est pas encore fonctionnel
 
-L'écran de tracking live (carte + métriques pendant une séance) est un placeholder textuel :
-le moteur de séance (`core/session`) et le moteur GPS (`core/gps`, Epic 3) restent à
-implémenter côté mobile. L'auth, la sélection de sport, l'historique (liste simple) et le
-profil sont, eux, pleinement fonctionnels et testables dès maintenant.
+Le code de la Phase 1 est en place : auth et sécurité du compte, tracking (premier plan et
+arrière-plan, perte de signal, buffer anti-crash), historique, détail, résumé, stats et
+records, préférences, zones de confidentialité, export RGPD, onboarding. **L'avancement
+réel fait foi sur GitHub** (issues et epics), pas dans ce fichier. Ce qui manque est
+d'une autre nature que du code :
+
+- **Validation sur appareil réel** : aucun dev build EAS n'a encore été produit (#15).
+  Suivi écran verrouillé (#16, #70), batterie (#18), calibration GPS (#17), migration du
+  buffer local (#81), accessibilité et affichage (#84).
+- **Envoi d'emails** : le mot de passe oublié et le changement d'adresse n'envoient rien
+  tant qu'aucun fournisseur n'est branché (#77).
+- **Mise en production** : sauvegardes à activer (#45), comptes Sentry et EAS à créer,
+  publication sur les stores, textes juridiques à valider — voir
+  `docs/release/RUNBOOK.md`.
+
+## 10. Collection d'API
+
+**La collection Bruno (`bruno/`) fait foi** : versionnée, maintenue avec l'API, et
+exécutable en ligne de commande contre un backend local (voir `bruno/README.md`). L'ancienne
+collection Postman a été retirée : elle n'était plus à jour depuis l'arrivée de Bruno (#58).

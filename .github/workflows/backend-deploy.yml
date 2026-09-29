@@ -77,7 +77,9 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
-          source: "deploy/docker-compose.prod.yml"
+          # Le compose et les scripts de sauvegarde (#45) ; le dossier backup/keys, lui,
+          # est créé à la main sur le VPS et ne vient jamais du dépôt.
+          source: "deploy/docker-compose.prod.yml,deploy/backup/backup.sh,deploy/backup/entrypoint.sh"
           target: "/root/stracks"
           strip_components: 1
 

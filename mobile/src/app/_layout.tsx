@@ -17,6 +17,7 @@ import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { persistOptions, queryClient } from '../core/api/query-client';
+import { initMonitoring, withMonitoring } from '../core/monitoring/sentry';
 import { useAuthStore } from '../core/auth/use-auth-store';
 import { setupOnlineManager } from '../core/network/online';
 import { darkTheme } from '../design-system/theme';
@@ -30,7 +31,13 @@ import { useTheme } from '../design-system/use-theme';
  * séparation en deux composants. Aucun test ne rend ce fichier : le piège ne se voit qu'à
  * l'exécution.
  */
-export default function RootLayout() {
+// Monitoring des erreurs (lot 5) : inactif sans `EXPO_PUBLIC_SENTRY_DSN`. Initialisé au
+// chargement du module, avant le premier rendu, pour capturer aussi les erreurs de démarrage.
+initMonitoring();
+
+export default withMonitoring(RootLayout);
+
+function RootLayout() {
   // Sans ce câblage, react-query croit l'app toujours en ligne sous React Native.
   React.useEffect(() => setupOnlineManager(), []);
 

@@ -75,6 +75,7 @@ Les scripts `backup/backup.sh` et `backup/entrypoint.sh` sont déposés dans `/r
 par le workflow de déploiement, à la fusion.
 
 ```bash
+ssh root@<VPS> 'mkdir -p /root/stracks/backup/keys'
 scp backup-public.asc root@<VPS>:/root/stracks/backup/keys/backup-public.asc
 ssh root@<VPS>
 cd /root/stracks

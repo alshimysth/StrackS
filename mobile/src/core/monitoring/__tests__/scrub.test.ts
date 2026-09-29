@@ -70,20 +70,18 @@ it('remplace un sous-arbre trop profond au lieu de le laisser passer', () => {
   expect(JSON.stringify(scrub(deep))).not.toContain('secret');
 });
 
-/** Revue PR #88 : un secret écrit en clair dans un message libre. */
+/** Revue PR #88 : un secret écrit en clair dans un message libre. Résultat comparé en entier. */
 it.each([
   ['Password hunter2 failed', 'Password [retiré] failed'],
   ['mot de passe: s3cr3t refusé', 'mot de passe: [retiré] refusé'],
   ['invalid token=abc.def', 'invalid token=[retiré]'],
-  ['Authorization: Bearer xyz', 'Authorization: [retiré] xyz'.replace(' xyz', ' xyz')],
+  ['Authorization: Bearer xyz', 'Authorization: Bearer [retiré]'],
+  ['header Bearer eyJhbGciOiJIUzI1NiJ9 rejected', 'header Bearer [retiré] rejected'],
+  ['Authorization: Basic dXNlcjpwYXNz', 'Authorization: Basic [retiré]'],
   ['code ABCD-2345 expiré', 'code [retiré] expiré'],
   ['reçu WXYZ2345 par email', 'reçu [code retiré] par email'],
 ])('masque « %s »', (input, expected) => {
-  const out = sanitizeText(input);
-  expect(out).not.toMatch(/hunter2|s3cr3t|abc\.def|ABCD-2345|WXYZ2345/);
-  if (!input.startsWith('Authorization')) {
-    expect(out).toBe(expected);
-  }
+  expect(sanitizeText(input)).toBe(expected);
 });
 
 it('laisse intacts les messages techniques ordinaires', () => {

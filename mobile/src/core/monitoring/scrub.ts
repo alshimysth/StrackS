@@ -32,7 +32,13 @@ const MAX_DEPTH = 8;
  * « token=… ») : le mot reste, le terme suivant disparaît (revue PR #88).
  */
 const AFTER_SECRET_WORD =
-  /\b(password|passwd|pwd|passcode|mot de passe|code|token|jeton|secret|api[_-]?key|authorization|bearer)(\s*[:=]\s*|\s+)(?!\[)("[^"]*"|'[^']*'|\S+)/gi;
+  /\b(password|passwd|pwd|passcode|mot de passe|code|token|jeton|secret|api[_-]?key|authorization|bearer)(\s*[:=]\s*|\s+)(?!\[|(?:bearer|basic|digest)\b)("[^"]*"|'[^']*'|\S+)/gi;
+/**
+ * Schéma d'authentification HTTP suivi de son jeton (`Bearer xyz`, `Basic dXNlcjpw`) :
+ * c'est le jeton qui compte, pas le mot `Bearer` (revue PR #88). Appliqué avant la règle
+ * générale, pour que `Authorization: Bearer xyz` ne masque pas seulement le schéma.
+ */
+const AUTH_SCHEME = /\b(bearer|basic|digest)\s+(?!\[)\S+/gi;
 /** Format exact des codes à usage unique du compte (#74, #75) : `ABCD-EFGH` ou `ABCDEFGH`. */
 const ACCOUNT_CODE = /\b[2-9A-HJ-NP-Z]{4}-?[2-9A-HJ-NP-Z]{4}\b/g;
 
@@ -48,6 +54,7 @@ export function sanitizeText(text: string): string {
   return text
     .replace(EMAIL, '[email retiré]')
     .replace(JWT, '[JWT retiré]')
+    .replace(AUTH_SCHEME, (_match, scheme: string) => `${scheme} [retiré]`)
     .replace(AFTER_SECRET_WORD, (_match, word: string, separator: string) => `${word}${separator}[retiré]`)
     .replace(ACCOUNT_CODE, '[code retiré]')
     .replace(COORDINATE, '[coord. retirée]');

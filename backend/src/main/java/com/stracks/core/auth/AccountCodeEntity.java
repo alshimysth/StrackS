@@ -77,4 +77,9 @@ public class AccountCodeEntity extends PanacheEntityBase {
         return update("consumedAt = ?1 where userId = ?2 and purpose = ?3 and consumedAt is null",
                 when, userId, purpose);
     }
+
+    /** Purge (#87) : ne touche qu'aux codes expirés depuis avant {@code before}. */
+    static long deleteExpiredBefore(Instant before) {
+        return delete("expiresAt < ?1", before);
+    }
 }

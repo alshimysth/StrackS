@@ -1,6 +1,6 @@
 # StrackS API — collection Bruno
 
-Portage de `StrackS-API.postman_collection.json` au format Bruno, pour tester le backend
+Collection d'API de référence (elle remplace l'ancienne collection Postman, retirée), pour tester le backend
 en production sur le VPS (ou en local) sans dépendance à un compte Postman.
 
 ## Démarrage

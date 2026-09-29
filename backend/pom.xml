@@ -42,6 +42,14 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-scheduler</artifactId>
         </dependency>
+        <!-- Monitoring des erreurs (lot 5 de finition). SDK Java nu plutôt que l'extension
+             Quarkiverse, dont la dernière version (2.1.2, février 2025) n'est pas garantie
+             compatible avec Quarkus 3.37. Inactif tant que SENTRY_DSN n'est pas fourni. -->
+        <dependency>
+            <groupId>io.sentry</groupId>
+            <artifactId>sentry-jul</artifactId>
+            <version>8.16.0</version>
+        </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-hibernate-validator</artifactId>

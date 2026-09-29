@@ -5,7 +5,7 @@ depuis SportTracker le 2026-07-17 — seuls les documents historiques gardent l'
 
 | Dossier | Stack | Sous-CLAUDE.md |
 |---|---|---|
-| `backend/` | Java 21 / Quarkus 3.37 / PostgreSQL (JSONB) / Flyway | — (ce fichier fait foi) |
+| `backend/` | Java 25 / Quarkus 3.37 / PostgreSQL (JSONB) / Flyway | — (ce fichier fait foi) |
 | `mobile/` | Expo SDK 54 / React Native (Expo Router) | `mobile/CLAUDE.md` → `AGENTS.md` |
 | `deploy/` | docker-compose.prod.yml + `.env.example` pour le VPS | — (ce fichier fait foi) |
 | `StrackDoc/` | Vault Obsidian, gitignoré, contexte projet approfondi | `StrackDoc/CLAUDE.md` |

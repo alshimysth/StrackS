@@ -1,8 +1,8 @@
 /**
- * Sécurité du compte (#73, #74, #75, #76) : mot de passe, email, export.
+ * Account security (#73, #74, #75, #76): password, email, export.
  *
- * Les codes à usage unique arrivent par email. Le serveur tolère minuscules, espaces et
- * tirets : l'écran transmet ce que l'utilisateur a tapé, sans le reformater.
+ * One-time codes arrive by email. The server tolerates lowercase, spaces and dashes: the
+ * screen sends what the user typed, without reformatting it.
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -12,7 +12,7 @@ import { classifyError } from './error-kind';
 import { useAuthStore } from '../auth/use-auth-store';
 import type { AuthResponse, User } from '../../types/api';
 
-/** Même règle que l'inscription et que le backend (`@Size(min = 8)`). */
+/** Same rule as registration and the backend (`@Size(min = 8)`). */
 const newPassword = z.string().min(8, 'Au moins 8 caractères');
 const code = z.string().trim().min(4, 'Saisis le code reçu par email');
 
@@ -44,9 +44,9 @@ export const emailChangeSchema = z.object({
 export const codeSchema = z.object({ code });
 
 /**
- * Message d'erreur d'un écran de compte. Le serveur rédige ses refus en français
- * (RFC 7807, `detail`) : mauvais mot de passe, code expiré, délai d'attente précis d'un
- * 429. On les affiche tels quels plutôt que de les réécrire moins précisément.
+ * Error message of an account screen. The server writes its refusals in French (RFC 7807,
+ * `detail`): wrong password, expired code, exact waiting time of a 429. We show them as
+ * is rather than rewriting them less precisely.
  */
 export function accountErrorMessage(error: unknown): string | null {
   if (error == null) {
@@ -61,7 +61,7 @@ export function accountErrorMessage(error: unknown): string | null {
   return error instanceof ApiError ? error.message : 'Cette demande n’a pas abouti. Réessaie.';
 }
 
-/** Met à jour l'utilisateur affiché partout (store de session + cache `['me']`). */
+/** Updates the user displayed everywhere (session store + `['me']` cache). */
 function useStoreUser() {
   const queryClient = useQueryClient();
   return (user: User) => {
@@ -70,7 +70,7 @@ function useStoreUser() {
   };
 }
 
-/** #73. Le client HTTP range la session neuve rendue par le serveur (voir SESSION_PATHS). */
+/** #73. The HTTP client stores the fresh session returned by the server (see SESSION_PATHS). */
 export function useChangePassword() {
   return useMutation({
     mutationFn: (input: { currentPassword: string; newPassword: string }) =>
@@ -78,7 +78,7 @@ export function useChangePassword() {
   });
 }
 
-/** #74. Toujours 202 : l'écran ne peut pas — et ne doit pas — savoir si l'adresse a un compte. */
+/** #74. Always 202: the screen can't (and mustn't) know whether the address has an account. */
 export function useRequestPasswordReset() {
   return useMutation({
     mutationFn: (input: { email: string }) =>
@@ -129,8 +129,8 @@ export function useConfirmEmailChange() {
 }
 
 /**
- * Nom affiché (#7). Vide = retiré : le serveur enregistre `null` et l'app retombe sur
- * « — » et sur l'initiale de l'email pour l'avatar.
+ * Display name (#7). Empty = removed: the server stores `null` and the app falls back to
+ * "—" and to the email's initial for the avatar.
  */
 export const displayNameSchema = z.object({
   displayName: z.string().trim().max(80, '80 caractères au plus'),

@@ -1,6 +1,6 @@
 /**
- * Input — transposition RN de components/forms/Input.jsx (Claude Design).
- * Focus = bordure bleue ; erreur = bordure rouge + texte d'aide dessous.
+ * Input: RN port of components/forms/Input.jsx (Claude Design).
+ * Focus = blue border; error = red border + helper text below.
  */
 import React from 'react';
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
@@ -29,9 +29,9 @@ export function Input({ label, error, helper, ...inputProps }: Props) {
       <Text style={[typography.label, { color: theme.textSecondary }]}>{label}</Text>
       <TextInput
         {...inputProps}
-        // Le libellé visible est un `Text` voisin : un lecteur d'écran ne l'associe pas au
-        // champ. Sans nom accessible, VoiceOver annonce « champ de texte » et rien d'autre
-        // (revue PR #80). L'aide et l'erreur complètent l'annonce.
+        // The visible label is a sibling `Text`: a screen reader doesn't associate it with
+        // the field. Without an accessible name, VoiceOver announces "text field" and
+        // nothing else (PR #80 review). Helper and error complete the announcement.
         accessibilityLabel={inputProps.accessibilityLabel ?? label}
         accessibilityHint={inputProps.accessibilityHint ?? error ?? helper}
         onFocus={(e) => {

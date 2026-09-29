@@ -1,6 +1,6 @@
 /**
- * Fallback web : react-native-maps est natif uniquement. Même placeholder que
- * `LiveMap.web.tsx`, pour que le bundle web de la CI passe.
+ * Web fallback: react-native-maps is native only. Same placeholder as `LiveMap.web.tsx`,
+ * so the CI web bundle passes.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';

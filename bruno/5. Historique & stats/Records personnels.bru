@@ -11,7 +11,7 @@ get {
 }
 
 tests {
-  test("200 + détenteurs de record par sport", function () {
+  test("200 + record holders per sport", function () {
     expect(res.getStatus()).to.equal(200);
     const body = res.getBody();
     expect(body.bySport).to.be.an("array");

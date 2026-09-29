@@ -1,7 +1,7 @@
 /**
- * Accueil — démarrage de séance. La liste des sports vient du BACKEND
- * (GET /sport-types) croisée avec le registre local : jamais de liste en dur.
- * Le bouton Démarrer ouvrira l'écran de tracking du module (Epic 3/4).
+ * Home: starting a session. The list of sports comes from the BACKEND (GET /sport-types)
+ * matched against the local registry: never a hard-coded list. The Démarrer button opens
+ * the tracking route, which runs the countdown then starts the session.
  */
 import { useRouter } from 'expo-router';
 import React from 'react';
@@ -36,11 +36,11 @@ export default function HomeScreen() {
   const defaultSport = preferences.data?.defaultSport ?? null;
 
   /**
-   * Ordre serveur, sport préféré remonté en tête (#34).
+   * Server order, preferred sport moved to the top (#34).
    *
-   * Filtré sur le registre AVANT tout : un sport exposé par le backend sans module
-   * mobile n'est pas démarrable. Le laisser passer permettrait de le présélectionner,
-   * d'afficher « Démarrer », puis de ne rien faire au clic — un cul-de-sac.
+   * Filtered on the registry FIRST: a sport exposed by the backend without a mobile
+   * module can't be started. Letting it through would allow preselecting it, showing
+   * "Démarrer", then doing nothing on tap: a dead end.
    */
   const sports = React.useMemo(
     () => orderSports((sportTypes.data ?? []).filter((s) => sportRegistry[s.code] != null), defaultSport),
@@ -50,9 +50,9 @@ export default function HomeScreen() {
   const [selected, setSelected] = React.useState<string | null>(null);
   const [touched, setTouched] = React.useState(false);
 
-  // Présélection dès que sports et préférences sont connus — mais jamais après un
-  // choix explicite : réappliquer le défaut effacerait la sélection de l'utilisateur
-  // au moindre rafraîchissement de la liste.
+  // Preselection as soon as sports and preferences are known, but never after an explicit
+  // choice: reapplying the default would erase the user's selection on the slightest list
+  // refresh.
   React.useEffect(() => {
     if (!touched) {
       setSelected(initialSelection(sports, defaultSport));
@@ -65,15 +65,15 @@ export default function HomeScreen() {
   };
 
   /**
-   * Le démarrage effectif a lieu dans /tracking, pas ici (#3).
+   * The actual start happens in /tracking, not here (#3).
    *
-   * Le compte à rebours doit s'écouler AVANT `start()` — sinon les trois premières
-   * secondes de tracé seraient enregistrées pendant que l'utilisateur range encore son
-   * téléphone. Et il doit s'afficher avant toute demande de permission, faute de quoi une
-   * popup système pendant le décompte donne l'impression que l'app est figée.
+   * The countdown must elapse BEFORE `start()`; otherwise the first three seconds of track
+   * would be recorded while the user is still putting their phone away. And it must show
+   * before any permission request, or else a system popup during the countdown makes the
+   * app look frozen.
    *
-   * Cet écran ne fait donc plus que naviguer : `start()` est appelé par l'écran de
-   * tracking à la fin du décompte.
+   * This screen therefore only navigates: `start()` is called by the tracking screen at
+   * the end of the countdown.
    */
   const handleStart = () => {
     const module = selected != null ? sportRegistry[selected] : undefined;
@@ -110,8 +110,8 @@ export default function HomeScreen() {
               <Pressable
                 key={sport.code}
                 onPress={() => choose(sport.code)}
-                // Choix exclusif : un lecteur d'écran annonce « bouton radio, sélectionné »
-                // plutôt qu'une carte muette dont seule la bordure change (#42).
+                // Exclusive choice: a screen reader announces "radio button, selected"
+                // rather than a mute card whose border alone changes (#42).
                 accessibilityRole="radio"
                 accessibilityState={{ selected: isSelected }}
                 accessibilityLabel={sport.label}
@@ -160,12 +160,11 @@ export default function HomeScreen() {
 }
 
 /**
- * Progression hebdomadaire sur l'accueil (#35).
+ * Weekly progress on the home screen (#35).
  *
- * Silencieux par défaut : sans objectif défini, ce composant ne rend rien — la DoD
- * interdit toute « UI parasite ». Il ne signale pas non plus ses erreurs : un accueil
- * qui affiche un bandeau d'erreur pour un indicateur secondaire fait plus de mal que
- * l'absence de l'indicateur.
+ * Silent by default: without a goal set, this component renders nothing, since the DoD
+ * forbids any "stray UI". It doesn't report its errors either: a home screen showing an
+ * error banner for a secondary indicator does more harm than the indicator's absence.
  */
 function WeeklyGoal() {
   const format = useFormat();

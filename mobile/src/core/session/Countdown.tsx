@@ -1,11 +1,11 @@
 /**
- * Compte à rebours avant le démarrage effectif d'une séance (#3).
+ * Countdown before a session actually starts (#3).
  *
- * Rendu par la route de tracking, jamais par l'accueil : le décompte doit couvrir la
- * transition d'écran, sinon l'utilisateur voit l'écran de tracking vide pendant trois
- * secondes avant que quoi que ce soit ne démarre.
+ * Rendered by the tracking route, never by the home screen: the countdown must cover the
+ * screen transition, otherwise the user sees the empty tracking screen for three seconds
+ * before anything starts.
  *
- * Le thème sombre est forcé comme sur le reste du tracking (mode « plein soleil »).
+ * The dark theme is forced as on the rest of tracking ("full sun" mode).
  */
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -27,23 +27,23 @@ interface Props {
 export function Countdown({ onDone, onCancel, from = COUNTDOWN_FROM }: Props) {
   const [remaining, setRemaining] = React.useState(from);
 
-  // `onDone` est lu par référence au moment du tir : le mettre en dépendance
-  // relancerait l'intervalle à chaque rendu du parent et le décompte n'avancerait jamais.
+  // `onDone` is read by reference when firing: making it a dependency would restart the
+  // interval on every parent render and the countdown would never advance.
   const done = React.useRef(onDone);
   done.current = onDone;
 
   React.useEffect(() => {
     const timer = setInterval(() => {
-      // L'updater reste PUR : déclencher `onDone` ici l'appellerait plusieurs fois,
-      // React pouvant rejouer un updater et le garde `current <= 1` étant vrai aussi
-      // pour 0. Le démarrage d'une séance n'est pas une opération idempotente.
+      // The updater stays PURE: triggering `onDone` here would call it several times, since
+      // React may replay an updater and the `current <= 1` guard is also true for 0.
+      // Starting a session isn't an idempotent operation.
       setRemaining((current) => (current > 0 ? current - 1 : 0));
     }, TICK_MS);
     return () => clearInterval(timer);
   }, []);
 
-  // Le franchissement de zéro est l'effet, pas le calcul. Le garde par ref survit aux
-  // rendus et garantit un seul démarrage même si le composant re-rend.
+  // Crossing zero is the effect, not the computation. The ref guard survives renders and
+  // guarantees a single start even if the component re-renders.
   const fired = React.useRef(false);
   React.useEffect(() => {
     if (remaining === 0 && !fired.current) {

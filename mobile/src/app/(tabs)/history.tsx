@@ -1,12 +1,12 @@
 /**
- * Historique — liste paginée, filtrée côté serveur, lisible hors ligne.
+ * History: paginated list, filtered server side, readable offline.
  *
- * Stories #23 (pagination infinie, filtres, pull-to-refresh, groupement par mois),
- * #41 (états partagés) et #27 (cache offline daté).
+ * Stories #23 (infinite pagination, filters, pull-to-refresh, grouping by month), #41
+ * (shared states) and #27 (dated offline cache).
  *
- * Règle de conception du lot E : **hors ligne n'est pas une erreur**. Tant qu'il
- * reste des données en cache on les affiche en les datant ; l'écran d'erreur est
- * réservé au cas où il n'y a réellement rien à montrer.
+ * Lot E design rule: **offline isn't an error**. As long as cached data remains, it's
+ * shown with its date; the error screen is reserved for when there's really nothing to
+ * show.
  */
 import { useRouter } from 'expo-router';
 import React from 'react';
@@ -71,9 +71,9 @@ export default function HistoryScreen() {
   const router = useRouter();
   const remove = useDeleteActivity();
 
-  // DoD #26 : aucune suppression sans confirmation explicite. Le libellé nomme la
-  // séance et dit ce qui part avec elle — « Supprimer ? » seul ne permet pas de
-  // vérifier qu'on vise la bonne ligne.
+  // DoD #26: no deletion without explicit confirmation. The label names the session and
+  // says what goes with it: "Supprimer ?" alone doesn't let the user check they target the
+  // right row.
   const confirmDelete = (activity: Activity) => {
     Alert.alert(
       'Supprimer cette séance ?',
@@ -116,8 +116,8 @@ export default function HistoryScreen() {
           />
         </View>
 
-        {/* Le bandeau accompagne les données au lieu de les remplacer : la donnée
-            périmée reste lisible, mais jamais sans son horodatage (DoD #27). */}
+        {/* The banner accompanies the data instead of replacing it: stale data stays
+            readable, but never without its timestamp (DoD #27). */}
         {!isOnline && activities.length > 0 && (
           <OfflineBanner lastUpdatedAt={history.dataUpdatedAt} />
         )}
@@ -160,14 +160,14 @@ function Body({
   onOpen,
   onDelete,
 }: BodyProps) {
-  // `isLoading` ne vaut vrai que sans aucune donnée : une réhydratation depuis le
-  // cache disque affiche directement la liste, sans écran de chargement.
+  // `isLoading` is only true without any data: rehydrating from the disk cache shows the
+  // list directly, without a loading screen.
   if (history.isLoading) {
     return <LoadingState message="Récupération de tes séances" />;
   }
 
-  // L'erreur ne prend l'écran que si le cache est vide — sinon on préfère
-  // des données datées à une page blanche.
+  // The error only takes the screen if the cache is empty; otherwise dated data is
+  // preferred to a blank page.
   if (history.isError && isEmpty) {
     return <ErrorState error={history.error} onRetry={() => void history.refetch()} />;
   }
@@ -211,8 +211,8 @@ function Body({
           tintColor={theme.textSecondary}
         />
       }
-      // Le garde-fou évite de relancer la page suivante à chaque frame de défilement
-      // quand une requête est déjà en vol.
+      // The guard avoids requesting the next page again on every scroll frame when a
+      // request is already in flight.
       onEndReachedThreshold={0.4}
       onEndReached={() => {
         if (history.hasNextPage && !history.isFetchingNextPage) {
@@ -240,11 +240,11 @@ function Body({
 }
 
 /**
- * Carte d'historique — cliquable (#6) et supprimable par appui long (#26).
+ * History card: tappable (#6) and deletable with a long press (#26).
  *
- * L'appui long plutôt qu'un swipe : le swipe demanderait `react-native-gesture-handler`
- * sur une liste sectionnée, et surtout il se déclenche par accident en défilant — pour
- * une action irréversible, c'est le mauvais geste.
+ * Long press rather than a swipe: a swipe would require `react-native-gesture-handler` on
+ * a sectioned list, and above all it triggers by accident while scrolling; for an
+ * irreversible action, it's the wrong gesture.
  */
 function ActivityCard({
   activity,

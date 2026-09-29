@@ -23,7 +23,7 @@ body:json {
 }
 
 tests {
-  test("400 RFC 7807 sur un code inventé", function () {
+  test("400 RFC 7807 on a made-up code", function () {
     expect(res.getStatus()).to.equal(400);
     expect(res.getBody().title).to.equal("Code invalide");
   });

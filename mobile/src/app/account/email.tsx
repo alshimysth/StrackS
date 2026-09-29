@@ -1,6 +1,6 @@
 /**
- * Changement d'adresse email (#75). Le code part vers la NOUVELLE adresse : tant qu'il
- * n'est pas saisi, le compte garde l'ancienne, avec laquelle on continue de se connecter.
+ * Email address change (#75). The code goes to the NEW address: until it's entered, the
+ * account keeps the old one, which is still used to log in.
  */
 import { router } from 'expo-router';
 import React from 'react';

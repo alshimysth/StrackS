@@ -1,10 +1,10 @@
 /**
- * Résumé de fin de séance (#22) — le premier écran après l'effort, moment le plus
- * fort du produit.
+ * End-of-session summary (#22): the first screen after the effort, the product's
+ * strongest moment.
  *
- * Partage son fond avec le détail d'archive via `ActivityDetailBody` ; ce qui lui est
- * propre : la célébration volt et la sortie qui renvoie à l'accueil plutôt qu'en
- * arrière (on ne « revient » pas dans un écran de tracking terminé).
+ * Shares its body with the archive detail through `ActivityDetailBody`; what's specific
+ * to it: the volt celebration and the exit going to the home screen rather than back
+ * (nobody "goes back" into a finished tracking screen).
  */
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -30,24 +30,23 @@ import { usePreferences } from '../../core/preferences/use-preferences';
 import { goalJustReached } from '../../core/preferences/weekly-goal';
 
 /**
- * Une requête peut-elle servir à conclure sur la séance qui vient de se terminer (#69) ?
+ * Can a query be used to draw conclusions about the session that just ended (#69)?
  *
- * Les deux raisons de célébrer se lisent dans des caches partagés : les totaux de la
- * semaine ont la même clé que la carte d'objectif de l'accueil, et la sonde « première
- * séance » a pu être remplie par un résumé précédent. Lus tels quels, ils décrivent le
- * monde **d'avant** la séance — et un objectif déjà atteint se remettait à clignoter
- * en volt à la séance suivante.
+ * Both reasons to celebrate are read from shared caches: the week's totals have the same
+ * key as the home screen's goal card, and the "first session" probe may have been filled
+ * by a previous summary. Read as is, they describe the world **before** the session, and
+ * an already reached goal started flashing volt again on the next session.
  *
- * Deux gardes, parce qu'aucune ne suffit seule :
- * - `isFetching` : le moteur de séance invalide `['stats']` et `['activities']` après un
- *   `stop()` réussi, un refetch est donc en vol à l'arrivée sur cet écran ;
- * - `dataUpdatedAt` postérieur à `endedAt` : une donnée plus ancienne que la fin de la
- *   séance ne peut pas la contenir, invalidée ou non. `endedAt` est l'horloge de
- *   l'appareil (le serveur le reprend tel quel) : on compare deux instants du même
- *   téléphone. C'est aussi ce qui rend une séance de moins de 30 s (`staleTime`) sûre.
+ * Two guards, because neither is enough alone:
+ * - `isFetching`: the session engine invalidates `['stats']` and `['activities']` after a
+ *   successful `stop()`, so a refetch is in flight when arriving on this screen;
+ * - `dataUpdatedAt` later than `endedAt`: data older than the end of the session can't
+ *   contain it, invalidated or not. `endedAt` is the device clock (the server takes it
+ *   as is): we compare two instants of the same phone. It's also what makes a session
+ *   shorter than 30 s (`staleTime`) safe.
  *
- * Tant que ce n'est pas établi, on ne conclut rien — ne pas célébrer vaut toujours
- * mieux que célébrer à tort.
+ * Until that's established, nothing is concluded: not celebrating is always better than
+ * celebrating wrongly.
  */
 function isFreshFor(
   query: Pick<UseQueryResult, 'isPending' | 'isFetching' | 'dataUpdatedAt'>,
@@ -60,12 +59,7 @@ function isFreshFor(
 }
 
 /**
- * Première séance du sport ? Une page de taille 1 suffit : seul `total` est lu.
- *
- * C'est la seule raison de célébrer qui soit **exacte** sans nouvel endpoint. Les
- * records de distance et les objectifs hebdomadaires supposent une agrégation serveur
- * qui n'existe pas (Epic 6 / lot H) — et célébrer un record incertain serait pire que
- * ne rien célébrer.
+ * First session of the sport? A page of size 1 is enough: only `total` is read.
  */
 function useIsFirstSession(sportType: string | undefined) {
   return useQuery({
@@ -78,12 +72,12 @@ function useIsFirstSession(sportType: string | undefined) {
 }
 
 /**
- * Cette séance vient-elle de faire franchir un objectif hebdomadaire (#35) ?
+ * Did this session just cross a weekly goal (#35)?
  *
- * L'état « avant » se reconstruit en retranchant la séance des totaux de la semaine :
- * c'est la seule façon de distinguer « l'objectif est atteint » de « cette séance
- * vient de l'atteindre ». Sans cette nuance, la célébration rejouerait à chaque
- * séance jusqu'à la fin de la semaine.
+ * The "before" state is rebuilt by subtracting the session from the week's totals: it's
+ * the only way to tell "the goal is reached" from "this session just reached it".
+ * Without this nuance, the celebration would replay on every session until the end of
+ * the week.
  */
 function useGoalJustReached(activity: Activity | undefined): boolean {
   const preferences = usePreferences();
@@ -95,11 +89,10 @@ function useGoalJustReached(activity: Activity | undefined): boolean {
   }
 
   /**
-   * La requête porte sur la semaine COURANTE, alors que le backend agrège par
-   * `startedAt`. Une séance à cheval sur un changement de semaine — commencée
-   * dimanche soir, consultée lundi — n'est donc pas dans `after` ; la retrancher
-   * quand même fabriquerait un « avant » plus bas que la réalité et déclencherait
-   * une fausse célébration. Hors fenêtre, on ne conclut rien.
+   * The query covers the CURRENT week, whereas the backend aggregates by `startedAt`. A
+   * session straddling a week change (started Sunday evening, viewed Monday) is therefore
+   * not in `after`; subtracting it anyway would make up a "before" lower than reality and
+   * trigger a false celebration. Outside the window, nothing is concluded.
    */
   const startedAt = Date.parse(activity.startedAt);
   const from = Date.parse(stats.data.from);
@@ -119,19 +112,19 @@ function useGoalJustReached(activity: Activity | undefined): boolean {
 }
 
 /**
- * Records battus par CETTE séance (#61). Le serveur désigne le détenteur de chaque record
- * sur tout l'historique : l'écran vérifie seulement qu'il s'agit de cette séance.
+ * Records broken by THIS session (#61). The server designates each record's holder over
+ * the whole history: the screen only checks that it's this session.
  *
- * `settled` reste faux tant que la réponse n'est pas postérieure à la séance (même garde
- * que #69) : un record lu dans un cache d'avant désignerait l'ancien détenteur.
+ * `settled` stays false until the response is later than the session (same guard as
+ * #69): a record read from an older cache would designate the previous holder.
  */
 function useRecordsBroken(activity: Activity | undefined): { settled: boolean; labels: string[] } {
   const records = usePersonalRecords(activity?.sportType);
   if (activity == null) {
     return { settled: false, labels: [] };
   }
-  // Records injoignables (hors ligne, panne) : on ne célèbre aucun record, mais on ne
-  // bloque pas pour autant les autres raisons — elles ont leurs propres données.
+  // Records unreachable (offline, outage): no record is celebrated, but the other reasons
+  // aren't blocked either; they have their own data.
   if (records.isError && !records.isFetching) {
     return { settled: true, labels: [] };
   }
@@ -139,7 +132,7 @@ function useRecordsBroken(activity: Activity | undefined): { settled: boolean; l
     return { settled: false, labels: [] };
   }
   const sport = records.data?.bySport.find((s) => s.sportType === activity.sportType);
-  // Une première séance détient forcément tous les records : c'est l'autre célébration.
+  // A first session necessarily holds every record: that's the other celebration.
   if (sport == null || sport.sessions <= 1) {
     return { settled: true, labels: [] };
   }
@@ -176,14 +169,13 @@ export default function SummaryScreen() {
 
         {activity != null && (
           <>
-            {/* Une seule célébration à la fois : deux bandeaux volt côte à côte
-                diluent exactement ce qu'ils sont censés souligner. Priorité à la plus
-                rare : la première séance (une fois par sport), puis le record, puis
-                l'objectif de la semaine (qui revient chaque semaine). */}
-            {/* Rien tant que la première requête n'a pas tranché sur une donnée
-                postérieure à la séance : sinon le bandeau « objectif » s'affiche puis
-                cède la place à « première séance », ou une sonde en cache fête une
-                première séance qui n'en est plus une (#69). */}
+            {/* One celebration at a time: two volt banners side by side dilute exactly
+                what they're meant to underline. The rarest wins: the first session (once
+                per sport), then the record, then the weekly goal (which comes back every
+                week). */}
+            {/* Nothing until the first query has decided on data later than the session:
+                otherwise the "goal" banner shows then gives way to "first session", or a
+                cached probe celebrates a first session that no longer is one (#69). */}
             {!firstSessionSettled || !recordsBroken.settled ? null : firstSession.data === true ? (
               <CelebrationBanner
                 reason="first-session"

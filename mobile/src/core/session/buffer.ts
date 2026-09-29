@@ -1,7 +1,7 @@
 /**
- * Buffer local anti-crash (Epic 3) — SQLite. Chaque fix GPS est persisté dès
- * réception : si l'app est tuée, la séance et son tracé sont récupérables au
- * relancement (DoD Epic 3). Une seule séance active à la fois (ligne id=1).
+ * Local crash-proof buffer (Epic 3), SQLite. Each GPS fix is persisted as soon as it
+ * arrives: if the app is killed, the session and its track can be recovered on relaunch
+ * (Epic 3 DoD). A single active session at a time (row id=1).
  */
 import * as SQLite from 'expo-sqlite';
 
@@ -15,8 +15,8 @@ export interface BufferedSession {
   pausedTotalS: number;
   pausedAtMs: number | null;
   /**
-   * Mode GPS de la séance (#36), pour qu'une séance récupérée après un kill reprenne
-   * avec les mêmes réglages. Absent sur une séance écrite avant son ajout → `balanced`.
+   * GPS mode of the session (#36), so that a session recovered after a kill resumes with
+   * the same settings. Absent on a session written before it was added → `balanced`.
    */
   gpsMode?: GpsMode;
 }
@@ -50,9 +50,9 @@ function db(): Promise<SQLite.SQLiteDatabase> {
         uploaded INTEGER NOT NULL DEFAULT 0
       );
     `);
-    // Migration locale (#36, revue PR #80) : `CREATE TABLE IF NOT EXISTS` ne touche pas
-    // une table déjà créée par une version précédente de l'app. La colonne est ajoutée
-    // si elle manque, nullable — une séance en cours au moment de la mise à jour survit.
+    // Local migration (#36, PR #80 review): `CREATE TABLE IF NOT EXISTS` doesn't touch a
+    // table already created by a previous app version. The column is added if missing,
+    // nullable, so a session in progress at update time survives.
     const columns = await database.getAllAsync<{ name: string }>('PRAGMA table_info(session)');
     if (!columns.some((column) => column.name === 'gps_mode')) {
       await database.execAsync('ALTER TABLE session ADD COLUMN gps_mode TEXT');
@@ -100,7 +100,7 @@ export async function loadSession(): Promise<BufferedSession | null> {
   };
 }
 
-/** Lecture tolérante : une valeur inconnue (version future, corruption) vaut absence. */
+/** Tolerant read: an unknown value (future version, corruption) counts as absent. */
 function isGpsMode(value: string | null): value is GpsMode {
   return value === 'max' || value === 'balanced' || value === 'saver';
 }
@@ -127,13 +127,13 @@ export async function appendPoint(seq: number, fix: GpsFix): Promise<void> {
 }
 
 /**
- * Prochain numéro de séquence libre, lu depuis le buffer (#16).
+ * Next free sequence number, read from the buffer (#16).
  *
- * La tâche de localisation en arrière-plan vit dans un contexte JS séparé, créé et
- * détruit au gré du système : elle ne peut pas s'appuyer sur un compteur en mémoire.
- * `seq` étant la clé primaire de `points`, repartir du maximum garantit qu'on n'écrase
- * rien — et l'`INSERT OR IGNORE` d'`appendPoint` absorbe une éventuelle course entre le
- * premier plan et l'arrière-plan.
+ * The background location task lives in a separate JS context, created and destroyed at
+ * the system's whim: it can't rely on an in-memory counter. Since `seq` is the primary key
+ * of `points`, starting again from the maximum guarantees nothing is overwritten, and
+ * `appendPoint`'s `INSERT OR IGNORE` absorbs a possible race between foreground and
+ * background.
  */
 export async function nextSeqAfterBuffer(): Promise<number> {
   const row = await (await db()).getFirstAsync<{ maxSeq: number | null }>(
@@ -160,7 +160,7 @@ function toPoint(row: {
   };
 }
 
-/** Points pas encore acquittés par le serveur, par ordre de séquence. */
+/** Points not yet acknowledged by the server, in sequence order. */
 export async function pendingPoints(limit: number): Promise<BufferedPoint[]> {
   const rows = await (await db()).getAllAsync<Parameters<typeof toPoint>[0]>(
     'SELECT * FROM points WHERE uploaded = 0 ORDER BY seq LIMIT ?',
@@ -179,7 +179,7 @@ export async function markUploaded(seqs: number[]): Promise<void> {
   );
 }
 
-/** Tracé complet (récupération après kill). */
+/** Full track (recovery after a kill). */
 export async function allPoints(): Promise<BufferedPoint[]> {
   const rows = await (await db()).getAllAsync<Parameters<typeof toPoint>[0]>(
     'SELECT * FROM points ORDER BY seq',

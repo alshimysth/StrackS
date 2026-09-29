@@ -1,12 +1,12 @@
 /**
- * Route de tracking plein écran.
+ * Full-screen tracking route.
  *
- * Deux responsabilités, dans cet ordre : dérouler le compte à rebours (#3) puis rendre
- * `sportRegistry[sportType].TrackingScreen` de la séance. Le socle ne connaît toujours
- * aucun sport — il passe par le registre.
+ * Two responsibilities, in this order: run the countdown (#3) then render the session's
+ * `sportRegistry[sportType].TrackingScreen`. The core still knows no sport: it goes
+ * through the registry.
  *
- * C'est ici qu'a lieu le `start()` effectif, plus sur l'accueil : le décompte doit
- * couvrir la transition d'écran ET précéder la demande de permission GPS.
+ * The actual `start()` happens here, no longer on the home screen: the countdown must
+ * cover the screen transition AND precede the GPS permission request.
  */
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
@@ -24,14 +24,14 @@ export default function TrackingRoute() {
   const sessionSport = useSessionStore((s) => s.sportType);
   const preferences = usePreferences();
 
-  // Une séance déjà en cours court-circuite le décompte : on revient sur un tracking
-  // actif (reprise après kill, retour depuis l'accueil), on ne le redémarre pas.
+  // A session already in progress skips the countdown: we come back to an active tracking
+  // (resume after a kill, return from the home screen), we don't restart it.
   const resuming = status !== 'idle';
   const sportCode = resuming ? sessionSport : (sport ?? null);
   const module = sportCode != null ? sportRegistry[sportCode] : undefined;
 
-  // `undefined` tant que les préférences chargent — ne pas trancher trop tôt, sinon le
-  // décompte s'affiche puis disparaît chez quelqu'un qui l'a désactivé.
+  // `undefined` while preferences load: don't decide too early, otherwise the countdown
+  // shows then disappears for someone who disabled it.
   const countdownEnabled = preferences.data?.countdownEnabled;
   const [counting, setCounting] = React.useState(!resuming);
 
@@ -53,7 +53,7 @@ export default function TrackingRoute() {
     }
   }, [module, router, preferences.data?.gpsMode]);
 
-  // Décompte désactivé en préférence : on démarre dès que la réponse est connue.
+  // Countdown disabled in preferences: start as soon as the answer is known.
   React.useEffect(() => {
     if (counting && countdownEnabled === false) {
       void begin();

@@ -1,9 +1,8 @@
 /**
- * Écran de détail d'une activité (#6) et suppression confirmée (#26).
+ * Activity detail screen (#6) and confirmed deletion (#26).
  *
- * Ce test vise les critères d'acceptation : le détail s'ouvre et affiche les
- * métriques, la suppression exige une confirmation, et l'écran ne se quitte
- * qu'une fois le serveur d'accord.
+ * This test targets the acceptance criteria: the detail opens and shows the metrics,
+ * deletion requires a confirmation, and the screen is only left once the server agrees.
  */
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
@@ -28,22 +27,22 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ back: mockBack, push: jest.fn(), replace: jest.fn() }),
 }));
 
-// react-native-maps est natif : jest-expo ne le transforme pas.
+// react-native-maps is native: jest-expo doesn't transform it.
 jest.mock('react-native-maps', () => {
   const { View } = jest.requireActual('react-native');
   return { __esModule: true, default: View, Polyline: View, Marker: View };
 });
 
 /**
- * Le registre de sports est stubé plutôt que chargé.
+ * The sports registry is stubbed rather than loaded.
  *
- * L'écran de détail ne dépend des modules que par `SummaryPanel`, mais importer le
- * vrai registre tire tout le moteur de séance derrière lui — `SessionTrackingScreen`,
- * le buffer SQLite, l'uploader — pour un écran qui ne fait que lire. Sous jest cela
- * réclame `expo-sqlite` et laisse le worker ouvert après la suite.
+ * The detail screen only depends on the modules through `SummaryPanel`, but importing the
+ * real registry pulls the whole session engine behind it (`SessionTrackingScreen`, the
+ * SQLite buffer, the uploader) for a screen that only reads. Under jest that requires
+ * `expo-sqlite` and leaves the worker open after the suite.
  *
- * Ce que le stub vérifie reste l'essentiel : que le socle passe bien par le module du
- * sport au lieu de coder ses métriques en dur.
+ * What the stub checks is still the essential part: that the core does go through the
+ * sport's module instead of hard-coding its metrics.
  */
 jest.mock('../../sports/registry', () => {
   const { Text } = jest.requireActual('react-native');
@@ -97,9 +96,9 @@ function respond(overrides: { activity?: unknown; track?: unknown; preferences?:
 }
 
 /**
- * Le client est gardé pour être vidé après chaque test. Sa configuration vient de
- * `createTestQueryClient` : c'est elle qui empêche les timers de garbage-collection
- * des mutations de survivre à la suite (#65).
+ * The client is kept so it can be cleared after each test. Its configuration comes from
+ * `createTestQueryClient`: that's what prevents the mutations' garbage-collection timers
+ * from outliving the suite (#65).
  */
 let client: QueryClient;
 
@@ -110,10 +109,10 @@ function Wrapper({ children }: { children: ReactNode }) {
 const renderScreen = () => render(<ActivityDetailScreen />, { wrapper: Wrapper });
 
 /**
- * Déclenche le bouton d'un `Alert.alert` par son libellé.
+ * Presses an `Alert.alert` button by its label.
  *
- * Enveloppé dans `act` : le rappel lance une mutation, donc un rendu, et React n'a
- * aucun moyen de savoir qu'un appui de modale native vient de l'utilisateur.
+ * Wrapped in `act`: the callback starts a mutation, hence a render, and React has no way
+ * of knowing that a native modal press comes from the user.
  */
 async function pressAlertButton(label: string) {
   const spy = Alert.alert as unknown as jest.Mock;
@@ -137,18 +136,18 @@ afterEach(() => {
   client.clear();
 });
 
-describe('Détail d’activité (#6)', () => {
-  it('affiche les métriques de la séance', async () => {
+describe('Activity detail (#6)', () => {
+  it('shows the session metrics', async () => {
     respond();
     await renderScreen();
 
     await waitFor(() => expect(screen.getByTestId('activity-title')).toBeOnTheScreen());
-    expect(screen.getByText('8,00')).toBeOnTheScreen(); // distance en km
-    expect(screen.getByText('40:00')).toBeOnTheScreen(); // durée
+    expect(screen.getByText('8,00')).toBeOnTheScreen(); // distance in km
+    expect(screen.getByText('40:00')).toBeOnTheScreen(); // duration
     expect(screen.getByText('520')).toBeOnTheScreen(); // calories
   });
 
-  it('affiche le libellé dérivé quand la séance n’a pas de titre', async () => {
+  it('shows the derived label when the session has no title', async () => {
     respond();
     await renderScreen();
 
@@ -157,7 +156,7 @@ describe('Détail d’activité (#6)', () => {
     );
   });
 
-  it('affiche le titre choisi quand il existe', async () => {
+  it('shows the chosen title when it exists', async () => {
     respond({ activity: { ...ACTIVITY, title: 'Sortie longue' } });
     await renderScreen();
 
@@ -166,7 +165,7 @@ describe('Détail d’activité (#6)', () => {
     );
   });
 
-  it('affiche le tracé et les splits', async () => {
+  it('shows the track and the splits', async () => {
     respond();
     await renderScreen();
 
@@ -175,8 +174,8 @@ describe('Détail d’activité (#6)', () => {
     expect(screen.getByTestId('split-1')).toBeOnTheScreen();
   });
 
-  /** Le socle délègue les métriques propres au sport au module, jamais un `if`. */
-  it('délègue le panneau spécifique au module de sport', async () => {
+  /** The core delegates the sport-specific metrics to the module, never an `if`. */
+  it('delegates the specific panel to the sport module', async () => {
     respond();
     await renderScreen();
 
@@ -185,8 +184,8 @@ describe('Détail d’activité (#6)', () => {
     );
   });
 
-  /** Une séance de marche n'a pas de splits — la section ne doit pas apparaître vide. */
-  it('n’affiche pas de section splits sans splits', async () => {
+  /** A walking session has no splits: the section must not show up empty. */
+  it('shows no splits section without splits', async () => {
     respond({ activity: { ...ACTIVITY, sportType: 'walking', metrics: { schemaVersion: 1 } } });
     await renderScreen();
 
@@ -194,7 +193,7 @@ describe('Détail d’activité (#6)', () => {
     expect(screen.queryByTestId('splits-list')).toBeNull();
   });
 
-  it('n’affiche pas de cadre de carte sans tracé', async () => {
+  it('shows no map frame without a track', async () => {
     respond({ track: [] });
     await renderScreen();
 
@@ -202,7 +201,7 @@ describe('Détail d’activité (#6)', () => {
     expect(screen.queryByTestId('route-map')).toBeNull();
   });
 
-  it('permet de revenir à l’historique', async () => {
+  it('allows going back to the history', async () => {
     respond();
     await renderScreen();
 
@@ -211,7 +210,7 @@ describe('Détail d’activité (#6)', () => {
     expect(mockBack).toHaveBeenCalled();
   });
 
-  it('affiche un état d’erreur exploitable si la séance ne charge pas', async () => {
+  it('shows an actionable error state if the session does not load', async () => {
     respond({ activity: new ApiError({ title: 'Panne', status: 503, detail: 'ko' }) });
     await renderScreen();
 
@@ -219,11 +218,11 @@ describe('Détail d’activité (#6)', () => {
   });
 });
 
-describe('Zones de confidentialité (#37)', () => {
-  /** Le tracé de test part de (45, 5) et monte vers le nord : une zone de 500 m au départ. */
+describe('Privacy zones (#37)', () => {
+  /** The test track starts at (45, 5) and heads north: a 500 m zone at the start. */
   const home = { lat: 45.0, lng: 5.0, radiusM: 500, label: 'Domicile' };
 
-  it('prévient que des portions sont masquées et que le tracé reste complet', async () => {
+  it('warns that portions are masked and that the track stays complete', async () => {
     respond({
       preferences: { privacyZones: [home] },
       track: [
@@ -235,10 +234,10 @@ describe('Zones de confidentialité (#37)', () => {
     await renderScreen();
 
     expect(await screen.findByTestId('privacy-masked')).toHaveTextContent(/figure dans ton export/);
-    expect(screen.getByTestId('route-map')).toBeOnTheScreen(); // le reste du tracé s'affiche
+    expect(screen.getByTestId('route-map')).toBeOnTheScreen(); // the rest of the track shows
   });
 
-  it('n’affiche aucune carte quand tout le tracé est dans une zone', async () => {
+  it('shows no map when the whole track is in a zone', async () => {
     respond({ preferences: { privacyZones: [{ ...home, radiusM: 2000 }] } });
     await renderScreen();
 
@@ -248,14 +247,14 @@ describe('Zones de confidentialité (#37)', () => {
 });
 
 /**
- * Revue PR #80 : tant que les zones ne sont pas connues, `usePreferences` sert des défauts
- * sans zone. Dessiner le tracé à ce moment-là montrerait le départ au domicile.
+ * PR #80 review: until the zones are known, `usePreferences` serves defaults without any
+ * zone. Drawing the track at that moment would show the start at home.
  */
-it('ne dessine pas la carte tant que les zones de confidentialité ne sont pas chargées', async () => {
+it('does not draw the map until the privacy zones are loaded', async () => {
   respond();
   mockApi.mockImplementation((path: string) =>
     path === '/api/v1/users/me/preferences'
-      ? new Promise(() => undefined) // préférences qui ne répondent jamais
+      ? new Promise(() => undefined) // preferences that never answer
       : path.endsWith('/track-points')
         ? Promise.resolve([
             { seq: 0, recordedAt: ACTIVITY.startedAt, lat: 45.0, lng: 5.0, altitudeM: 200, accuracyM: 5 },
@@ -270,13 +269,13 @@ it('ne dessine pas la carte tant que les zones de confidentialité ne sont pas c
 });
 
 describe('Calories (#33)', () => {
-  it('explique l’absence de calories quand le poids n’est pas renseigné', async () => {
+  it('explains the missing calories when the weight is not set', async () => {
     respond({ activity: { ...ACTIVITY, calories: null } });
     await renderScreen();
     expect(await screen.findByTestId('calories-missing')).toHaveTextContent(/Renseigne ton poids/);
   });
 
-  it('n’affiche pas cet appel quand le poids est connu', async () => {
+  it('does not show this prompt when the weight is known', async () => {
     respond({
       activity: { ...ACTIVITY, calories: null },
       preferences: { physical: { weightKg: 70 } },
@@ -288,8 +287,8 @@ describe('Calories (#33)', () => {
   });
 });
 
-describe('Suppression (#26)', () => {
-  it('ne supprime rien sans confirmation', async () => {
+describe('Deletion (#26)', () => {
+  it('deletes nothing without confirmation', async () => {
     respond();
     await renderScreen();
     await waitFor(() => expect(screen.getByText('Supprimer')).toBeOnTheScreen());
@@ -303,7 +302,7 @@ describe('Suppression (#26)', () => {
     );
   });
 
-  it('appelle le backend une fois la suppression confirmée', async () => {
+  it('calls the backend once the deletion is confirmed', async () => {
     respond();
     await renderScreen();
     await waitFor(() => expect(screen.getByText('Supprimer')).toBeOnTheScreen());
@@ -321,10 +320,10 @@ describe('Suppression (#26)', () => {
   });
 
   /**
-   * On ne quitte l'écran qu'après l'accord du serveur : sortir tout de suite puis
-   * échouer ferait réapparaître la séance dans l'historique sans explication.
+   * The screen is only left after the server agrees: leaving right away then failing
+   * would make the session reappear in the history without explanation.
    */
-  it('ne quitte pas l’écran si la suppression échoue', async () => {
+  it('does not leave the screen if the deletion fails', async () => {
     respond();
     await renderScreen();
     await waitFor(() => expect(screen.getByText('Supprimer')).toBeOnTheScreen());

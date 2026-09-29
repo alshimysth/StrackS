@@ -1,12 +1,12 @@
 /**
- * EmptyState — aucune donnée à afficher.
+ * EmptyState: no data to show.
  *
- * Deux cas que le design distingue explicitement et qu'il ne faut pas confondre :
+ * Two cases the design explicitly distinguishes and that must not be confused:
  *
- * - `initial` — l'utilisateur n'a rien créé. C'est une invitation à démarrer.
- * - `filtered` — il a des données, mais son filtre ne les atteint pas. Lui proposer
- *   « démarre ta première séance » ici serait faux et vaguement insultant : il en a
- *   déjà. La sortie utile est d'effacer le filtre.
+ * - `initial`: the user hasn't created anything. It's an invitation to start.
+ * - `filtered`: they have data, but their filter doesn't reach it. Offering "start your
+ *   first session" here would be wrong and vaguely insulting: they already have some. The
+ *   useful way out is clearing the filter.
  */
 import React, { type ReactNode } from 'react';
 

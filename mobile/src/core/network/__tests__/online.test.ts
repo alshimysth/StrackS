@@ -1,5 +1,5 @@
 /**
- * Détection réseau (#27/#41) — la nuance qui compte est le portail captif.
+ * Network detection (#27/#41): the nuance that matters is the captive portal.
  */
 import type { NetInfoState } from '@react-native-community/netinfo';
 
@@ -10,28 +10,28 @@ function state(partial: Partial<NetInfoState>): NetInfoState {
 }
 
 describe('isOnlineFrom', () => {
-  it('est en ligne quand la connexion route bien', () => {
+  it('is online when the connection routes', () => {
     expect(isOnlineFrom(state({}))).toBe(true);
   });
 
-  it('est hors ligne sans connexion', () => {
+  it('is offline without a connection', () => {
     expect(isOnlineFrom(state({ isConnected: false }))).toBe(false);
   });
 
   /**
-   * Wi-Fi d'hôtel avec portail captif : l'appareil est « connecté » mais ne joint
-   * rien. S'en tenir à `isConnected` ferait croire l'app en ligne et enverrait ses
-   * requêtes dans le vide.
+   * Hotel Wi-Fi with a captive portal: the device is "connected" but reaches nothing.
+   * Relying on `isConnected` would make the app think it's online and send its requests
+   * nowhere.
    */
-  it('est hors ligne sur une connexion qui ne route pas', () => {
+  it('is offline on a connection that does not route', () => {
     expect(isOnlineFrom(state({ isConnected: true, isInternetReachable: false }))).toBe(false);
   });
 
   /**
-   * `null` = NetInfo n'a pas encore tranché. Rester optimiste évite un bandeau
-   * « hors ligne » qui clignote à chaque lancement de l'app.
+   * `null` = NetInfo hasn't decided yet. Staying optimistic avoids an "offline" banner
+   * flashing at every app launch.
    */
-  it('reste optimiste tant que la joignabilité est indéterminée', () => {
+  it('stays optimistic while reachability is undetermined', () => {
     expect(isOnlineFrom(state({ isConnected: true, isInternetReachable: null }))).toBe(true);
   });
 });

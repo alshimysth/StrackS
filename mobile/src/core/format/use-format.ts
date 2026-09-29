@@ -1,13 +1,13 @@
 /**
- * Accès au formatage depuis les écrans, préférences déjà appliquées (#30, #4).
+ * Access to formatting from screens, with preferences already applied (#30, #4).
  *
- * Les composants n'appellent jamais `units.ts` directement : ils passeraient à côté de
- * la préférence et l'unité redeviendrait locale à chaque écran — le défaut que #30
- * corrige. Ce hook est le seul point d'entrée.
+ * Components never call `units.ts` directly: they would miss the preference and the unit
+ * would become local to each screen again, the defect #30 fixes. This hook is the only
+ * entry point.
  *
- * Le repli sur `metric` quand les préférences n'ont pas encore chargé est délibéré :
- * afficher « — » partout pendant une seconde serait pire qu'afficher des kilomètres à
- * quelqu'un qui a choisi les miles, et la valeur se corrige d'elle-même au chargement.
+ * Falling back to `metric` while preferences haven't loaded yet is deliberate: showing
+ * "—" everywhere for a second would be worse than showing kilometres to someone who chose
+ * miles, and the value corrects itself once loaded.
  */
 import React from 'react';
 
@@ -28,7 +28,7 @@ import {
 
 export interface Formatter {
   units: Units;
-  /** Mode d'affichage de la vitesse pour un sport donné (allure ou vitesse). */
+  /** Speed display mode for a given sport (pace or speed). */
   speedDisplayFor(sportCode: string): SpeedDisplay;
   distance(meters: number): string;
   distanceUnit: string;

@@ -11,7 +11,7 @@ get {
 }
 
 tests {
-  test("200 + totaux sans période précédente", function () {
+  test("200 + totals without previous period", function () {
     expect(res.getStatus()).to.equal(200);
     const body = res.getBody();
     expect(body.totalSessions).to.be.a("number");

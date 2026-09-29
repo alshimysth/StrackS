@@ -1,13 +1,13 @@
 /**
- * Buffer anti-crash de séance (#40).
+ * Crash-proof session buffer (#40).
  *
- * C'est la pièce qui porte la garantie « zéro perte de séance » du PRD : chaque
- * fix GPS est persisté dès réception, et le tracé doit survivre à une app tuée
- * puis à un rejeu d'upload. Les deux implémentations du contrat (SQLite sur
- * mobile, mémoire sur web) sont passées dans la même suite.
+ * It's the piece carrying the PRD's "zero session loss" guarantee: each GPS fix is
+ * persisted as soon as it arrives, and the track must survive a killed app and then an
+ * upload replay. Both implementations of the contract (SQLite on mobile, memory on web)
+ * go through the same suite.
  *
- * Le mock d'expo-sqlite est adossé à un vrai moteur SQLite : ce sont bien les
- * requêtes de buffer.ts qui sont exécutées (cf. support/expo-sqlite-mock.ts).
+ * The expo-sqlite mock is backed by a real SQLite engine: buffer.ts's own queries are
+ * what gets executed (see support/expo-sqlite-mock.ts).
  */
 import type { GpsFix } from '../../gps';
 import * as webBuffer from '../buffer.web';
@@ -16,7 +16,7 @@ jest.mock('expo-sqlite', () =>
   require('./support/expo-sqlite-mock').createExpoSqliteMock(),
 );
 
-// Importé après le mock : buffer.ts ouvre sa base à la première requête.
+// Imported after the mock: buffer.ts opens its database on the first query.
 import * as sqliteBuffer from '../buffer';
 
 type BufferModule = typeof sqliteBuffer;
@@ -50,29 +50,29 @@ const implementations: [string, BufferModule][] = [
   ['buffer.web.ts — mémoire (web)', webBuffer],
 ];
 
-describe.each(implementations)('contrat du buffer — %s', (_label, buffer) => {
+describe.each(implementations)('buffer contract: %s', (_label, buffer) => {
   beforeEach(async () => {
     await buffer.clearBuffer();
   });
 
-  describe('séance', () => {
-    it('fait l\'aller-retour de tous les champs', async () => {
+  describe('session', () => {
+    it('round-trips every field', async () => {
       await buffer.saveSession(session);
       expect(await buffer.loadSession()).toEqual(session);
     });
 
-    it('ne rend aucune séance quand le buffer est vide', async () => {
+    it('returns no session when the buffer is empty', async () => {
       expect(await buffer.loadSession()).toBeNull();
     });
 
-    it('ne garde qu\'une seule séance : la dernière écrite écrase la précédente', async () => {
+    it('keeps a single session: the last one written overwrites the previous one', async () => {
       await buffer.saveSession(session);
       await buffer.saveSession({ ...session, activityId: 'autre', sportType: 'walking' });
       const loaded = await buffer.loadSession();
       expect(loaded).toMatchObject({ activityId: 'autre', sportType: 'walking' });
     });
 
-    it('met à jour l\'état de pause sans toucher au reste', async () => {
+    it('updates the pause state without touching the rest', async () => {
       await buffer.saveSession(session);
       await buffer.updatePauseState(42, T0 + 60_000);
       expect(await buffer.loadSession()).toEqual({
@@ -82,21 +82,21 @@ describe.each(implementations)('contrat du buffer — %s', (_label, buffer) => {
       });
     });
 
-    it('sait revenir d\'une pause (pausedAtMs remis à null)', async () => {
+    it('can come back from a pause (pausedAtMs reset to null)', async () => {
       await buffer.saveSession(session);
       await buffer.updatePauseState(42, T0 + 60_000);
       await buffer.updatePauseState(99, null);
       expect(await buffer.loadSession()).toMatchObject({ pausedTotalS: 99, pausedAtMs: null });
     });
 
-    it('ne casse pas quand aucune séance n\'est ouverte', async () => {
+    it('does not break when no session is open', async () => {
       await expect(buffer.updatePauseState(10, null)).resolves.toBeUndefined();
       expect(await buffer.loadSession()).toBeNull();
     });
   });
 
-  describe('points du tracé', () => {
-    it('rend les points dans l\'ordre des seq', async () => {
+  describe('track points', () => {
+    it('returns the points in seq order', async () => {
       for (const seq of [0, 1, 2]) {
         await buffer.appendPoint(seq, point(seq));
       }
@@ -104,11 +104,11 @@ describe.each(implementations)('contrat du buffer — %s', (_label, buffer) => {
     });
 
     /**
-     * Idempotence de l'écriture (#52) : SQLite fait `INSERT OR IGNORE`, la première
-     * valeur gagne. Un rejeu (tâche d'arrière-plan et premier plan qui écrivent le même
-     * seq) ne doit ni dupliquer ni écraser un point.
+     * Write idempotency (#52): SQLite does `INSERT OR IGNORE`, the first value wins. A
+     * replay (background task and foreground writing the same seq) must neither duplicate
+     * nor overwrite a point.
      */
-    it('ignore un seq déjà écrit et garde la première valeur', async () => {
+    it('ignores an already written seq and keeps the first value', async () => {
       await buffer.appendPoint(0, point(0, { lat: 45.0 }));
       await buffer.appendPoint(0, point(0, { lat: 46.0 }));
       const stored = await buffer.allPoints();
@@ -116,21 +116,21 @@ describe.each(implementations)('contrat du buffer — %s', (_label, buffer) => {
       expect(stored[0].lat).toBeCloseTo(45.0, 10);
     });
 
-    it('trie par seq même si les points arrivent en désordre', async () => {
+    it('sorts by seq even when points arrive out of order', async () => {
       for (const seq of [2, 0, 1]) {
         await buffer.appendPoint(seq, point(seq));
       }
       expect((await buffer.allPoints()).map((p) => p.seq)).toEqual([0, 1, 2]);
     });
 
-    it('trie aussi la file d\'upload par seq', async () => {
+    it('also sorts the upload queue by seq', async () => {
       for (const seq of [3, 1, 2, 0]) {
         await buffer.appendPoint(seq, point(seq));
       }
       expect((await buffer.pendingPoints(3)).map((p) => p.seq)).toEqual([0, 1, 2]);
     });
 
-    it('reprend la numérotation après le plus grand seq écrit', async () => {
+    it('resumes numbering after the highest written seq', async () => {
       expect(await buffer.nextSeqAfterBuffer()).toBe(0);
       for (const seq of [4, 1]) {
         await buffer.appendPoint(seq, point(seq));
@@ -138,7 +138,7 @@ describe.each(implementations)('contrat du buffer — %s', (_label, buffer) => {
       expect(await buffer.nextSeqAfterBuffer()).toBe(5);
     });
 
-    it('conserve altitude et précision absentes comme nulles', async () => {
+    it('keeps missing altitude and accuracy as null', async () => {
       await buffer.appendPoint(0, point(0, { altitudeM: null, accuracyM: null }));
       const [stored] = await buffer.allPoints();
       expect(stored.altitudeM).toBeNull();
@@ -146,7 +146,7 @@ describe.each(implementations)('contrat du buffer — %s', (_label, buffer) => {
       expect(stored.lat).toBeCloseTo(45.0, 10);
     });
 
-    it('rend tout le tracé, acquitté ou non (récupération après kill)', async () => {
+    it('returns the whole track, acknowledged or not (recovery after a kill)', async () => {
       for (let seq = 0; seq < 5; seq++) {
         await buffer.appendPoint(seq, point(seq));
       }
@@ -155,39 +155,39 @@ describe.each(implementations)('contrat du buffer — %s', (_label, buffer) => {
     });
   });
 
-  describe('file d\'attente d\'upload', () => {
+  describe('upload queue', () => {
     beforeEach(async () => {
       for (let seq = 0; seq < 10; seq++) {
         await buffer.appendPoint(seq, point(seq));
       }
     });
 
-    it('ne rend que les points pas encore acquittés, par ordre de seq', async () => {
+    it('only returns points not yet acknowledged, in seq order', async () => {
       await buffer.markUploaded([0, 1, 2, 3]);
       expect((await buffer.pendingPoints(100)).map((p) => p.seq)).toEqual([4, 5, 6, 7, 8, 9]);
     });
 
-    it('respecte la taille de lot demandée', async () => {
+    it('respects the requested batch size', async () => {
       expect(await buffer.pendingPoints(3)).toHaveLength(3);
       expect((await buffer.pendingPoints(3)).map((p) => p.seq)).toEqual([0, 1, 2]);
     });
 
-    it('rend une file vide quand tout est acquitté', async () => {
+    it('returns an empty queue when everything is acknowledged', async () => {
       await buffer.markUploaded([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
       expect(await buffer.pendingPoints(100)).toEqual([]);
     });
 
-    it('accepte un acquittement vide sans broncher', async () => {
+    it('accepts an empty acknowledgement without complaint', async () => {
       await expect(buffer.markUploaded([])).resolves.toBeUndefined();
       expect(await buffer.pendingPoints(100)).toHaveLength(10);
     });
 
-    it('acquitte un seq inconnu sans effet de bord', async () => {
+    it('acknowledges an unknown seq without side effect', async () => {
       await buffer.markUploaded([999]);
       expect(await buffer.pendingPoints(100)).toHaveLength(10);
     });
 
-    it('est idempotent : réacquitter les mêmes points ne change rien', async () => {
+    it('is idempotent: acknowledging the same points again changes nothing', async () => {
       await buffer.markUploaded([0, 1]);
       await buffer.markUploaded([0, 1]);
       expect((await buffer.pendingPoints(100)).map((p) => p.seq)).toEqual([2, 3, 4, 5, 6, 7, 8, 9]);
@@ -195,7 +195,7 @@ describe.each(implementations)('contrat du buffer — %s', (_label, buffer) => {
   });
 
   describe('purge', () => {
-    it('efface séance et points d\'un coup', async () => {
+    it('clears session and points at once', async () => {
       await buffer.saveSession(session);
       await buffer.appendPoint(0, point(0));
       await buffer.clearBuffer();
@@ -203,7 +203,7 @@ describe.each(implementations)('contrat du buffer — %s', (_label, buffer) => {
       expect(await buffer.allPoints()).toEqual([]);
     });
 
-    it('est rejouable sur un buffer déjà vide', async () => {
+    it('can be replayed on an already empty buffer', async () => {
       await expect(buffer.clearBuffer()).resolves.toBeUndefined();
       await expect(buffer.clearBuffer()).resolves.toBeUndefined();
     });

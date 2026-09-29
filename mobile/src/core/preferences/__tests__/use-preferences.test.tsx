@@ -1,6 +1,6 @@
 /**
- * Accès aux préférences (#56) : la lecture ne casse jamais l'écran, l'écriture ne
- * corrompt jamais le cache.
+ * Preferences access (#56): reading never breaks the screen, writing never corrupts the
+ * cache.
  */
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
@@ -34,13 +34,13 @@ afterEach(() => {
 });
 
 describe('usePreferences', () => {
-  it('sert les défauts pendant le chargement', async () => {
+  it('serves the defaults while loading', async () => {
     mockApi.mockReturnValue(new Promise(() => undefined));
     const { result } = await renderHook(() => usePreferences(), { wrapper: Wrapper });
     expect(result.current.preferences).toEqual(DEFAULT_PREFERENCES);
   });
 
-  it('sert la réponse du serveur une fois parsée', async () => {
+  it('serves the server response once parsed', async () => {
     mockApi.mockResolvedValue({ theme: 'dark' });
     const { result } = await renderHook(() => usePreferences(), { wrapper: Wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -48,8 +48,8 @@ describe('usePreferences', () => {
     expect(result.current.preferences.units).toBe('metric');
   });
 
-  /** Une préférence est un confort : un document inattendu ne bloque pas l'écran. */
-  it('sert les défauts sur une réponse inattendue, sans passer en erreur', async () => {
+  /** A preference is a comfort: an unexpected document doesn't block the screen. */
+  it('serves the defaults on an unexpected response, without going into error', async () => {
     mockApi.mockResolvedValue({ theme: 'sepia', units: 42 });
     const { result } = await renderHook(() => usePreferences(), { wrapper: Wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -59,7 +59,7 @@ describe('usePreferences', () => {
 });
 
 describe('useUpdatePreferences', () => {
-  it('envoie le patch épars et met le cache à jour depuis la réponse complète', async () => {
+  it('sends the sparse patch and updates the cache from the full response', async () => {
     client.setQueryData(QUERY_KEY, DEFAULT_PREFERENCES);
     mockApi.mockResolvedValue({ ...DEFAULT_PREFERENCES, units: 'imperial' });
     const { result } = await renderHook(() => useUpdatePreferences(), { wrapper: Wrapper });
@@ -75,7 +75,7 @@ describe('useUpdatePreferences', () => {
     expect(client.getQueryData(QUERY_KEY)).toMatchObject({ units: 'imperial' });
   });
 
-  it('invalide plutôt que d’écrire une réponse illisible dans le cache', async () => {
+  it('invalidates rather than writing an unreadable response to the cache', async () => {
     client.setQueryData(QUERY_KEY, DEFAULT_PREFERENCES);
     mockApi.mockResolvedValue({ units: 'furlongs' });
     const invalidate = jest.spyOn(client, 'invalidateQueries');

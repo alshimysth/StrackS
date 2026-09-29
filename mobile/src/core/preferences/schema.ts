@@ -1,11 +1,11 @@
 /**
- * Miroir zod du schéma de préférences tenu par le backend
- * (`core/user/PreferencesService.java`). Les deux doivent rester alignés :
- * une divergence se traduirait par un 422 à l'enregistrement, côté utilisateur.
+ * zod mirror of the preferences schema held by the backend
+ * (`core/user/PreferencesService.java`). Both must stay aligned: a divergence would show
+ * up as a 422 on save, on the user's side.
  *
- * Même asymétrie que le backend — tolérant en lecture, strict en écriture :
- * `preferencesSchema` accepte et ignore les clés inconnues (un backend plus
- * récent peut en renvoyer), tandis qu'un patch ne contient que des clés connues.
+ * Same asymmetry as the backend, tolerant on read, strict on write: `preferencesSchema`
+ * accepts and ignores unknown keys (a more recent backend may return some), while a patch
+ * only contains known keys.
  */
 import { z } from 'zod';
 
@@ -16,18 +16,18 @@ export const SPEED_DISPLAYS = ['pace', 'speed'] as const;
 export const SEXES = ['female', 'male', 'unspecified'] as const;
 
 /**
- * Âge plausible déduit de `birthDate`, miroir de `PreferencesService.validate` (#56).
+ * Plausible age derived from `birthDate`, mirror of `PreferencesService.validate` (#56).
  *
- * Volontairement **hors** de `physicalSchema` : ce schéma sert à relire le document
- * serveur, et un âge ne cesse d'augmenter — une date valide à l'écriture finirait par
- * sortir de la borne, et un échec de lecture ferait servir tous les défauts. La borne
- * ne sert qu'à valider une saisie avant l'envoi (voir `isPlausibleBirthDate`).
+ * Deliberately **outside** `physicalSchema`: that schema reads the server document back,
+ * and an age keeps increasing; a date valid when written would end up outside the bound,
+ * and a read failure would serve all the defaults. The bound only validates an input
+ * before sending (see `isPlausibleBirthDate`).
  */
 export const BIRTH_AGE_BOUNDS = { min: 10, max: 120 } as const;
 
 /**
- * Même calcul que `Period.between(date, today).getYears()` côté Java : années révolues.
- * Une date illisible n'est pas plausible.
+ * Same computation as `Period.between(date, today).getYears()` on the Java side: completed
+ * years. An unreadable date isn't plausible.
  */
 export function isPlausibleBirthDate(iso: string, today: Date = new Date()): boolean {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
@@ -37,14 +37,14 @@ export function isPlausibleBirthDate(iso: string, today: Date = new Date()): boo
   const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
   const date = new Date(Date.UTC(year, month - 1, day));
   if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
-    return false; // 2026-02-30 : LocalDate.parse la refuse aussi
+    return false; // 2026-02-30: LocalDate.parse rejects it too
   }
   const [ty, tm, td] = [today.getFullYear(), today.getMonth() + 1, today.getDate()];
   const age = ty - year - (tm < month || (tm === month && td < day) ? 1 : 0);
   return age >= BIRTH_AGE_BOUNDS.min && age <= BIRTH_AGE_BOUNDS.max;
 }
 
-/** Bornes miroir de PreferencesService — elles attrapent l'unité inversée, pas l'atypique. */
+/** Bounds mirroring PreferencesService: they catch a swapped unit, not the atypical user. */
 export const physicalSchema = z.object({
   weightKg: z.number().min(30).max(300).nullable().default(null),
   heightCm: z.number().min(80).max(260).nullable().default(null),
@@ -58,8 +58,8 @@ export const weeklyGoalSchema = z.object({
 });
 
 /**
- * Zone de confidentialité (#37) : les points du tracé situés dans le cercle ne sont pas
- * dessinés. Bornes miroir de `PreferencesService.validatePrivacyZones`.
+ * Privacy zone (#37): track points inside the circle aren't drawn. Bounds mirroring
+ * `PreferencesService.validatePrivacyZones`.
  */
 export const privacyZoneSchema = z.object({
   lat: z.number().min(-90).max(90),
@@ -77,7 +77,7 @@ export const preferencesSchema = z
     units: z.enum(UNITS).default('metric'),
     theme: z.enum(THEMES).default('auto'),
     defaultSport: z.string().nullable().default(null),
-    /** Allure ou vitesse, réglé PAR SPORT : un coureur et un marcheur ne lisent pas pareil. */
+    /** Pace or speed, set PER SPORT: a runner and a walker don't read the same way. */
     sportDisplay: z.record(z.string(), z.enum(SPEED_DISPLAYS)).default({}),
     gpsMode: z.enum(GPS_MODES).default('balanced'),
     countdownEnabled: z.boolean().default(true),
@@ -91,13 +91,13 @@ export const preferencesSchema = z
       sex: null,
     }),
   })
-  .passthrough(); // lecture tolérante : on n'écrase pas ce qu'on ne comprend pas
+  .passthrough(); // tolerant read: we don't overwrite what we don't understand
 
 export type Preferences = z.infer<typeof preferencesSchema>;
 
 /**
- * Patch partiel. `null` remet une préférence à son défaut côté serveur — c'est
- * la seule façon d'effacer une valeur, il n'y a pas de DELETE par clé.
+ * Partial patch. `null` resets a preference to its default on the server; it's the only
+ * way to clear a value, there is no per-key DELETE.
  */
 export type PreferencesPatch = {
   /**
@@ -117,12 +117,12 @@ export type PreferencesPatch = {
 
 export const DEFAULT_PREFERENCES: Preferences = preferencesSchema.parse({});
 
-/** Le profil physique est-il exploitable pour estimer des calories ? */
+/** Is the athlete profile usable to estimate calories? */
 export function hasWeight(preferences: Preferences): boolean {
   return typeof preferences.physical.weightKg === 'number' && preferences.physical.weightKg > 0;
 }
 
-/** Unité de mesure de la vitesse retenue pour un sport donné. */
+/** Speed display unit chosen for a given sport. */
 export function speedDisplayFor(preferences: Preferences, sportCode: string): 'pace' | 'speed' {
   return preferences.sportDisplay[sportCode] ?? 'pace';
 }

@@ -22,7 +22,7 @@ body:json {
 }
 
 tests {
-  test("403, pas 401 : le client mobile prendrait un 401 pour une session expirée", function () {
+  test("403, not 401: the mobile client would take a 401 for an expired session", function () {
     expect(res.getStatus()).to.equal(403);
     expect(res.getBody().title).to.equal("Mot de passe incorrect");
   });

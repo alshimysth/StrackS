@@ -1,11 +1,10 @@
 /**
- * SplitsList — allure kilomètre par kilomètre (#22).
+ * SplitsList: pace kilometre by kilometre (#22).
  *
- * Les splits sont calculés par `RunningPlugin` côté serveur et vivent dans
- * `metrics.splits` : ce composant ne recalcule rien, il met en forme. Une barre
- * proportionnelle situe chaque km par rapport au plus lent de la séance — c'est ce
- * qui rend un fractionné lisible d'un coup d'œil, là où une colonne de chiffres
- * demande de comparer mentalement.
+ * Splits are computed by `RunningPlugin` on the server and live in `metrics.splits`: this
+ * component recomputes nothing, it formats. A proportional bar places each km relative to
+ * the session's slowest: that's what makes an interval session readable at a glance,
+ * where a column of numbers requires comparing mentally.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -21,12 +20,12 @@ export interface Split {
 
 interface Props {
   splits: Split[];
-  /** Le mode allure/vitesse est réglé PAR SPORT : il faut savoir lequel on affiche. */
+  /** Pace/speed mode is set PER SPORT: we need to know which one is displayed. */
   sportCode: string;
   testID?: string;
 }
 
-/** Un tableau de `unknown` venu du JSONB : on ne garde que les entrées exploitables. */
+/** An array of `unknown` from the JSONB: only usable entries are kept. */
 export function parseSplits(raw: unknown): Split[] {
   if (!Array.isArray(raw)) {
     return [];
@@ -40,8 +39,8 @@ export function parseSplits(raw: unknown): Split[] {
 }
 
 /**
- * Longueur de barre relative. Le plancher à 15 % évite qu'un km nettement plus
- * rapide que les autres se réduise à un trait invisible.
+ * Relative bar length. The 15 % floor keeps a km much faster than the others from shrinking
+ * to an invisible line.
  */
 export function barRatio(paceSecPerKm: number, slowest: number): number {
   if (slowest <= 0) {
@@ -80,10 +79,9 @@ export function SplitsList({ splits, sportCode, testID = 'splits-list' }: Props)
                 ]}
               />
             </View>
-            {/* Le km le plus rapide se distingue par la couleur du texte, pas par une
-                teinte volt : `volt700` en marque de données sur fond clair mesure
-                1,61 : 1 de contraste, et `volt900` n'entrera dans theme.ts qu'avec
-                l'écran de stats (#24) — le fichier interdit l'édition manuelle. */}
+            {/* The fastest km stands out by its text colour, not by a volt tint:
+                `volt700` as a data mark on a light background measures 1.61:1
+                contrast. */}
             <Text
               style={[
                 typography.bodyLg,

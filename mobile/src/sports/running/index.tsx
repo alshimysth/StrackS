@@ -1,7 +1,7 @@
 /**
- * Module course à pied. TrackingScreen = écran partagé du moteur de séance
- * (transposé de screens/tracking-running.html) configuré mental model
- * coureur : allure en héro, grille distance/durée/allure moy./dénivelé.
+ * Running module. TrackingScreen = the session engine's shared screen (ported from
+ * screens/tracking-running.html) set up for a runner's mental model: pace as hero,
+ * distance/duration/average pace/elevation grid.
  */
 import React from 'react';
 import { Text, View } from 'react-native';
@@ -13,7 +13,7 @@ import { SessionTrackingScreen } from '../../core/session/SessionTrackingScreen'
 import type { Activity } from '../../types/api';
 import type { LiveMetric, SessionState, SportModule } from '../types';
 
-/** Miroir de RunningPlugin.MAX_SPEED_KMH (backend). */
+/** Mirror of RunningPlugin.MAX_SPEED_KMH (backend). */
 const MAX_GPS_SPEED_KMH = 25;
 
 const metricsSchema = z.object({
@@ -25,8 +25,8 @@ const metricsSchema = z.object({
 });
 
 function TrackingScreen() {
-  // Le formateur est capturé ici, dans le composant : `hero` et `grid` sont de simples
-  // fonctions passées à l'écran générique, elles ne peuvent pas appeler de hook.
+  // The formatter is captured here, in the component: `hero` and `grid` are plain
+  // functions passed to the generic screen, they can't call a hook.
   const format = useFormat();
   const speedUnit = format.speedUnit('running');
 
@@ -60,8 +60,8 @@ function SummaryPanel({ activity }: { activity: Activity }) {
   const format = useFormat();
   const metrics = metricsSchema.safeParse(activity.metrics);
   const paceSecPerKm = metrics.success ? metrics.data.avgPaceSecPerKm : undefined;
-  // `avgPaceSecPerKm` est une allure métrique venue du serveur : on repasse par la
-  // vitesse SI pour que la préférence d'unité s'applique aussi ici.
+  // `avgPaceSecPerKm` is a metric pace coming from the server: we go back through the SI
+  // speed so that the unit preference applies here too.
   const speedMs = paceSecPerKm != null && paceSecPerKm > 0 ? 1000 / paceSecPerKm : 0;
   const label = format.speedDisplayFor('running') === 'pace' ? 'Allure moyenne' : 'Vitesse moyenne';
   return (
@@ -74,9 +74,9 @@ function SummaryPanel({ activity }: { activity: Activity }) {
 }
 
 /**
- * Métriques dérivées hors composant : pas de hook disponible ici, donc pas de
- * préférence. Les valeurs sont en métrique — c'est un point d'entrée technique
- * (aucun écran ne l'utilise aujourd'hui), pas de l'affichage utilisateur.
+ * Derived metrics outside a component: no hook available here, hence no preference.
+ * Values are metric: it's a technical entry point (no screen uses it today), not user
+ * display.
  */
 function deriveLiveMetrics(session: SessionState): LiveMetric[] {
   return [

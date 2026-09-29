@@ -1,4 +1,4 @@
-/** Sans DSN, rien n'est initialisé : aucun événement ne peut partir. */
+/** Without a DSN, nothing is initialized: no event can be sent. */
 const mockInit = jest.fn();
 jest.mock('@sentry/react-native', () => ({ init: (o: unknown) => mockInit(o), wrap: (c: unknown) => c }));
 
@@ -6,14 +6,14 @@ import { initMonitoring, monitoringEnabled } from '../sentry';
 
 beforeEach(() => mockInit.mockClear());
 
-it('reste éteint sans DSN', () => {
+it('stays off without a DSN', () => {
   expect(initMonitoring(undefined)).toBe(false);
   expect(initMonitoring('  ')).toBe(false);
   expect(mockInit).not.toHaveBeenCalled();
   expect(monitoringEnabled()).toBe(false);
 });
 
-it('s’initialise avec un DSN, sans donnée personnelle ni traces de performance', () => {
+it('initializes with a DSN, without personal data or performance traces', () => {
   expect(initMonitoring('https://clef@o0.ingest.de.sentry.io/1')).toBe(true);
   const options = mockInit.mock.calls[0][0];
   expect(options).toMatchObject({ sendDefaultPii: false, tracesSampleRate: 0 });
@@ -24,7 +24,7 @@ it('s’initialise avec un DSN, sans donnée personnelle ni traces de performanc
     extra: { lat: 48.8 },
   });
   expect(sent.user).toBeUndefined();
-  expect(sent.extra).toBeUndefined(); // contexte libre : ne part jamais
+  expect(sent.extra).toBeUndefined(); // free context: never sent
   expect(sent.request.url).toBe('https://api.test/api/v1/activities');
   expect(JSON.stringify(sent)).not.toContain('48.8');
 });

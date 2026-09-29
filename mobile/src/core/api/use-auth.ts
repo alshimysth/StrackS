@@ -1,6 +1,5 @@
 /**
- * Hooks d'authentification (TanStack Query) — mêmes contrats que l'ancien
- * backend Spring, servis aujourd'hui par Quarkus.
+ * Authentication hooks (TanStack Query).
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { z } from 'zod';

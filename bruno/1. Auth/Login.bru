@@ -22,7 +22,7 @@ body:json {
 }
 
 tests {
-  test("200 OK + token JWT", function () {
+  test("200 OK + JWT token", function () {
     expect(res.getStatus()).to.equal(200);
   });
   const body = res.getBody();

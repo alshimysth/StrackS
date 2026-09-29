@@ -19,7 +19,7 @@ params:query {
 }
 
 tests {
-  test("200 OK + page d'activités", function () {
+  test("200 OK + page of activities", function () {
     expect(res.getStatus()).to.equal(200);
     expect(res.getBody()).to.have.all.keys("items", "page", "size", "total");
   });

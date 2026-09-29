@@ -1,6 +1,6 @@
 /**
- * Contrats du moteur de séance (Epic 3). Définis dans core/ : les modules de
- * sport les consomment via sports/types.ts, jamais l'inverse.
+ * Session engine contracts (Epic 3). Defined in core/: sport modules consume them through
+ * sports/types.ts, never the other way around.
  */
 
 export interface LiveMetric {
@@ -9,13 +9,13 @@ export interface LiveMetric {
   unit?: string;
 }
 
-/** État de séance publié par core/session — dérivé des points GPS acceptés. */
+/** Session state published by core/session, derived from the accepted GPS points. */
 export interface SessionState {
   elapsedS: number;
   distanceM: number;
   elevationGainM: number;
   elevationLossM: number;
-  /** Vitesse lissée en m/s sur la fenêtre récente. */
+  /** Smoothed speed in m/s over the recent window. */
   smoothedSpeedMs: number;
 }
 

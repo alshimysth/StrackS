@@ -1,8 +1,8 @@
 /**
- * Écran Historique — les comportements que les DoD du lot E rendent obligatoires.
+ * History screen: the behaviours lot E's DoDs make mandatory.
  *
- * Ce test vise les décisions de conception, pas la mise en page : quel état s'affiche
- * dans quelle situation, et ce que le serveur reçoit réellement quand on filtre.
+ * This test targets the design decisions, not the layout: which state shows in which
+ * situation, and what the server actually receives when filtering.
  */
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
@@ -15,8 +15,8 @@ import { createTestQueryClient } from '../../test-support/query-client';
 
 const mockApi = jest.fn();
 
-// `ApiError` reste la vraie classe : `classifyError` s'appuie sur `instanceof`,
-// et un mock complet du module ferait basculer toute erreur en « hors ligne ».
+// `ApiError` stays the real class: `classifyError` relies on `instanceof`, and a full
+// mock of the module would turn every error into "offline".
 jest.mock('../../core/api/client', () => ({
   ...jest.requireActual('../../core/api/client'),
   api: (...args: unknown[]) => mockApi(...args),
@@ -47,7 +47,7 @@ function pageOf(items: Activity[], total = items.length): Page<Activity> {
   return { items, page: 0, size: 20, total };
 }
 
-/** Route les appels par URL : l'écran en émet deux (sports puis activités). */
+/** Routes calls by URL: the screen makes two (sports then activities). */
 function respond(handler: (path: string) => unknown) {
   mockApi.mockImplementation((path: string) => {
     if (path.startsWith('/api/v1/sport-types')) return Promise.resolve(SPORTS);
@@ -57,9 +57,9 @@ function respond(handler: (path: string) => unknown) {
 }
 
 /**
- * Client gardé pour être vidé après chaque test : react-query planifie des timers de
- * notification et de garbage-collection qui, laissés en vol, retiennent le worker jest
- * en fin de suite et provoquent des mises à jour hors `act` sur un écran démonté.
+ * Client kept so it can be cleared after each test: react-query schedules notification
+ * and garbage-collection timers which, left in flight, hold the jest worker at the end of
+ * the suite and cause updates outside `act` on an unmounted screen.
  */
 let client: QueryClient;
 
@@ -79,8 +79,8 @@ afterEach(() => {
   client.clear();
 });
 
-describe('Historique — états système', () => {
-  it('affiche le vide initial quand l’utilisateur n’a aucune séance', async () => {
+describe('History: system states', () => {
+  it('shows the initial empty state when the user has no session', async () => {
     respond(() => pageOf([]));
     await renderScreen();
 
@@ -89,10 +89,10 @@ describe('Historique — états système', () => {
   });
 
   /**
-   * Vide initial ≠ vide après filtrage : proposer « démarre ta première séance » à
-   * quelqu'un qui en a déjà des dizaines mais dont le filtre ne remonte rien est faux.
+   * Initial empty ≠ empty after filtering: offering "start your first session" to someone
+   * who already has dozens but whose filter matches nothing is wrong.
    */
-  it('distingue le vide après filtrage du vide initial', async () => {
+  it('tells the empty-after-filtering state from the initial empty state', async () => {
     respond((path) => (path.includes('sport=walking') ? pageOf([]) : pageOf([activity('a')])));
     await renderScreen();
 
@@ -103,7 +103,7 @@ describe('Historique — états système', () => {
     expect(screen.queryByTestId('empty-state-initial')).toBeNull();
   });
 
-  it('rend les filtres effaçables depuis le vide filtré', async () => {
+  it('makes the filters clearable from the filtered empty state', async () => {
     respond((path) => (path.includes('sport=walking') ? pageOf([]) : pageOf([activity('a')])));
     await renderScreen();
 
@@ -115,15 +115,15 @@ describe('Historique — états système', () => {
     await waitFor(() => expect(screen.getByTestId('history-list')).toBeOnTheScreen());
   });
 
-  it('affiche l’erreur serveur quand il n’y a rien à montrer', async () => {
+  it('shows the server error when there is nothing to show', async () => {
     respond(() => new ApiError({ title: 'Panne', status: 503, detail: 'indisponible' }));
     await renderScreen();
 
     await waitFor(() => expect(screen.getByTestId('error-state-server')).toBeOnTheScreen());
   });
 
-  /** Sans réponse du serveur, le message doit parler réseau et non panne applicative. */
-  it('parle de connexion, pas de panne, quand la requête n’aboutit pas', async () => {
+  /** Without a server response, the message must talk about the network, not an app failure. */
+  it('talks about connection, not failure, when the request does not go through', async () => {
     respond(() => new TypeError('Network request failed'));
     await renderScreen();
 
@@ -132,18 +132,18 @@ describe('Historique — états système', () => {
   });
 });
 
-/** #5 : sur iPhone à encoche, le titre ne passe plus sous la barre de statut. */
-it('se rend dans une zone sûre qui protège le haut de l’écran', async () => {
+/** #5: on a notched iPhone, the title no longer goes under the status bar. */
+it('renders in a safe area protecting the top of the screen', async () => {
   respond(() => pageOf([activity('a')]));
   await renderScreen();
   const safe = await screen.findByTestId('safe-screen');
-  // Forme native des bords : le haut est protégé, le bas est laissé à la barre d'onglets.
+  // Native form of the edges: the top is protected, the bottom is left to the tab bar.
   expect(safe.props.edges).toMatchObject({ top: 'additive', bottom: 'off' });
   expect(screen.getByText('Historique')).toBeOnTheScreen();
 });
 
-describe('Historique — filtrage serveur (DoD #23)', () => {
-  it('demande le filtre au backend plutôt que de trier la page reçue', async () => {
+describe('History: server filtering (DoD #23)', () => {
+  it('asks the backend for the filter rather than sorting the received page', async () => {
     respond(() => pageOf([activity('a')]));
     await renderScreen();
     await waitFor(() => expect(screen.getByTestId('history-list')).toBeOnTheScreen());
@@ -155,7 +155,7 @@ describe('Historique — filtrage serveur (DoD #23)', () => {
     );
   });
 
-  it('borne la période côté serveur', async () => {
+  it('bounds the period on the server', async () => {
     respond(() => pageOf([activity('a')]));
     await renderScreen();
     await waitFor(() => expect(screen.getByTestId('history-list')).toBeOnTheScreen());
@@ -166,18 +166,18 @@ describe('Historique — filtrage serveur (DoD #23)', () => {
   });
 });
 
-describe('Historique — hors ligne (DoD #27)', () => {
+describe('History: offline (DoD #27)', () => {
   /**
-   * Le cœur de la règle du lot E : hors ligne n'est pas une erreur. Tant qu'il reste
-   * des données, on les montre — datées — au lieu de vider l'écran.
+   * The heart of lot E's rule: offline isn't an error. As long as data remains, it's
+   * shown, dated, instead of emptying the screen.
    */
-  it('garde les données visibles et les date au lieu d’afficher une erreur', async () => {
+  it('keeps the data visible and dates it instead of showing an error', async () => {
     respond(() => pageOf([activity('a')]));
     await renderScreen();
     await waitFor(() => expect(screen.getByTestId('history-list')).toBeOnTheScreen());
 
-    // `onlineManager` notifie hors du cycle React : sans `act`, le re-rendu qu'il
-    // déclenche part en avertissement au lieu d'être attendu par le test.
+    // `onlineManager` notifies outside the React cycle: without `act`, the re-render it
+    // triggers ends up as a warning instead of being awaited by the test.
     await act(async () => {
       onlineManager.setOnline(false);
     });
@@ -187,7 +187,7 @@ describe('Historique — hors ligne (DoD #27)', () => {
     expect(screen.queryByTestId('error-state-offline')).toBeNull();
   });
 
-  it('n’affiche aucun bandeau tant que le réseau est là', async () => {
+  it('shows no banner while the network is there', async () => {
     respond(() => pageOf([activity('a')]));
     await renderScreen();
 

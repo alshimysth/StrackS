@@ -1,17 +1,17 @@
 /**
- * Lecture paginée de l'historique (Story #23).
+ * Paginated history reads (story #23).
  *
- * Le filtrage est **serveur** — c'est explicitement la DoD du ticket. Filtrer côté
- * client donnerait des pages incomplètes : le backend renverrait 20 activités tous
- * sports confondus, dont 3 correspondant au filtre, et l'écran afficherait « 3 séances »
- * en croyant avoir tout vu.
+ * Filtering is **server side**, explicitly the ticket's DoD. Filtering on the client
+ * would give incomplete pages: the backend would return 20 activities of all sports, 3
+ * of them matching the filter, and the screen would show "3 sessions" thinking it had
+ * seen everything.
  */
 import { useInfiniteQuery } from '@tanstack/react-query';
 
 import type { Activity, Page } from '../../types/api';
 import { api } from './client';
 
-/** Fenêtres proposées par l'écran. `all` n'envoie aucune borne au serveur. */
+/** Windows offered by the screen. `all` sends no bound to the server. */
 export type PeriodFilter = 'all' | 'week' | 'month' | 'year';
 
 export interface ActivityFilters {
@@ -21,7 +21,7 @@ export interface ActivityFilters {
 
 const PAGE_SIZE = 20;
 
-/** Borne basse de la période, en ISO 8601 — `undefined` pour « tout l'historique ». */
+/** Lower bound of the period, in ISO 8601; `undefined` for "whole history". */
 export function periodStart(period: PeriodFilter, now: Date = new Date()): string | undefined {
   if (period === 'all') return undefined;
   const from = new Date(now);
@@ -44,9 +44,9 @@ export function buildActivitiesPath(filters: ActivityFilters, page: number): str
 }
 
 /**
- * La page suivante se déduit du total plutôt que de la taille du lot reçu : un dernier
- * lot exactement plein ferait sinon croire à une page supplémentaire, et l'utilisateur
- * verrait un spinner de bas de liste qui ne se résout jamais.
+ * The next page is derived from the total rather than from the size of the received
+ * batch: an exactly full last batch would otherwise suggest one more page, and the user
+ * would see an end-of-list spinner that never resolves.
  */
 export function nextPageParam(last: Page<Activity>): number | undefined {
   const loaded = last.page * last.size + last.items.length;
@@ -54,18 +54,18 @@ export function nextPageParam(last: Page<Activity>): number | undefined {
 }
 
 export interface MonthSection {
-  /** Clé stable `AAAA-MM`, indépendante de la locale d'affichage. */
+  /** Stable `YYYY-MM` key, independent from the display locale. */
   key: string;
   title: string;
   data: Activity[];
 }
 
 /**
- * Regroupe les activités par mois pour une `SectionList`.
+ * Groups activities by month for a `SectionList`.
  *
- * L'ordre d'arrivée est préservé — le backend trie déjà par date décroissante, et
- * retrier ici ferait diverger l'affichage de la pagination : la page 2 se glisserait
- * au milieu de la page 1 à chaque chargement.
+ * Arrival order is preserved: the backend already sorts by descending date, and sorting
+ * again here would make the display diverge from pagination: page 2 would slip into the
+ * middle of page 1 on each load.
  */
 export function groupByMonth(activities: Activity[]): MonthSection[] {
   const sections: MonthSection[] = [];
@@ -88,8 +88,8 @@ export function groupByMonth(activities: Activity[]): MonthSection[] {
 
 export function useActivities(filters: ActivityFilters = {}) {
   return useInfiniteQuery({
-    // Les filtres font partie de la clé : changer de sport ne recycle pas les pages
-    // du sport précédent, et chaque combinaison garde son propre cache persisté.
+    // Filters are part of the key: switching sport doesn't recycle the previous sport's
+    // pages, and each combination keeps its own persisted cache.
     queryKey: ['activities', filters.sport ?? 'all', filters.period ?? 'all'],
     queryFn: ({ pageParam }) => api<Page<Activity>>(buildActivitiesPath(filters, pageParam)),
     initialPageParam: 0,

@@ -1,6 +1,6 @@
 /**
- * Export RGPD côté mobile (#76) : le document part vers la feuille de partage, et le
- * fichier — tracés GPS compris — ne survit pas au partage.
+ * Mobile GDPR export (#76): the document goes to the share sheet, and the file (GPS tracks
+ * included) doesn't outlive the share.
  */
 import { exportFileName, exportPersonalData } from '../export-data';
 
@@ -36,7 +36,7 @@ jest.mock('expo-file-system', () => ({
     }
     write(content: string) {
       if (mockWriteFails) {
-        this.record.content = content.slice(0, 5); // écriture partielle, puis panne
+        this.record.content = content.slice(0, 5); // partial write, then failure
         throw new Error('ENOSPC');
       }
       this.record.content = content;
@@ -56,11 +56,11 @@ beforeEach(() => {
   mockShare.mockResolvedValue(undefined);
 });
 
-it('nomme le fichier avec la date du jour', () => {
+it('names the file with the current date', () => {
   expect(exportFileName(new Date('2026-09-26T08:00:00Z'))).toBe('stracks-export-2026-09-26.json');
 });
 
-it('demande le document brut, l’écrit tel quel et le partage en JSON', async () => {
+it('requests the raw document, writes it as is and shares it as JSON', async () => {
   await exportPersonalData();
 
   expect(mockApi).toHaveBeenCalledWith('/api/v1/users/me/export', { parse: 'text' });
@@ -71,24 +71,24 @@ it('demande le document brut, l’écrit tel quel et le partage en JSON', async 
   );
 });
 
-it('supprime le fichier après le partage', async () => {
+it('deletes the file after sharing', async () => {
   await exportPersonalData();
   expect(mockFiles[0].deleted).toBe(true);
 });
 
-it('supprime le fichier même si le partage échoue', async () => {
+it('deletes the file even if sharing fails', async () => {
   mockShare.mockRejectedValue(new Error('annulé'));
   await expect(exportPersonalData()).rejects.toThrow('annulé');
   expect(mockFiles[0].deleted).toBe(true);
 });
 
-it('n’écrit rien quand le partage est indisponible', async () => {
+it('writes nothing when sharing is unavailable', async () => {
   mockAvailable.mockResolvedValue(false);
   await expect(exportPersonalData()).rejects.toThrow(/partage de fichiers/);
   expect(mockFiles).toHaveLength(0);
 });
 
-it('ne laisse aucun fichier partiel quand l’écriture échoue', async () => {
+it('leaves no partial file when writing fails', async () => {
   mockWriteFails = true;
   await expect(exportPersonalData()).rejects.toThrow('ENOSPC');
   expect(mockFiles[0].exists).toBe(false);

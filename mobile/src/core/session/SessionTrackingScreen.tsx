@@ -1,9 +1,8 @@
 /**
- * Écran de tracking live — transposition RN de screens/tracking-running.html
- * (Claude Design) : en-tête sport + état GPS, carte, métrique héro, grille
- * 2×2, contrôles Pause + hold-to-finish. Thème sombre forcé (« plein soleil »).
- * Générique : chaque module de sport fournit héro et grille depuis
- * SessionState — zéro copier-coller du moteur entre sports (DoD Epic 4).
+ * Live tracking screen, RN port of screens/tracking-running.html (Claude Design): sport
+ * header + GPS state, map, hero metric, 2×2 grid, Pause + hold-to-finish controls. Dark
+ * theme forced ("full sun"). Generic: each sport module provides hero and grid from
+ * SessionState, with no copy-paste of the engine between sports (Epic 4 DoD).
  */
 import { useKeepAwake } from 'expo-keep-awake';
 import { useRouter } from 'expo-router';
@@ -46,8 +45,8 @@ export function SessionTrackingScreen({ sportCode, hero, grid }: Props) {
   const heroMetric = hero(live);
   const gridMetrics = grid(live);
 
-  // Le signal perdu prime sur la précision : un dernier fix parfait n'a plus de sens
-  // s'il date de trente secondes.
+  // Signal loss outweighs accuracy: a last perfect fix means nothing once it's thirty
+  // seconds old.
   const gpsColor = signalLost
     ? darkTheme.textError
     : gpsAccuracyM == null
@@ -104,13 +103,13 @@ export function SessionTrackingScreen({ sportCode, hero, grid }: Props) {
             </View>
           </View>
 
-          {/* Explicite le silence : sans ça, l'utilisateur voit une distance qui
-              stagne sans comprendre pourquoi, et croit l'app plantée. Dire que la
-              distance n'est pas comptée est la moitié utile du message. */}
+          {/* Makes the silence explicit: without it, the user sees a distance that stalls
+              without understanding why, and thinks the app crashed. Saying the distance
+              isn't counted is the useful half of the message. */}
           {signalLost && (
             <View
               testID="gps-lost-banner"
-              // Annoncé dès son apparition (#42) : en courant, on ne balaie pas l'écran.
+              // Announced as soon as it appears (#42): while running, nobody scans the screen.
               accessibilityRole="alert"
               accessibilityLiveRegion="assertive"
               style={[styles.lostBanner, { borderColor: darkTheme.textError }]}

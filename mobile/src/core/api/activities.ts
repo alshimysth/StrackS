@@ -1,6 +1,6 @@
 /**
- * Appels API du cycle de vie d'activité — consommés par core/session
- * (jamais par les modules de sport directement).
+ * API calls of the activity lifecycle, consumed by core/session (never by sport modules
+ * directly).
  */
 import { api } from './client';
 import type { Activity } from '../../types/api';
@@ -45,8 +45,8 @@ export function getActivity(id: string): Promise<Activity> {
 }
 
 /**
- * Édition partielle (#25). Un champ omis n'est pas touché côté serveur ; une chaîne
- * vide efface. Ne jamais envoyer `null` en croyant effacer — le backend l'ignorerait.
+ * Partial edit (#25). An omitted field isn't touched on the server; an empty string
+ * clears. Never send `null` thinking it clears: the backend would ignore it.
  */
 export function updateActivity(
   id: string,

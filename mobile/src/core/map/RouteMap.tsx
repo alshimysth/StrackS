@@ -1,13 +1,13 @@
 /**
- * RouteMap — tracé figé d'une séance terminée (#22, #6).
+ * RouteMap: the frozen track of a completed session (#22, #6).
  *
- * Distinct de `LiveMap`, qui suit la caméra sur le dernier point et lit le store de
- * séance en cours. Ici le tracé est complet et connu d'avance : la carte se cadre une
- * fois sur l'ensemble du parcours, sans animation ni suivi.
+ * Distinct from `LiveMap`, which follows the camera on the last point and reads the
+ * in-progress session store. Here the track is complete and known in advance: the map
+ * frames the whole route once, without animation or following.
  *
- * Le tracé arrive en **portions** (#37) : les zones de confidentialité le coupent, et
- * chaque portion se dessine séparément. Cadrage et repères ne portent que sur ce qui est
- * visible — un cadrage sur le tracé complet recentrerait la vue sur la zone masquée.
+ * The track arrives in **portions** (#37): privacy zones cut it, and each portion is drawn
+ * separately. Framing and markers only cover what's visible: framing on the full track
+ * would recentre the view on the masked zone.
  */
 import React from 'react';
 import { StyleSheet } from 'react-native';
@@ -20,9 +20,9 @@ interface Props {
   testID?: string;
 }
 
-/** Marge autour du tracé, en proportion de son étendue. */
+/** Margin around the track, as a proportion of its extent. */
 const PADDING_RATIO = 0.25;
-/** Étendue plancher (degrés) : sans elle, une séance de 200 m cadre au ras du sol. */
+/** Minimum extent (degrees): without it, a 200 m session is framed at ground level. */
 const MIN_DELTA = 0.004;
 
 export function boundingRegion(path: LatLng[]) {

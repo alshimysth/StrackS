@@ -1,9 +1,9 @@
 /**
- * Revue PR #80 : la déconnexion efface les données du compte mises en cache.
+ * PR #80 review: logout clears the account's cached data.
  *
- * Aucune clé de requête ne porte l'identité du compte. Sans ce ménage, le compte suivant
- * sur le même téléphone verrait, le temps d'un rechargement, l'historique et les
- * statistiques du précédent — et l'historique persisté survivrait à un redémarrage.
+ * No query key carries the account's identity. Without this cleanup, the next account on
+ * the same phone would briefly see the previous one's history and statistics while
+ * reloading, and the persisted history would survive a restart.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -31,7 +31,7 @@ afterEach(() => {
   queryClient.clear();
 });
 
-it('vide le cache mémoire et le cache persisté', async () => {
+it('clears the memory cache and the persisted cache', async () => {
   expect(await AsyncStorage.getItem('stracks.query-cache')).not.toBeNull();
 
   await clearUserCache();
@@ -41,7 +41,7 @@ it('vide le cache mémoire et le cache persisté', async () => {
   expect(await AsyncStorage.getItem('stracks.query-cache')).toBeNull();
 });
 
-it('est déclenché par la déconnexion', async () => {
+it('is triggered by logout', async () => {
   useAuthStore.setState({ token: 'jwt', refreshToken: 'refresh', user: null });
 
   useAuthStore.getState().logout();

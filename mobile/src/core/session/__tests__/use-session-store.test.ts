@@ -1,16 +1,14 @@
 /**
- * Machine à états du moteur de séance (#40) :
- * idle → starting → active ⇄ paused → stopping.
+ * Session engine state machine (#40): idle → starting → active ⇄ paused → stopping.
  *
- * Ce qui est vérifié ici, ce sont les garanties de l'Epic 3 : une séance ne
- * démarre jamais à moitié, le temps de pause ne compte pas dans la durée, un
- * échec d'envoi laisse la séance récupérable au lieu de la perdre, et une app
- * tuée se rattrape depuis le buffer.
+ * What's checked here are Epic 3's guarantees: a session never half starts, pause time
+ * doesn't count in the duration, an upload failure leaves the session recoverable
+ * instead of losing it, and a killed app catches up from the buffer.
  *
- * Le buffer est remplacé par l'implémentation mémoire (`buffer.web.ts`) : même
- * contrat, mais on peut interroger son état réel plutôt que des appels mockés.
- * `metrics.ts` reste le vrai moteur — les métriques rejouées à la récupération
- * sont donc comparées aux fixtures de parité avec le backend.
+ * The buffer is replaced by the in-memory implementation (`buffer.web.ts`): same
+ * contract, but its real state can be queried rather than mocked calls. `metrics.ts`
+ * stays the real engine, so the metrics replayed on recovery are compared with the
+ * backend parity fixtures.
  */
 import type { Activity } from '../../../types/api';
 import type { GpsFix } from '../../gps';
@@ -30,16 +28,16 @@ jest.mock('../../api/activities', () => ({
   deleteActivity: jest.fn(),
 }));
 
-// Le vrai client tire la persistance AsyncStorage : seule l'invalidation compte ici (#69).
+// The real client pulls in AsyncStorage persistence: only the invalidation matters here (#69).
 jest.mock('../../api/query-client', () => ({
   queryClient: { invalidateQueries: jest.fn().mockResolvedValue(undefined) },
 }));
 
 jest.mock('../../gps', () => ({
   startGpsWatch: jest.fn(),
-  // Ajoutés par #16 : le moteur les appelle systématiquement (démarrage et arrêt).
-  // `startBackgroundUpdates` renvoie false par défaut — c'est le cas dégradé, celui
-  // qui doit rester fonctionnel sans permission « toujours ».
+  // Added by #16: the engine always calls them (start and stop). `startBackgroundUpdates`
+  // returns false by default: it's the degraded case, the one that must keep working
+  // without the "always" permission.
   startBackgroundUpdates: jest.fn().mockResolvedValue(false),
   stopBackgroundUpdates: jest.fn().mockResolvedValue(undefined),
 }));
@@ -64,8 +62,8 @@ function activity(overrides: Partial<Activity> = {}): Activity {
   };
 }
 
-// Modules re-requis à chaque test : le store garde son état moteur (GPS,
-// timers, compteur de seq) dans des variables de module.
+// Modules required again for each test: the store keeps its engine state (GPS, timers,
+// seq counter) in module variables.
 type Store = typeof import('../use-session-store').useSessionStore;
 type Api = jest.Mocked<typeof import('../../api/activities')>;
 type Gps = jest.Mocked<typeof import('../../gps')>;
@@ -81,7 +79,7 @@ let buffer: Buffer;
 let queries: Queries;
 let removeWatch: jest.Mock;
 
-/** Laisse tourner les promesses non attendues (appendPoint, best-effort API). */
+/** Lets unawaited promises run (appendPoint, best-effort API). */
 async function settle(): Promise<void> {
   for (let i = 0; i < 4; i++) {
     await Promise.resolve();
@@ -89,18 +87,17 @@ async function settle(): Promise<void> {
 }
 
 /**
- * Avance le temps de `ms` : l'horloge ET les timers, ensemble.
- * `jest.advanceTimersByTime` déplace aussi `Date.now()` — mélanger un
- * `setSystemTime` avec un `advanceTimersByTime` décale le chrono d'un tick.
- * Le temps de ces tests est donc piloté uniquement par cette fonction, à
- * partir de T0.
+ * Advances time by `ms`: the clock AND the timers, together. `jest.advanceTimersByTime`
+ * also moves `Date.now()`; mixing a `setSystemTime` with an `advanceTimersByTime` shifts
+ * the timer by a tick. Time in these tests is therefore driven only by this function,
+ * starting from T0.
  */
 async function advance(ms: number): Promise<void> {
   jest.advanceTimersByTime(ms);
   await settle();
 }
 
-/** Simule l'arrivée d'un fix GPS par le watch en cours. */
+/** Simulates a GPS fix arriving through the current watch. */
 async function emitFix(fix: GpsFix): Promise<void> {
   const calls = gps.startGpsWatch.mock.calls;
   const onFix = calls[calls.length - 1][0];
@@ -141,7 +138,7 @@ afterEach(async () => {
 });
 
 describe('start', () => {
-  it('passe de idle à active et arme tout le moteur', async () => {
+  it('goes from idle to active and arms the whole engine', async () => {
     await startSession();
 
     const state = useSessionStore.getState();
@@ -159,7 +156,7 @@ describe('start', () => {
     expect(api.startActivity).toHaveBeenCalledWith('running');
   });
 
-  it('persiste la séance dans le buffer avant le premier fix', async () => {
+  it('persists the session in the buffer before the first fix', async () => {
     await startSession();
 
     expect(await buffer.loadSession()).toEqual({
@@ -173,7 +170,7 @@ describe('start', () => {
     });
   });
 
-  it('refuse de démarrer une seconde séance', async () => {
+  it('refuses to start a second session', async () => {
     await startSession();
     await expect(useSessionStore.getState().start('walking', 10)).rejects.toThrow(
       'Une séance est déjà en cours.',
@@ -182,7 +179,7 @@ describe('start', () => {
     expect(api.startActivity).toHaveBeenCalledTimes(1);
   });
 
-  it('annule l\'activité serveur si le GPS est refusé (pas de séance fantôme)', async () => {
+  it('cancels the server activity if the GPS is refused (no ghost session)', async () => {
     api.startActivity.mockResolvedValue(activity());
     gps.startGpsWatch.mockRejectedValue(new Error('Permission de localisation refusée'));
 
@@ -196,7 +193,7 @@ describe('start', () => {
     expect(useSessionStore.getState().activityId).toBeNull();
   });
 
-  it('reste en idle si le serveur refuse de créer l\'activité', async () => {
+  it('stays idle if the server refuses to create the activity', async () => {
     api.startActivity.mockRejectedValue(new Error('Erreur réseau'));
 
     await expect(useSessionStore.getState().start('running', 25)).rejects.toThrow('Erreur réseau');
@@ -205,8 +202,8 @@ describe('start', () => {
   });
 });
 
-describe('fix GPS pendant une séance active', () => {
-  it('persiste chaque fix et publie les métriques live', async () => {
+describe('GPS fixes during an active session', () => {
+  it('persists each fix and publishes the live metrics', async () => {
     await startSession();
     await emitFix(cleanTrack[0]);
     await emitFix(cleanTrack[1]);
@@ -219,19 +216,19 @@ describe('fix GPS pendant une séance active', () => {
     expect(useSessionStore.getState().path).toHaveLength(2);
   });
 
-  it('persiste même un fix écarté par les filtres (le serveur tranchera)', async () => {
+  it('persists even a fix dropped by the filters (the server will decide)', async () => {
     await startSession();
     await emitFix(cleanTrack[0]);
     await emitFix({ ...cleanTrack[1], accuracyM: 120 });
 
-    // Deux points en base, un seul dans le tracé affiché.
+    // Two points in the database, only one in the displayed track.
     expect(await buffer.allPoints()).toHaveLength(2);
     expect(useSessionStore.getState().path).toHaveLength(1);
     expect(useSessionStore.getState().live.distanceM).toBe(0);
     expect(useSessionStore.getState().gpsAccuracyM).toBe(120);
   });
 
-  it('ignore les fix qui arrivent hors état active', async () => {
+  it('ignores fixes arriving outside the active state', async () => {
     await startSession();
     await useSessionStore.getState().pause();
     await emitFix(cleanTrack[0]);
@@ -239,20 +236,20 @@ describe('fix GPS pendant une séance active', () => {
     expect(await buffer.allPoints()).toHaveLength(0);
   });
 
-  it('fait retomber la vitesse à zéro après 5 s sans fix', async () => {
+  it('drops the speed back to zero after 5 s without a fix', async () => {
     await startSession();
     await emitFix({ ...cleanTrack[0], recordedAtMs: T0 });
-    // 20 m en 4 s = 5 m/s : plausible en courant, donc accepté.
+    // 20 m in 4 s = 5 m/s: plausible when running, so accepted.
     await emitFix({ ...cleanTrack[0], lat: 45.0 + 20 * DEG_PER_M, recordedAtMs: T0 + 4000 });
 
-    await advance(5000); // dernier fix il y a 1 s : la vitesse s'affiche
+    await advance(5000); // last fix 1 s ago: the speed shows
     expect(useSessionStore.getState().live.smoothedSpeedMs).toBeCloseTo(5, 1);
 
-    await advance(10_000); // plus rien depuis 11 s : signal perdu
+    await advance(10_000); // nothing for 11 s: signal lost
     expect(useSessionStore.getState().live.smoothedSpeedMs).toBe(0);
   });
 
-  it('pousse le buffer vers le serveur toutes les 10 s', async () => {
+  it('pushes the buffer to the server every 10 s', async () => {
     await startSession();
     await advance(30_000);
     expect(uploader.flushTrackPoints).toHaveBeenCalledTimes(3);
@@ -261,7 +258,7 @@ describe('fix GPS pendant une séance active', () => {
 });
 
 describe('pause / resume', () => {
-  it('gèle le chronomètre et coupe le GPS à la pause', async () => {
+  it('freezes the timer and cuts the GPS on pause', async () => {
     await startSession();
     await advance(10_000);
 
@@ -272,12 +269,12 @@ describe('pause / resume', () => {
     expect(useSessionStore.getState().live.smoothedSpeedMs).toBe(0);
     expect(removeWatch).toHaveBeenCalledTimes(1);
 
-    // Le chrono ne bouge plus, même 60 s plus tard.
+    // The timer no longer moves, even 60 s later.
     await advance(60_000);
     expect(useSessionStore.getState().live.elapsedS).toBe(10);
   });
 
-  it('inscrit la pause dans le buffer pour survivre à un kill', async () => {
+  it('writes the pause to the buffer to survive a kill', async () => {
     await startSession();
     await advance(10_000);
     await useSessionStore.getState().pause();
@@ -288,12 +285,12 @@ describe('pause / resume', () => {
     });
   });
 
-  it('exclut le temps de pause de la durée écoulée', async () => {
+  it('excludes pause time from the elapsed duration', async () => {
     await startSession();
     await advance(10_000);
     await useSessionStore.getState().pause();
 
-    await advance(30_000); // 30 s de pause
+    await advance(30_000); // 30 s of pause
     await useSessionStore.getState().resume();
     expect(useSessionStore.getState().status).toBe('active');
 
@@ -302,7 +299,7 @@ describe('pause / resume', () => {
     expect(await buffer.loadSession()).toMatchObject({ pausedTotalS: 30, pausedAtMs: null });
   });
 
-  it('cumule plusieurs pauses', async () => {
+  it('adds up several pauses', async () => {
     await startSession();
     await advance(10_000);
     await useSessionStore.getState().pause();
@@ -318,26 +315,26 @@ describe('pause / resume', () => {
     expect(useSessionStore.getState().live.elapsedS).toBe(30); // 60 s - 30 s
   });
 
-  it('relance le GPS au resume', async () => {
+  it('restarts the GPS on resume', async () => {
     await startSession();
     await useSessionStore.getState().pause();
     await useSessionStore.getState().resume();
     expect(gps.startGpsWatch).toHaveBeenCalledTimes(2);
   });
 
-  it('ne fait rien si on met en pause hors état active', async () => {
+  it('does nothing when pausing outside the active state', async () => {
     await useSessionStore.getState().pause();
     expect(useSessionStore.getState().status).toBe('idle');
     expect(api.pauseActivity).not.toHaveBeenCalled();
   });
 
-  it('ne fait rien si on reprend hors état paused', async () => {
+  it('does nothing when resuming outside the paused state', async () => {
     await startSession();
     await useSessionStore.getState().resume();
     expect(api.resumeActivity).not.toHaveBeenCalled();
   });
 
-  it('tolère un serveur injoignable (pause/resume best-effort)', async () => {
+  it('tolerates an unreachable server (best-effort pause/resume)', async () => {
     await startSession();
     api.pauseActivity.mockRejectedValue(new Error('Erreur réseau'));
     api.resumeActivity.mockRejectedValue(new Error('Erreur réseau'));
@@ -351,7 +348,7 @@ describe('pause / resume', () => {
 });
 
 describe('stop', () => {
-  it('envoie le tracé, clôt côté serveur et revient à idle', async () => {
+  it('sends the track, closes on the server and goes back to idle', async () => {
     await startSession();
     await advance(60_000);
 
@@ -369,7 +366,7 @@ describe('stop', () => {
     expect(await buffer.allPoints()).toEqual([]);
   });
 
-  it('déduit le temps de pause de la durée envoyée', async () => {
+  it('deducts pause time from the sent duration', async () => {
     await startSession();
     await advance(10_000);
     await useSessionStore.getState().pause();
@@ -384,7 +381,7 @@ describe('stop', () => {
     );
   });
 
-  it('peut clôturer depuis l\'état paused, en gelant la fin à l\'instant de la pause', async () => {
+  it('can close from the paused state, freezing the end at the pause instant', async () => {
     await startSession();
     await advance(10_000);
     await useSessionStore.getState().pause();
@@ -398,12 +395,12 @@ describe('stop', () => {
   });
 
   /**
-   * #69 : le résumé lit les totaux de la semaine dans un cache partagé avec l'accueil.
-   * Sans invalidation, il conclut sur des totaux d'avant la séance.
+   * #69: the summary reads the week's totals from a cache shared with the home screen.
+   * Without invalidation, it concludes on totals from before the session.
    */
-  it('invalide les stats et l\'historique une fois la séance close', async () => {
+  it('invalidates stats and history once the session is closed', async () => {
     await startSession();
-    await advance(20_000); // plus court que le staleTime de 30 s : rien d'autre ne rafraîchirait
+    await advance(20_000); // shorter than the 30 s staleTime: nothing else would refresh
 
     await useSessionStore.getState().stop();
 
@@ -411,7 +408,7 @@ describe('stop', () => {
     expect(keys).toEqual(expect.arrayContaining([['stats'], ['activities']]));
   });
 
-  it('n\'invalide rien quand la clôture échoue — la séance n\'a pas changé les totaux', async () => {
+  it('invalidates nothing when closing fails, since the session did not change the totals', async () => {
     await startSession();
     uploader.flushTrackPoints.mockResolvedValue(false);
 
@@ -420,11 +417,11 @@ describe('stop', () => {
     expect(queries.queryClient.invalidateQueries).not.toHaveBeenCalled();
   });
 
-  it('refuse de clôturer sans séance', async () => {
+  it('refuses to close without a session', async () => {
     await expect(useSessionStore.getState().stop()).rejects.toThrow('Aucune séance en cours.');
   });
 
-  it('garde la séance récupérable si le tracé n\'a pas pu partir', async () => {
+  it('keeps the session recoverable if the track could not be sent', async () => {
     await startSession();
     await emitFix(cleanTrack[0]);
     uploader.flushTrackPoints.mockResolvedValue(false);
@@ -437,12 +434,12 @@ describe('stop', () => {
     expect(useSessionStore.getState().status).toBe('paused');
     expect(useSessionStore.getState().activityId).toBe(ACTIVITY_ID);
     expect(api.stopActivity).not.toHaveBeenCalled();
-    // Rien n'est purgé : le tracé et la séance restent en base.
+    // Nothing is purged: the track and the session stay in the database.
     expect(await buffer.loadSession()).toMatchObject({ pausedAtMs: T0 + 60_000 });
     expect(await buffer.allPoints()).toHaveLength(1);
   });
 
-  it('réussit au deuxième essai, réseau revenu', async () => {
+  it('succeeds on the second attempt, network back', async () => {
     await startSession();
     uploader.flushTrackPoints.mockResolvedValueOnce(false);
     await expect(useSessionStore.getState().stop()).rejects.toThrow(/Tracé GPS/);
@@ -454,7 +451,7 @@ describe('stop', () => {
     expect(useSessionStore.getState().status).toBe('idle');
   });
 
-  it('purge le local quand l\'activité n\'existe plus côté serveur (404)', async () => {
+  it('purges local data when the activity no longer exists on the server (404)', async () => {
     const { ApiError } = require('../../api/client');
     await startSession();
     await emitFix(cleanTrack[0]);
@@ -473,8 +470,8 @@ describe('stop', () => {
   });
 });
 
-describe('recover — app tuée en pleine séance', () => {
-  /** Écrit une séance orpheline dans le buffer, comme un kill l'aurait laissée. */
+describe('recover: app killed mid-session', () => {
+  /** Writes an orphan session to the buffer, as a kill would have left it. */
   async function orphanSession(points: GpsFix[], pausedAtMs: number | null = null) {
     await buffer.saveSession({
       activityId: ACTIVITY_ID,
@@ -489,17 +486,17 @@ describe('recover — app tuée en pleine séance', () => {
     }
   }
 
-  it('ne récupère rien quand le buffer est vide', async () => {
+  it('recovers nothing when the buffer is empty', async () => {
     await expect(useSessionStore.getState().recover()).resolves.toBe(false);
     expect(useSessionStore.getState().status).toBe('idle');
   });
 
-  it('ne récupère rien si une séance tourne déjà', async () => {
+  it('recovers nothing if a session is already running', async () => {
     await startSession();
     await expect(useSessionStore.getState().recover()).resolves.toBe(false);
   });
 
-  it('reprend la séance en pause et rejoue les métriques du tracé', async () => {
+  it('resumes the session paused and replays the track metrics', async () => {
     await orphanSession(cleanTrack);
 
     await expect(useSessionStore.getState().recover()).resolves.toBe(true);
@@ -509,31 +506,31 @@ describe('recover — app tuée en pleine séance', () => {
     expect(state.activityId).toBe(ACTIVITY_ID);
     expect(state.sportType).toBe('running');
     expect(state.path).toHaveLength(100);
-    // Le rejeu passe par le vrai moteur : mêmes métriques que le backend.
+    // The replay goes through the real engine: same metrics as the backend.
     expect(state.live.distanceM).toBeCloseTo(JAVA_GOLDEN.cleanTrackDistanceM, 3);
   });
 
-  it('compte le temps mort comme pause, borné au dernier point connu', async () => {
+  it('counts dead time as a pause, bounded by the last known point', async () => {
     await orphanSession(cleanTrack);
     const lastFixMs = cleanTrack[99].recordedAtMs;
 
     await useSessionStore.getState().recover();
 
     expect(await buffer.loadSession()).toMatchObject({ pausedAtMs: lastFixMs });
-    // Le chrono est gelé à l'instant du dernier point, pas à maintenant.
+    // The timer is frozen at the last point's instant, not at now.
     expect(useSessionStore.getState().live.elapsedS).toBe(
       Math.round((lastFixMs - T0) / 1000),
     );
   });
 
-  it('respecte une pause explicite déjà enregistrée', async () => {
+  it('respects an explicit pause already recorded', async () => {
     await orphanSession(cleanTrack, T0 + 5000);
     await useSessionStore.getState().recover();
     expect(await buffer.loadSession()).toMatchObject({ pausedAtMs: T0 + 5000 });
     expect(useSessionStore.getState().live.elapsedS).toBe(5);
   });
 
-  it('reprend la numérotation des points après le dernier seq connu', async () => {
+  it('resumes point numbering after the last known seq', async () => {
     await orphanSession(cleanTrack);
     await useSessionStore.getState().recover();
 
@@ -543,17 +540,17 @@ describe('recover — app tuée en pleine séance', () => {
 
     const seqs = (await buffer.allPoints()).map((p) => p.seq);
     expect(seqs).toHaveLength(101);
-    expect(seqs[100]).toBe(100); // pas de collision avec les seq rejoués
+    expect(seqs[100]).toBe(100); // no collision with the replayed seqs
   });
 
-  it('récupère une séance sans aucun point (kill juste après le démarrage)', async () => {
+  it('recovers a session without any point (kill right after start)', async () => {
     await orphanSession([]);
     await expect(useSessionStore.getState().recover()).resolves.toBe(true);
     expect(useSessionStore.getState().status).toBe('paused');
     expect(useSessionStore.getState().path).toEqual([]);
   });
 
-  it('peut clôturer directement une séance récupérée', async () => {
+  it('can directly close a recovered session', async () => {
     await orphanSession(cleanTrack);
     await useSessionStore.getState().recover();
 
@@ -565,19 +562,16 @@ describe('recover — app tuée en pleine séance', () => {
 });
 
 /**
- * Anomalie relevée en écrivant ces tests : `resume()` écrit
- * `updatePauseState(pausedTotalS, null)` AVANT d'attendre `startGpsWatch()`.
- * Si le watch est refusé (permission de localisation révoquée en pleine
- * séance), la promesse rejette et le statut reste `paused` — mais `pausedAtMs`
- * est déjà remis à null. L'affichage ne bronche pas (le tick ignore l'état
- * paused), mais la borne de fin le fait : `stop()` prend alors
- * `pausedAtMs ?? Date.now()`, et tout le temps écoulé depuis la reprise ratée
- * est facturé comme du temps d'effort.
+ * Regression tests for #51. `resume()` used to write `updatePauseState(pausedTotalS, null)`
+ * BEFORE awaiting `startGpsWatch()`. When the watch was refused (location permission
+ * revoked mid-session), the promise rejected and the status stayed `paused`, but
+ * `pausedAtMs` was already reset to null. `stop()` then took `pausedAtMs ?? Date.now()`,
+ * and all the time elapsed since the failed resume was billed as effort time.
  *
- * Corrigé par #51 : `resume()` obtient le watch GPS avant de toucher à la pause.
+ * `resume()` now obtains the GPS watch before touching the pause.
  */
-describe('resume refusé par le GPS', () => {
-  it('laisse la séance en pause', async () => {
+describe('resume refused by the GPS', () => {
+  it('leaves the session paused', async () => {
     await startSession();
     await advance(10_000);
     await useSessionStore.getState().pause();
@@ -589,7 +583,7 @@ describe('resume refusé par le GPS', () => {
     expect(useSessionStore.getState().status).toBe('paused');
   });
 
-  it('n\'altère pas la durée affichée', async () => {
+  it('does not alter the displayed duration', async () => {
     await startSession();
     await advance(10_000);
     await useSessionStore.getState().pause();
@@ -603,16 +597,16 @@ describe('resume refusé par le GPS', () => {
     expect(useSessionStore.getState().live.elapsedS).toBe(10);
   });
 
-  it('clôture sur la durée réelle d\'effort, pas sur l\'heure de fin', async () => {
+  it('closes on the real effort duration, not on the end time', async () => {
     await startSession();
-    await advance(10_000); // 10 s d'effort
+    await advance(10_000); // 10 s of effort
     await useSessionStore.getState().pause();
 
     gps.startGpsWatch.mockRejectedValue(new Error('Permission de localisation refusée'));
     await advance(10_000);
     await expect(useSessionStore.getState().resume()).rejects.toThrow(/Permission/);
 
-    // 60 s de plus à l'arrêt, toujours en pause, puis clôture.
+    // 60 s more at the stop, still paused, then close.
     await advance(60_000);
     gps.startGpsWatch.mockResolvedValue({ remove: removeWatch });
     await useSessionStore.getState().stop();
@@ -624,25 +618,25 @@ describe('resume refusé par le GPS', () => {
   });
 
   /**
-   * Une reprise ratée ne crédite pas de pause : c'est la reprise suivante, réussie,
-   * qui clôt la pause — et elle la compte en entier.
+   * A failed resume doesn't credit a pause: the next, successful resume closes the pause,
+   * and counts it in full.
    */
-  it('compte toute la pause quand une reprise réussit après un refus', async () => {
+  it('counts the whole pause when a resume succeeds after a refusal', async () => {
     await startSession();
-    await advance(10_000); // 10 s d'effort
+    await advance(10_000); // 10 s of effort
     await useSessionStore.getState().pause();
 
     gps.startGpsWatch.mockRejectedValue(new Error('Permission de localisation refusée'));
     await advance(10_000);
     await expect(useSessionStore.getState().resume()).rejects.toThrow(/Permission/);
 
-    await advance(50_000); // permission rétablie dans les réglages, retour dans l'app
+    await advance(50_000); // permission restored in the settings, back in the app
     gps.startGpsWatch.mockResolvedValue({ remove: removeWatch });
     await useSessionStore.getState().resume();
     expect(useSessionStore.getState().status).toBe('active');
     expect(await buffer.loadSession()).toMatchObject({ pausedTotalS: 60, pausedAtMs: null });
 
-    await advance(15_000); // 15 s d'effort après la reprise
+    await advance(15_000); // 15 s of effort after the resume
     await useSessionStore.getState().stop();
 
     expect(api.stopActivity).toHaveBeenCalledWith(
@@ -651,7 +645,7 @@ describe('resume refusé par le GPS', () => {
     );
   });
 
-  it('ne touche pas au buffer quand la reprise est refusée', async () => {
+  it('does not touch the buffer when the resume is refused', async () => {
     await startSession();
     await advance(10_000);
     await useSessionStore.getState().pause();
@@ -660,14 +654,14 @@ describe('resume refusé par le GPS', () => {
     await advance(10_000);
     await expect(useSessionStore.getState().resume()).rejects.toThrow(/Permission/);
 
-    // Une app tuée maintenant doit se récupérer en pause bornée, pas en séance ouverte.
+    // An app killed now must recover as a bounded pause, not as an open session.
     expect(await buffer.loadSession()).toMatchObject({ pausedTotalS: 0, pausedAtMs: T0 + 10_000 });
   });
 });
 
-/** Points relevés par la revue CodeRabbit de la PR #71. */
-describe('courses entre reprise, clôture et purge locale', () => {
-  it('ne relance pas une séance close pendant l\'obtention du GPS', async () => {
+/** Issues raised by the CodeRabbit review of PR #71. */
+describe('races between resume, close and local purge', () => {
+  it('does not restart a session closed while the GPS is being obtained', async () => {
     await startSession();
     await advance(10_000);
     await useSessionStore.getState().pause();
@@ -677,7 +671,7 @@ describe('courses entre reprise, clôture et purge locale', () => {
     const resuming = useSessionStore.getState().resume();
     await settle();
 
-    await useSessionStore.getState().stop(); // clôture pendant que le GPS se fait attendre
+    await useSessionStore.getState().stop(); // close while the GPS keeps us waiting
     const lateWatch = { remove: jest.fn() };
     grant(lateWatch);
     await resuming;
@@ -687,7 +681,7 @@ describe('courses entre reprise, clôture et purge locale', () => {
     expect(api.resumeActivity).not.toHaveBeenCalled();
   });
 
-  it('n\'installe qu\'un watch quand la reprise est demandée deux fois', async () => {
+  it('installs a single watch when the resume is requested twice', async () => {
     await startSession();
     await useSessionStore.getState().pause();
     gps.startGpsWatch.mockClear();
@@ -699,10 +693,10 @@ describe('courses entre reprise, clôture et purge locale', () => {
   });
 
   /**
-   * Le serveur a clos la séance : un échec de purge locale ne doit pas la rouvrir.
-   * Avant, la séance repartait en pause et chaque nouvel essai recevait un 409.
+   * The server closed the session: a failed local purge must not reopen it. Before, the
+   * session went back to pause and each new attempt got a 409.
    */
-  it('reste close et invalide les caches si la purge locale échoue après le stop serveur', async () => {
+  it('stays closed and invalidates the caches if the local purge fails after the server stop', async () => {
     await startSession();
     await advance(20_000);
     const clear = jest.spyOn(buffer, 'clearBuffer').mockRejectedValueOnce(new Error('disque plein'));
@@ -714,7 +708,7 @@ describe('courses entre reprise, clôture et purge locale', () => {
     clear.mockRestore();
   });
 
-  it('purge une séance ressuscitée que le serveur a déjà close (409)', async () => {
+  it('purges a resurrected session the server already closed (409)', async () => {
     const { ApiError } = require('../../api/client');
     await startSession();
     api.stopActivity.mockRejectedValue(
@@ -729,14 +723,14 @@ describe('courses entre reprise, clôture et purge locale', () => {
   });
 });
 
-describe('mode GPS (#36)', () => {
-  it('démarre en mode équilibré quand rien n’est précisé', async () => {
+describe('GPS mode (#36)', () => {
+  it('starts in balanced mode when nothing is specified', async () => {
     await startSession();
     expect(gps.startGpsWatch).toHaveBeenCalledWith(expect.any(Function), 'balanced');
     expect(gps.startBackgroundUpdates).toHaveBeenCalledWith('balanced');
   });
 
-  it('applique le mode choisi au démarrage et le garde à la reprise', async () => {
+  it('applies the chosen mode at start and keeps it on resume', async () => {
     api.startActivity.mockResolvedValue(activity());
     await useSessionStore.getState().start('running', 25, 'saver');
     expect(gps.startGpsWatch).toHaveBeenLastCalledWith(expect.any(Function), 'saver');
@@ -748,13 +742,13 @@ describe('mode GPS (#36)', () => {
   });
 });
 
-describe('mode GPS après un kill (revue PR #80)', () => {
-  it('reprend une séance récupérée avec son propre mode, pas le mode par défaut', async () => {
+describe('GPS mode after a kill (PR #80 review)', () => {
+  it('resumes a recovered session with its own mode, not the default mode', async () => {
     api.startActivity.mockResolvedValue(activity());
     await useSessionStore.getState().start('running', 25, 'saver');
     const saved = await buffer.loadSession();
 
-    // L'app est tuée : nouveau module, même buffer.
+    // The app is killed: new module, same buffer.
     jest.resetModules();
     jest.doMock('../buffer', () => buffer);
     jest.doMock('../../api/activities', () => api);

@@ -1,13 +1,13 @@
 /**
- * OfflineBanner — bandeau discret au-dessus de données servies par le cache.
+ * OfflineBanner: a discreet banner above data served from the cache.
  *
- * Story #27, DoD : « aucune donnée périmée affichée sans indication ». Le bandeau
- * porte donc la DATE de la dernière synchronisation, pas seulement le fait d'être
- * hors ligne — « hier 18 h » et « il y a trois semaines » n'appellent pas la même
- * confiance, et seule la date permet de faire la différence.
+ * Story #27, DoD: "no stale data shown without an indication". The banner therefore
+ * carries the DATE of the last sync, not just the fact of being offline: "yesterday 6 pm"
+ * and "three weeks ago" don't call for the same trust, and only the date tells them
+ * apart.
  *
- * Ton volontairement neutre (warning, pas error) : consulter ses séances hors ligne
- * est un usage prévu, pas un incident.
+ * Deliberately neutral tone (warning, not error): browsing sessions offline is an
+ * intended use, not an incident.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -17,12 +17,12 @@ import { Icon } from './Icon';
 import { useTheme } from '../use-theme';
 
 interface Props {
-  /** Horodatage de la dernière réponse serveur, en ms epoch. */
+  /** Timestamp of the last server response, in epoch ms. */
   lastUpdatedAt?: number;
   testID?: string;
 }
 
-/** Formulation relative courte, sans dépendance de i18n (#43 non tranchée). */
+/** Short relative wording, without an i18n dependency (#43 not decided). */
 export function formatFreshness(lastUpdatedAt: number, now: number = Date.now()): string {
   const minutes = Math.floor((now - lastUpdatedAt) / 60_000);
   if (minutes < 1) return "à l'instant";
@@ -45,8 +45,8 @@ export function OfflineBanner({ lastUpdatedAt, testID = 'offline-banner' }: Prop
       style={[styles.banner, { backgroundColor: colors.warning100 }]}
     >
       <Icon name="state-offline" color={colors.warning600} size="sm" />
-      {/* Texte sombre sur fond d'alerte clair : warning600 sur warning100 ne dépasse pas
-          2,6:1 (#42). L'icône, décorative, garde la couleur d'alerte. */}
+      {/* Dark text on a light alert background: warning600 on warning100 doesn't exceed
+          2.6:1 (#42). The decorative icon keeps the alert colour. */}
       <Text style={[typography.caption, { color: colors.neutral900 }]}>
         Hors ligne
         {freshness != null ? ` · données synchronisées ${freshness}` : ' · données en cache'}

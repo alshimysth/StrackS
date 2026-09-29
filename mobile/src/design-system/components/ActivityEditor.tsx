@@ -1,12 +1,11 @@
 /**
- * ActivityEditor — édition du titre et des notes d'une séance (#25).
+ * ActivityEditor: editing a session's title and notes (#25).
  *
- * Partagé par le résumé de fin de séance et le détail : c'est le même geste, et le
- * dupliquer ferait diverger la limite de 120 caractères d'un écran à l'autre.
+ * Shared by the end-of-session summary and the detail: it's the same gesture, and
+ * duplicating it would let the 120-character limit diverge from one screen to the other.
  *
- * L'enregistrement n'envoie que les champs réellement modifiés — le backend traite
- * « absent » comme « ne pas toucher », donc envoyer les deux à chaque fois écraserait
- * une note qu'une autre session viendrait d'écrire.
+ * Saving only sends the fields actually changed: the backend treats "absent" as "don't
+ * touch", so sending both every time would overwrite a note another session just wrote.
  */
 import React from 'react';
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -16,21 +15,21 @@ import { useTheme } from '../use-theme';
 import { Button } from './Button';
 import { Input } from './Input';
 
-/** Même borne que la contrainte SQL de V6 et le `@Size` du DTO. */
+/** Same bound as V6's SQL constraint and the DTO's `@Size`. */
 export const TITLE_MAX_LENGTH = 120;
 
 interface Props {
   visible: boolean;
   initialTitle: string | null;
   initialNotes: string | null;
-  /** Placeholder du champ titre : le libellé dérivé, pour montrer le repli actuel. */
+  /** Title field placeholder: the derived label, to show the current fallback. */
   titlePlaceholder: string;
   onCancel: () => void;
   onSave: (patch: { title?: string; notes?: string }) => void;
   saving?: boolean;
 }
 
-/** Ne renvoie que ce qui a bougé — voir l'en-tête sur la sémantique du PATCH. */
+/** Only returns what changed; see the header on the PATCH semantics. */
 export function buildPatch(
   next: { title: string; notes: string },
   initial: { title: string | null; notes: string | null },
@@ -58,8 +57,8 @@ export function ActivityEditor({
   const [title, setTitle] = React.useState(initialTitle ?? '');
   const [notes, setNotes] = React.useState(initialNotes ?? '');
 
-  // Réaligne les champs quand la modale se rouvre : sans ça, une édition annulée
-  // laisserait sa saisie en place à la réouverture suivante.
+  // Realigns the fields when the modal reopens: otherwise a cancelled edit would leave its
+  // input in place on the next opening.
   React.useEffect(() => {
     if (visible) {
       setTitle(initialTitle ?? '');
@@ -87,7 +86,7 @@ export function ActivityEditor({
               value={title}
               onChangeText={setTitle}
               placeholder={titlePlaceholder}
-              maxLength={TITLE_MAX_LENGTH + 1} // +1 pour que le dépassement soit atteignable et signalé
+              maxLength={TITLE_MAX_LENGTH + 1} // +1 so that exceeding is reachable and reported
               error={tooLong ? `${TITLE_MAX_LENGTH} caractères maximum.` : undefined}
               helper={
                 title.length === 0 ? 'Sans titre, la date et le sport servent de libellé.' : undefined

@@ -1,20 +1,19 @@
 /**
- * Libellé d'une activité (#25).
+ * Activity label (#25).
  *
- * Décision du 2026-08-11 : la colonne `title` est nullable et le repli **se calcule à
- * l'affichage, jamais persisté**. Écrire « Course du 14 août » en base figerait une
- * chaîne française dans les données, qui ne suivrait plus la langue de l'utilisateur
- * une fois #43 tranchée — et qu'on ne saurait plus distinguer d'un titre réellement
- * choisi.
+ * Decision of 2026-08-11: the `title` column is nullable and the fallback **is computed at
+ * display time, never persisted**. Writing "Course du 14 août" to the database would
+ * freeze a French string in the data, which would no longer follow the user's language
+ * once #43 is decided, and could no longer be told apart from a title really chosen.
  */
 import { sportColors } from '../../design-system/theme';
 
-/** Libellé du sport, avec repli sur le code brut si le sport est inconnu du thème. */
+/** Sport label, falling back to the raw code if the theme doesn't know the sport. */
 export function sportLabel(sportType: string): string {
   return sportColors[sportType]?.label ?? sportType;
 }
 
-/** « Course du 14 août » — repli affiché quand l'activité n'a pas de titre. */
+/** "Course du 14 août": fallback shown when the activity has no title. */
 export function derivedTitle(sportType: string, startedAt: string): string {
   const date = new Date(startedAt).toLocaleDateString('fr-FR', {
     day: 'numeric',
@@ -23,7 +22,7 @@ export function derivedTitle(sportType: string, startedAt: string): string {
   return `${sportLabel(sportType)} du ${date}`;
 }
 
-/** Titre à afficher : celui de l'utilisateur s'il existe, sinon le repli dérivé. */
+/** Title to display: the user's one if it exists, otherwise the derived fallback. */
 export function activityTitle(activity: {
   title: string | null;
   sportType: string;

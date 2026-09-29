@@ -19,8 +19,8 @@ body:json {
 }
 
 script:pre-request {
-  // Sortie simulée : 300 points à 5 s d'intervalle (25 min), ~3 m/s (allure ~5'30"/km),
-  // cap nord-est depuis le Parc de la Villette, altitude ondulante, précision 5-12 m.
+  // Simulated run: 300 points 5 s apart (25 min), ~3 m/s (pace ~5'30"/km),
+  // heading north-east from the Parc de la Villette, undulating altitude, 5-12 m accuracy.
   const t0 = new Date(bru.getVar("startedAt")).getTime();
   const points = [];
   let lat = 48.8890, lng = 2.3908, alt = 52;
@@ -41,12 +41,12 @@ script:pre-request {
 }
 
 tests {
-  test("201 Created + 300 points reçus", function () {
+  test("201 Created + 300 points received", function () {
     expect(res.getStatus()).to.equal(201);
     expect(res.getBody().received).to.equal(300);
   });
-  test("Idempotence : au 2e envoi, inserted = 0", function () {
-    // Premier envoi : inserted = 300. Rejouer la requête : received = 300, inserted = 0
+  test("Idempotency: on the 2nd send, inserted = 0", function () {
+    // First send: inserted = 300. Replay the request: received = 300, inserted = 0
     expect(res.getBody().inserted).to.be.oneOf([0, 300]);
   });
 }

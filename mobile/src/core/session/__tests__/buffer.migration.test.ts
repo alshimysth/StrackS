@@ -1,10 +1,10 @@
 /**
- * Migration locale du buffer SQLite (#36, revue PR #80).
+ * Local migration of the SQLite buffer (#36, PR #80 review).
  *
- * Un téléphone mis à jour garde sa base : `CREATE TABLE IF NOT EXISTS` ne la modifie pas.
- * Ce test reproduit une base créée par la version précédente — sans `gps_mode`, avec une
- * séance en cours — et vérifie que la nouvelle version l'ouvre, la migre et récupère
- * la séance.
+ * An updated phone keeps its database: `CREATE TABLE IF NOT EXISTS` doesn't modify it.
+ * This test reproduces a database created by the previous version (without `gps_mode`,
+ * with a session in progress) and checks that the new version opens it, migrates it and
+ * recovers the session.
  */
 jest.mock('expo-sqlite', () => require('./support/expo-sqlite-mock').createExpoSqliteMock());
 
@@ -27,7 +27,7 @@ beforeAll(async () => {
   `);
 });
 
-it('récupère une séance écrite par l’ancienne version, en mode équilibré', async () => {
+it('recovers a session written by the old version, in balanced mode', async () => {
   const buffer = require('../buffer');
   const session = await buffer.loadSession();
   expect(session).toEqual({
@@ -38,10 +38,10 @@ it('récupère une séance écrite par l’ancienne version, en mode équilibré
     pausedTotalS: 30,
     pausedAtMs: T0 + 60_000,
   });
-  expect(session.gpsMode).toBeUndefined(); // → le store reprend en « balanced »
+  expect(session.gpsMode).toBeUndefined(); // → the store resumes in "balanced"
 });
 
-it('écrit le mode GPS dans la colonne ajoutée', async () => {
+it('writes the GPS mode in the added column', async () => {
   const buffer = require('../buffer');
   await buffer.saveSession({
     activityId: 'act-new',
@@ -55,7 +55,7 @@ it('écrit le mode GPS dans la colonne ajoutée', async () => {
   expect(await buffer.loadSession()).toMatchObject({ activityId: 'act-new', gpsMode: 'saver' });
 });
 
-it('ne rejoue pas la migration à une seconde ouverture', async () => {
+it('does not replay the migration on a second open', async () => {
   const sqlite = require('expo-sqlite');
   const db = await sqlite.openDatabaseAsync('stracks-session.db');
   const columns = await db.getAllAsync("SELECT name FROM pragma_table_info('session') WHERE name = 'gps_mode'");

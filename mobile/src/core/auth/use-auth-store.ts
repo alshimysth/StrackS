@@ -1,11 +1,10 @@
 /**
- * Store d'authentification : jeton d'accès, jeton de renouvellement et utilisateur,
- * persistés dans le stockage sécurisé de l'appareil (SecureStore ; localStorage en dev web).
- * Repris du pattern validé de l'ancien code (LEGACY_SUMMARY §3).
+ * Authentication store: access token, refresh token and user, persisted in the device's
+ * secure storage (SecureStore; localStorage in web dev).
  *
- * Le jeton de renouvellement (Story #44) prolonge la session sans reconnexion manuelle.
- * Il est écrit ici, mais c'est `core/api/client.ts` qui décide QUAND s'en servir : le
- * store garde l'état, le client porte la politique.
+ * The refresh token (story #44) extends the session without manual re-login. It's written
+ * here, but `core/api/client.ts` decides WHEN to use it: the store holds the state, the
+ * client carries the policy.
  */
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
@@ -43,9 +42,9 @@ const storage = {
 };
 
 /**
- * Prévient le serveur que la session est close, pour qu'il révoque le jeton.
- * Silencieux et sans attente : une déconnexion ne doit jamais échouer côté client
- * parce que le réseau est coupé — le jeton expirera de lui-même.
+ * Tells the server the session is closed, so it revokes the token. Silent and not awaited:
+ * a logout must never fail on the client because the network is down; the token will
+ * expire on its own.
  */
 async function revokeOnServer(refreshToken: string): Promise<void> {
   try {
@@ -63,10 +62,10 @@ interface AuthState {
   token: string | null;
   refreshToken: string | null;
   user: User | null;
-  /** true une fois la session relue depuis le stockage sécurisé. */
+  /** true once the session has been read back from secure storage. */
   hydrated: boolean;
   setAuth: (token: string, user: User, refreshToken?: string | null) => void;
-  /** Rotation : nouveau couple de jetons, utilisateur inchangé. */
+  /** Rotation: new token pair, user unchanged. */
   setSession: (token: string, refreshToken: string) => void;
   setUser: (user: User) => void;
   logout: () => void;
@@ -80,9 +79,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   hydrated: false,
 
   setAuth: (token, user, refreshToken) => {
-    // `refreshToken` omis ⇒ on conserve celui déjà en place. Les appelants historiques
-    // (`use-auth.ts`) n'en passent pas : c'est le client HTTP qui l'a déjà capté sur la
-    // réponse de connexion. L'omission ne doit donc pas valoir effacement.
+    // `refreshToken` omitted ⇒ keep the one already in place. Historical callers
+    // (`use-auth.ts`) don't pass one: the HTTP client already captured it from the login
+    // response. Omitting it must therefore not mean clearing it.
     const nextRefresh = refreshToken === undefined ? get().refreshToken : refreshToken;
     set({ token, user, refreshToken: nextRefresh });
     void storage.set(TOKEN_KEY, token);
@@ -114,7 +113,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     void storage.remove(TOKEN_KEY);
     void storage.remove(REFRESH_TOKEN_KEY);
     void storage.remove(USER_KEY);
-    // Les données du compte ne doivent pas survivre à sa session (revue PR #80).
+    // The account's data must not outlive its session (PR #80 review).
     void clearUserCache().catch(() => {});
   },
 

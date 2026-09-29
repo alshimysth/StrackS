@@ -18,23 +18,23 @@ params:query {
 }
 
 tests {
-  test("200 OK + agrégats par sport", function () {
+  test("200 OK + aggregates per sport", function () {
     expect(res.getStatus()).to.equal(200);
     const body = res.getBody();
     expect(body).to.have.property("bySport");
     expect(body).to.have.property("totalSessions");
   });
 
-  test("le socle ne nomme aucune métrique de sport", function () {
+  test("the core names no sport metric", function () {
     const body = res.getBody();
-    // Distance et dénivelé vivent sous `totals`, nommés par les plugins — jamais
-    // comme champs du socle. Un sport sans distance n'en déclare aucune.
+    // Distance and elevation live under `totals`, named by the plugins, never
+    // as core fields. A sport without distance declares none.
     expect(body).to.have.property("totals");
     expect(body).to.not.have.property("totalDistanceM");
     expect(body).to.not.have.property("totalElevationGainM");
   });
 
-  test("la période précédente est fournie pour la comparaison", function () {
+  test("the previous period is provided for comparison", function () {
     expect(res.getBody().previous).to.have.property("sessions");
   });
 }

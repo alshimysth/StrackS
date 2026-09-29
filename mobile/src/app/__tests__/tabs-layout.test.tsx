@@ -1,6 +1,6 @@
 /**
- * Mise en page des onglets : l'onboarding passe avant tout (#82), y compris avant la
- * reprise d'une séance orpheline (revue PR #85).
+ * Tabs layout: onboarding comes first (#82), even before resuming an orphan session
+ * (PR #85 review).
  */
 import { render, waitFor } from '@testing-library/react-native';
 import React from 'react';
@@ -37,10 +37,10 @@ jest.mock('../../design-system/use-theme', () => ({
 
 beforeEach(() => {
   mockRedirects.length = 0;
-  mockRecover.mockResolvedValue(true); // une séance orpheline existe
+  mockRecover.mockResolvedValue(true); // an orphan session exists
 });
 
-it('envoie vers l’onboarding sans reprendre la séance tant qu’il n’est pas terminé', async () => {
+it('sends to onboarding without resuming the session until it is completed', async () => {
   useOnboarding.setState({ status: 'pending' });
   await render(<TabsLayout />);
 
@@ -49,7 +49,7 @@ it('envoie vers l’onboarding sans reprendre la séance tant qu’il n’est pa
   expect(mockReplace).not.toHaveBeenCalled();
 });
 
-it('reprend la séance orpheline une fois l’onboarding terminé', async () => {
+it('resumes the orphan session once onboarding is completed', async () => {
   useOnboarding.setState({ status: 'done' });
   await render(<TabsLayout />);
 

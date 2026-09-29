@@ -1,6 +1,6 @@
 /**
- * Section Compte du profil (#73, #75, #76) : les accès aux écrans de sécurité, l'état
- * de vérification de l'adresse, et l'export.
+ * Profile Account section (#73, #75, #76): access to the security screens, the address
+ * verification state, and the export.
  */
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
@@ -48,7 +48,7 @@ jest.mock('../../core/api/use-auth', () => ({
   useDeleteAccount: () => ({ mutate: jest.fn() }),
 }));
 
-/** Totaux du profil (#7) : servis par chemin, ils ne sont pas le sujet de cette suite. */
+/** Profile totals (#7): served by path, they aren't the subject of this suite. */
 const ALL_TIME = {
   from: '1970-01-01T00:00:00Z',
   to: '2026-09-28T00:00:00Z',
@@ -82,14 +82,14 @@ afterEach(() => {
 
 const renderScreen = () => render(<ProfileScreen />, { wrapper: Wrapper });
 
-it('signale une adresse non vérifiée et propose de la vérifier', async () => {
+it('flags an unverified address and offers to verify it', async () => {
   await renderScreen();
   expect(screen.getByTestId('email-status')).toHaveTextContent('Adresse non vérifiée');
   await fireEvent.press(screen.getByText('Vérifier mon adresse'));
   expect(mockPush).toHaveBeenCalledWith('/account/verify-email');
 });
 
-it('ne propose plus la vérification une fois l’adresse vérifiée', async () => {
+it('no longer offers verification once the address is verified', async () => {
   mockVerified = true;
   await renderScreen();
   expect(screen.getByTestId('email-status')).toHaveTextContent('Adresse vérifiée');
@@ -99,13 +99,13 @@ it('ne propose plus la vérification une fois l’adresse vérifiée', async () 
 it.each([
   ['Changer d’adresse email', '/account/email'],
   ['Changer le mot de passe', '/account/password'],
-])('« %s » ouvre %s', async (label, route) => {
+])('"%s" opens %s', async (label, route) => {
   await renderScreen();
   await fireEvent.press(screen.getByText(label));
   expect(mockPush).toHaveBeenCalledWith(route);
 });
 
-it('lance l’export et affiche un échec compréhensible', async () => {
+it('starts the export and shows an understandable failure', async () => {
   mockExport.mockRejectedValue(
     new ApiError({ title: 'Trop de tentatives', status: 429, detail: 'Réessaie dans 3 min.' }),
   );

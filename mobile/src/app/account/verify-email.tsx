@@ -1,6 +1,6 @@
 /**
- * Vérification de l'adresse du compte (#75). Un code est envoyé à l'inscription ; cet
- * écran permet de le saisir, ou d'en redemander un s'il a expiré (24 h).
+ * Verification of the account's address (#75). A code is sent at registration; this
+ * screen lets the user enter it, or request a new one if it expired (24 h).
  */
 import { router } from 'expo-router';
 import React from 'react';

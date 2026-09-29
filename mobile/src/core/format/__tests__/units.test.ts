@@ -1,9 +1,9 @@
 /**
- * Formatage centralisé (#30, #4).
+ * Centralized formatting (#30, #4).
  *
- * Ce que ces tests protègent : la DoD « les données stockées restent en unités SI —
- * seul l'affichage change ». Toutes les entrées ci-dessous sont donc en mètres,
- * secondes et m/s, jamais en km ni en miles.
+ * What these tests protect: the DoD "stored data stays in SI units, only the display
+ * changes". Every input below is therefore in metres, seconds and m/s, never in km or
+ * miles.
  */
 import {
   formatAverage,
@@ -20,56 +20,56 @@ import {
 } from '../units';
 
 describe('formatDistance', () => {
-  it('convertit des mètres en km', () => {
+  it('converts metres to km', () => {
     expect(formatDistance(4213, 'metric')).toBe('4,21');
   });
 
-  it('convertit les mêmes mètres en miles', () => {
+  it('converts the same metres to miles', () => {
     expect(formatDistance(1609.344, 'imperial')).toBe('1,00');
   });
 
-  /** Convention des maquettes, y compris en impérial. */
-  it('utilise la virgule décimale', () => {
+  /** The mockups' convention, imperial included. */
+  it('uses the decimal comma', () => {
     expect(formatDistance(5000, 'metric')).toContain(',');
     expect(formatDistance(5000, 'imperial')).toContain(',');
   });
 });
 
 describe('formatElevation', () => {
-  it('rend les mètres à l’entier', () => {
+  it('returns metres as an integer', () => {
     expect(formatElevation(123.7, 'metric')).toBe('124');
   });
 
-  it('convertit en pieds', () => {
+  it('converts to feet', () => {
     expect(formatElevation(100, 'imperial')).toBe('328');
   });
 });
 
 describe('formatSpeed', () => {
-  /** 3,03 m/s ≈ 5'30"/km — l'allure de référence d'un coureur. */
-  it('rend une allure métrique', () => {
+  /** 3.03 m/s ≈ 5'30"/km, a runner's reference pace. */
+  it('returns a metric pace', () => {
     expect(formatSpeed(1000 / 330, 'metric', 'pace')).toBe("5'30\"");
   });
 
-  it('rend une vitesse métrique', () => {
+  it('returns a metric speed', () => {
     expect(formatSpeed(1.5, 'metric', 'speed')).toBe('5,4');
   });
 
-  it('rend une vitesse impériale', () => {
+  it('returns an imperial speed', () => {
     expect(formatSpeed(1.609344, 'imperial', 'speed')).toBe('3,6');
   });
 
   /**
-   * `pace` et `speed` ne sont pas deux habillages du même nombre mais deux inverses :
-   * c'est la raison d'être du réglage par sport.
+   * `pace` and `speed` aren't two dressings of the same number but two inverses: that's
+   * the reason for the per-sport setting.
    */
-  it('produit deux valeurs différentes pour allure et vitesse', () => {
+  it('produces two different values for pace and speed', () => {
     const ms = 3;
     expect(formatSpeed(ms, 'metric', 'pace')).not.toBe(formatSpeed(ms, 'metric', 'speed'));
   });
 
   it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
-    'rend un tiret pour une vitesse inexploitable (%p)',
+    'returns a dash for an unusable speed (%p)',
     (value) => {
       expect(formatSpeed(value, 'metric', 'pace')).toBe('—');
       expect(formatSpeed(value, 'metric', 'speed')).toBe('—');
@@ -78,34 +78,33 @@ describe('formatSpeed', () => {
 });
 
 describe('formatPaceValue', () => {
-  it('garde le zéro de tête des secondes', () => {
+  it('keeps the leading zero of the seconds', () => {
     expect(formatPaceValue(305)).toBe("5'05\"");
   });
 
   /**
-   * Régression signalée en revue : arrondir le RESTE au lieu du total produisait
-   * « 4'60\" » — 299,6 % 60 = 59,6, qui s'arrondit à 60. Une allure ne comporte
-   * jamais 60 secondes.
+   * Regression caught in review: rounding the REMAINDER instead of the total produced
+   * "4'60\"" (299.6 % 60 = 59.6, which rounds to 60). A pace never has 60 seconds.
    */
-  it('ne produit jamais 60 secondes', () => {
+  it('never produces 60 seconds', () => {
     expect(formatPaceValue(299.6)).toBe("5'00\"");
     expect(formatPaceValue(359.7)).toBe("6'00\"");
   });
 });
 
 describe('formatAverage', () => {
-  it('calcule l’allure moyenne depuis distance et durée brutes', () => {
+  it('computes the average pace from raw distance and duration', () => {
     expect(formatAverage(1000, 330, 'metric', 'pace')).toBe("5'30\"");
   });
 
-  it('rend un tiret sur une séance sans distance', () => {
+  it('returns a dash for a session without distance', () => {
     expect(formatAverage(0, 600, 'metric', 'pace')).toBe('—');
     expect(formatAverage(1000, 0, 'metric', 'speed')).toBe('—');
   });
 });
 
 describe('speedUnit', () => {
-  it('nomme l’unité selon le système ET le mode', () => {
+  it('names the unit according to the system AND the mode', () => {
     expect(speedUnit('metric', 'pace')).toBe('/km');
     expect(speedUnit('imperial', 'pace')).toBe('/mi');
     expect(speedUnit('metric', 'speed')).toBe('km/h');
@@ -118,17 +117,17 @@ describe('formatDuration', () => {
     [3724, '1:02:04'],
     [754, '12:34'],
     [0, '0:00'],
-  ])('formate %i secondes en %s', (input, expected) => {
+  ])('formats %i seconds as %s', (input, expected) => {
     expect(formatDuration(input)).toBe(expected);
   });
 
-  /** La durée ne dépend d'aucun système d'unités — une heure reste une heure. */
-  it('ne dépend pas des unités', () => {
+  /** Duration depends on no unit system: an hour stays an hour. */
+  it('does not depend on units', () => {
     expect(formatDuration(3600)).toBe('1:00:00');
   });
 
-  /** Même régression que l'allure : « 0:60 » et « 59:60 » étaient produits. */
-  it('ne produit jamais 60 secondes', () => {
+  /** Same regression as pace: "0:60" and "59:60" were produced. */
+  it('never produces 60 seconds', () => {
     expect(formatDuration(59.6)).toBe('1:00');
     expect(formatDuration(3599.6)).toBe('1:00:00');
     expect(formatDuration(119.7)).toBe('2:00');
@@ -146,21 +145,21 @@ describe('formatLongDuration (#7)', () => {
   });
 });
 
-describe('poids (#32)', () => {
-  it('reste en kg en métrique', () => {
+describe('weight (#32)', () => {
+  it('stays in kg in metric', () => {
     expect(weightUnit('metric')).toBe('kg');
     expect(toDisplayWeight(72.35, 'metric')).toBe(72.4);
     expect(fromDisplayWeight(72.35, 'metric')).toBe(72.4);
   });
 
-  it('saisit et affiche en livres, stocke en kg', () => {
+  it('enters and displays pounds, stores kg', () => {
     expect(weightUnit('imperial')).toBe('lb');
     expect(toDisplayWeight(72, 'imperial')).toBe(158.7);
     expect(fromDisplayWeight(158.7, 'imperial')).toBe(72);
   });
 
-  /** Une bascule métrique ↔ impérial ne doit pas faire dériver le poids stocké. */
-  it('fait l’aller-retour sans dérive', () => {
+  /** Switching metric ↔ imperial must not make the stored weight drift. */
+  it('round-trips without drift', () => {
     for (const kg of [30, 55.5, 72, 99.9, 300]) {
       expect(fromDisplayWeight(toDisplayWeight(kg, 'imperial'), 'imperial')).toBeCloseTo(kg, 1);
     }

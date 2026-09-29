@@ -1,11 +1,10 @@
 /**
- * ErrorState — un appel a échoué et il n'y a rien à afficher à la place.
+ * ErrorState: a call failed and there's nothing to show instead.
  *
- * Le message n'est pas choisi par l'appelant mais dérivé de l'erreur elle-même
- * (`classifyError`) : c'est ce qui garantit qu'un écran hors ligne dit « pas de
- * connexion » partout, et jamais « erreur serveur ». Un écran qui a du cache à
- * montrer ne doit PAS utiliser ce composant — il affiche le cache et le date
- * (voir `OfflineBanner`).
+ * The message isn't chosen by the caller but derived from the error itself
+ * (`classifyError`): that's what guarantees an offline screen says "no connection"
+ * everywhere, and never "server error". A screen with cached data to show must NOT use
+ * this component: it shows the cache and dates it (see `OfflineBanner`).
  */
 import React from 'react';
 
@@ -15,7 +14,7 @@ import { Icon, type IconName } from './Icon';
 import { StateView } from './StateView';
 import { useTheme } from '../use-theme';
 
-/** Le pictogramme dit la nature du problème avant le texte : réseau, serveur, ou autre (#39). */
+/** The pictogram states the nature of the problem before the text: network, server, or other (#39). */
 const KIND_ICON: Record<ErrorKind, IconName> = {
   offline: 'state-offline',
   server: 'state-server-error',
@@ -30,7 +29,7 @@ interface Props {
   testID?: string;
 }
 
-/** Se reconnecter n'est pas « réessayer » : le bouton n'aurait aucun effet. */
+/** Logging in again isn't "retrying": the button would have no effect. */
 function isRetryable(kind: ErrorKind): boolean {
   return kind !== 'unauthorized';
 }

@@ -1,25 +1,25 @@
 /**
- * Mesure de l'écart D+ live / D+ final (#53).
+ * Measures the gap between live and final elevation gain (#53).
  *
- * Le client lisse l'altitude par moyenne GLISSANTE (il ne voit pas l'avenir), le
- * serveur par moyenne CENTRÉE (il a tout le tracé). Sur des fixtures choisies les deux
- * coïncident ; sur une trace réelle bruitée, rien ne le garantit. Ce script chiffre
- * l'écart pour trancher : tolérer, afficher le live comme provisoire, ou lisser le
- * client de façon centrée retardée.
+ * The client smooths altitude with a TRAILING moving average (it can't see the future),
+ * the server with a CENTRED one (it has the whole track). On chosen fixtures both agree;
+ * on a real noisy track nothing guarantees it. This script puts a number on the gap to
+ * decide: tolerate it, show the live value as provisional, or smooth on the client with
+ * a delayed centred average.
  *
- * Aucune copie de l'algorithme serveur ici : le D+ final est celui que le backend a
- * **stocké** sur l'activité, et le D+ live est obtenu en rejouant les points bruts dans
- * le vrai `GpsAccumulator` de l'app, exactement comme pendant la séance.
+ * No copy of the server algorithm here: the final gain is the one the backend **stored**
+ * on the activity, and the live gain is obtained by replaying the raw points through the
+ * app's real `GpsAccumulator`, exactly as during the session.
  *
- * Entrée : un fichier JSON par séance, `{ "activity": …, "trackPoints": [...] }`, tel
- * qu'exporté par les deux GET de l'API (voir la procédure dans #53).
+ * Input: one JSON file per session, `{ "activity": …, "trackPoints": [...] }`, as exported
+ * by the two API GETs (see the procedure in #53).
  *
- * Usage (Node ≥ 23.6, qui exécute le TypeScript sans transpilation) :
- *   node --no-warnings scripts/measure-elevation-drift.mts --max-kmh 25 plat.json vallonne.json montagne.json
+ * Usage (Node ≥ 23.6, which runs TypeScript without transpiling):
+ *   node --no-warnings scripts/measure-elevation-drift.mts --max-kmh 25 flat.json hilly.json mountain.json
  *
- * `--max-kmh` est le seuil de plausibilité du sport de la séance (celui du module de
- * sport, `maxGpsSpeedKmh`) : le script ne connaît aucun sport, et refuse un lot de
- * fichiers qui en mélange plusieurs.
+ * `--max-kmh` is the plausibility threshold of the session's sport (the sport module's
+ * `maxGpsSpeedKmh`): the script knows no sport, and rejects a batch of files mixing
+ * several of them.
  */
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
@@ -51,7 +51,7 @@ function parseArgs(argv: string[]): { maxKmh: number; files: string[] } {
     }
   }
   if (maxKmh == null || !Number.isFinite(maxKmh) || maxKmh <= 0 || files.length === 0) {
-    console.error('Usage : node scripts/measure-elevation-drift.mts --max-kmh <seuil> <séance.json>...');
+    console.error('Usage: node scripts/measure-elevation-drift.mts --max-kmh <threshold> <session.json>...');
     process.exit(2);
   }
   return { maxKmh, files };
@@ -61,7 +61,7 @@ const pct = (live: number, final: number) =>
   final === 0 ? (live === 0 ? '0 %' : 'n/a') : `${(((live - final) / final) * 100).toFixed(1)} %`;
 
 const { maxKmh, files } = parseArgs(process.argv.slice(2));
-const rows: string[][] = [['séance', 'points', 'D+ final', 'D+ live', 'écart D+', 'D- final', 'D- live', 'écart D-']];
+const rows: string[][] = [['session', 'points', 'final D+', 'live D+', 'D+ gap', 'final D-', 'live D-', 'D- gap']];
 
 const sessions = files.map((file) => ({
   file,
@@ -69,15 +69,15 @@ const sessions = files.map((file) => ({
 }));
 
 /**
- * Un seul seuil de plausibilité par appel : il appartient au sport. Mélanger des sports
- * appliquerait à l'un le filtre de l'autre, et l'écart mesuré ne vaudrait rien
- * (revue CodeRabbit, PR #71). On refuse plutôt que de produire un chiffre faux.
+ * A single plausibility threshold per call: it belongs to the sport. Mixing sports would
+ * apply one sport's filter to the other, and the measured gap would be worthless
+ * (CodeRabbit review, PR #71). Better to refuse than to produce a wrong number.
  */
 const sports = new Set(sessions.map(({ session }) => session.activity.sportType));
 if (sports.size > 1) {
   console.error(
-    `Séances de sports différents (${[...sports].join(', ')}) : lance un appel par sport, ` +
-      'chacun avec son --max-kmh.',
+    `Sessions of different sports (${[...sports].join(', ')}): run one call per sport, ` +
+      'each with its own --max-kmh.',
   );
   process.exit(2);
 }
@@ -97,10 +97,10 @@ for (const { file, session } of sessions) {
   const finalGain = session.activity.metrics?.elevationGainM;
   const finalLoss = session.activity.metrics?.elevationLossM;
   if (finalGain == null || finalLoss == null) {
-    console.error(`${file} : l'activité ne porte pas de D+/D- serveur (séance non close ?)`);
+    console.error(`${file}: the activity carries no server D+/D- (session not closed?)`);
     process.exit(1);
   }
-  // Le serveur arrondit au mètre (RunningPlugin/WalkingPlugin) : on compare à l'affiché.
+  // The server rounds to the metre (RunningPlugin/WalkingPlugin): compare with what's displayed.
   const liveGain = Math.round(acc.elevationGainM);
   const liveLoss = Math.round(acc.elevationLossM);
   rows.push([

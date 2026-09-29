@@ -1,11 +1,10 @@
 /**
- * Géométrie du graphique (#24).
+ * Chart geometry (#24).
  *
- * Le rendu ne pouvant pas être inspecté à l'œil dans la CI, ce sont ces
- * invariants qui tiennent lieu de contrôle visuel — et ils tiennent mieux dans
- * le temps qu'une capture d'écran : une barre plus haute que le tracé, une pile
- * dont les segments débordent, ou une petite valeur écrasée à zéro sont des
- * défauts mesurables.
+ * Since rendering can't be eyeballed in CI, these invariants stand in for a visual check,
+ * and they hold up better over time than a screenshot: a bar taller than the plot, a
+ * stack whose segments overflow, or a small value squashed to zero are measurable
+ * defects.
  */
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react-native';
@@ -39,7 +38,7 @@ function timelineOf(buckets: TimelineBucket[]): StatsTimeline {
   return { from: buckets[0].start, to: buckets[0].start, bucket: 'week', buckets };
 }
 
-/** Hauteur effective d'un élément, styles aplatis. */
+/** Effective height of an element, flattened styles. */
 function heightOf(testID: string): number {
   const style = StyleSheet.flatten(screen.getByTestId(testID).props.style) as { height?: number };
   return style.height ?? 0;
@@ -48,9 +47,9 @@ function heightOf(testID: string): number {
 const localMidnight = (d: number) => new Date(2026, 6, d).toISOString();
 
 /**
- * Le graphe formate ses distances via `useFormat`, donc lit les préférences via
- * react-query (#30) : il lui faut un client. Aucune requête ne part réellement — le
- * formateur retombe sur les défauts métriques tant que rien n'a chargé.
+ * The chart formats its distances through `useFormat`, hence reads preferences through
+ * react-query (#30): it needs a client. No request actually goes out; the formatter falls
+ * back to metric defaults while nothing has loaded.
  */
 let client: QueryClient;
 
@@ -67,8 +66,8 @@ afterEach(() => {
   client.clear();
 });
 
-describe('géométrie du graphique', () => {
-  it('donne toute la hauteur du tracé à l’intervalle le plus fort, et jamais plus', async () => {
+describe('chart geometry', () => {
+  it('gives the full plot height to the highest interval, and never more', async () => {
     await render(
       <DistanceBarChart
         timeline={timelineOf([
@@ -87,11 +86,11 @@ describe('géométrie du graphique', () => {
   });
 
   /**
-   * Les écarts sont pris SUR la hauteur utile, pas ajoutés par-dessus : sinon
-   * une colonne à deux sports dépasserait une colonne à un sport de même valeur,
-   * et le graphique mentirait sur l'ordre des semaines.
+   * Gaps are taken FROM the usable height, not added on top: otherwise a two-sport column
+   * would exceed a one-sport column of the same value, and the chart would misstate the
+   * order of the weeks.
    */
-  it('ne fait pas dépasser une pile à cause de ses écarts', async () => {
+  it('does not make a stack overflow because of its gaps', async () => {
     await render(
       <DistanceBarChart
         timeline={timelineOf([
@@ -103,7 +102,7 @@ describe('géométrie du graphique', () => {
       { wrapper: Wrapper },
     );
 
-    // Deux colonnes de même total : même hauteur, malgré l'écart interne.
+    // Two columns with the same total: same height, despite the inner gap.
     expect(heightOf('chart-stack-0')).toBeCloseTo(heightOf('chart-stack-1'));
     expect(heightOf('chart-stack-0')).toBeCloseTo(PLOT_HEIGHT);
 
@@ -113,10 +112,10 @@ describe('géométrie du graphique', () => {
   });
 
   /**
-   * Une sortie de 300 m dans un mois à 40 km ferait moins d'un pixel : une barre
-   * invisible se lirait « aucune séance », ce qui est faux.
+   * A 300 m run in a 40 km month would be less than a pixel: an invisible bar would read
+   * as "no session", which is wrong.
    */
-  it('garde visible une valeur minuscule sans la confondre avec zéro', async () => {
+  it('keeps a tiny value visible without confusing it with zero', async () => {
     await render(
       <DistanceBarChart
         timeline={timelineOf([
@@ -130,12 +129,12 @@ describe('géométrie du graphique', () => {
     );
 
     expect(heightOf('chart-stack-1')).toBeGreaterThanOrEqual(MIN_VISIBLE_HEIGHT);
-    // …et l'intervalle réellement vide reste un filet, pas une barre.
+    // ...and the really empty interval stays a hairline, not a bar.
     expect(screen.queryByTestId('chart-stack-2')).toBeNull();
     expect(screen.getByTestId('chart-stack-2-zero')).toBeOnTheScreen();
   });
 
-  it('ne rend rien de trompeur quand toute la période est à zéro', async () => {
+  it('renders nothing misleading when the whole period is zero', async () => {
     await render(
       <DistanceBarChart
         timeline={timelineOf([bucket(localMidnight(6), {}), bucket(localMidnight(13), {})])}
@@ -148,8 +147,8 @@ describe('géométrie du graphique', () => {
     expect(screen.getByText('Aucune distance enregistrée sur cette période.')).toBeOnTheScreen();
   });
 
-  /** La légende est toujours là dès deux séries — l'identité ne tient jamais à la seule couleur. */
-  it('chiffre chaque série dans la légende', async () => {
+  /** The legend is always there from two series on: identity never relies on colour alone. */
+  it('quantifies each series in the legend', async () => {
     await render(
       <DistanceBarChart
         timeline={timelineOf([bucket(localMidnight(6), { running: 12_000, walking: 3_000 })])}

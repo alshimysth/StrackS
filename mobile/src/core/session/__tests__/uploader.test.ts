@@ -1,11 +1,10 @@
 /**
- * File d'upload du tracé (#40) — réseau coupé et rejeu idempotent.
+ * Track upload queue (#40): network down and idempotent replay.
  *
- * La promesse du PRD est « zéro perte de séance » : une coupure réseau doit
- * laisser les points en attente, et le flush suivant ne doit renvoyer QUE ce
- * qui n'a pas été acquitté. Les tests utilisent le vrai buffer SQLite (via le
- * mock adossé à better-sqlite3) : c'est l'état réel de la file qui est vérifié,
- * pas une suite d'appels mockés.
+ * The PRD's promise is "zero session loss": a network outage must leave the points
+ * pending, and the next flush must resend ONLY what wasn't acknowledged. The tests use
+ * the real SQLite buffer (through the better-sqlite3-backed mock): the actual state of
+ * the queue is checked, not a series of mocked calls.
  */
 import * as buffer from '../buffer';
 import { flushTrackPoints } from '../uploader';
@@ -47,21 +46,21 @@ beforeEach(async () => {
 });
 
 describe('nominal', () => {
-  it('ne contacte pas le serveur quand la file est vide', async () => {
+  it('does not contact the server when the queue is empty', async () => {
     await expect(flushTrackPoints(ACTIVITY_ID)).resolves.toBe(true);
     expect(upload).not.toHaveBeenCalled();
   });
 
-  it('envoie tous les points puis vide la file d\'attente', async () => {
+  it('sends every point then empties the queue', async () => {
     await fillBuffer(10);
     await expect(flushTrackPoints(ACTIVITY_ID)).resolves.toBe(true);
     expect(upload).toHaveBeenCalledTimes(1);
     expect(await buffer.pendingPoints(100)).toEqual([]);
-    // Les points restent en base : ils servent la récupération après kill.
+    // The points stay in the database: they serve recovery after a kill.
     expect(await buffer.allPoints()).toHaveLength(10);
   });
 
-  it('découpe en lots de 100, dans l\'ordre des seq', async () => {
+  it('splits into batches of 100, in seq order', async () => {
     await fillBuffer(250);
     await expect(flushTrackPoints(ACTIVITY_ID)).resolves.toBe(true);
     const batches = sentSeqs();
@@ -70,7 +69,7 @@ describe('nominal', () => {
     expect(batches[2][49]).toBe(249);
   });
 
-  it('envoie la charge utile attendue par l\'API', async () => {
+  it('sends the payload expected by the API', async () => {
     await fillBuffer(1);
     await flushTrackPoints(ACTIVITY_ID);
     expect(upload).toHaveBeenCalledWith(ACTIVITY_ID, [
@@ -85,7 +84,7 @@ describe('nominal', () => {
     ]);
   });
 
-  it('transmet altitude et précision absentes telles quelles', async () => {
+  it('passes missing altitude and accuracy as is', async () => {
     await buffer.appendPoint(0, {
       recordedAtMs: T0,
       lat: 45,
@@ -98,8 +97,8 @@ describe('nominal', () => {
   });
 });
 
-describe('réseau coupé', () => {
-  it('rend false et laisse tous les points en attente', async () => {
+describe('network down', () => {
+  it('returns false and leaves every point pending', async () => {
     await fillBuffer(10);
     upload.mockRejectedValueOnce(new TypeError('Network request failed'));
 
@@ -109,7 +108,7 @@ describe('réseau coupé', () => {
     ]);
   });
 
-  it('réussit au flush suivant, réseau revenu', async () => {
+  it('succeeds on the next flush, network back', async () => {
     await fillBuffer(10);
     upload.mockRejectedValueOnce(new TypeError('Network request failed'));
 
@@ -118,8 +117,8 @@ describe('réseau coupé', () => {
     expect(await buffer.pendingPoints(100)).toEqual([]);
   });
 
-  it('ne renvoie JAMAIS un lot déjà acquitté (rejeu idempotent)', async () => {
-    // 250 points : le 1er lot passe, le 2e tombe sur la coupure.
+  it('NEVER resends an already acknowledged batch (idempotent replay)', async () => {
+    // 250 points: the 1st batch goes through, the 2nd hits the outage.
     await fillBuffer(250);
     upload.mockResolvedValueOnce({ received: 100, inserted: 100 });
     upload.mockRejectedValueOnce(new TypeError('Network request failed'));
@@ -130,16 +129,16 @@ describe('réseau coupé', () => {
     upload.mockResolvedValue({ received: 0, inserted: 0 });
     expect(await flushTrackPoints(ACTIVITY_ID)).toBe(true);
 
-    // Chaque seq n'a été envoyé qu'une fois — sauf ceux du lot interrompu,
-    // qui ne peuvent pas avoir été acquittés.
+    // Each seq was sent only once, except those of the interrupted batch, which can't
+    // have been acknowledged.
     const allSent = sentSeqs().flat();
     const sentOnce = allSent.filter((seq) => seq < 100);
     expect(new Set(sentOnce).size).toBe(sentOnce.length);
     expect(new Set(allSent).size).toBe(250);
   });
 
-  it('tient une séance entière hors ligne puis tout envoie au retour', async () => {
-    // 45 min à 1 fix/s : le buffer encaisse, rien n'est perdu.
+  it('holds a whole offline session then sends everything on return', async () => {
+    // 45 min at 1 fix/s: the buffer copes, nothing is lost.
     await fillBuffer(2700);
     upload.mockRejectedValue(new TypeError('Network request failed'));
     expect(await flushTrackPoints(ACTIVITY_ID)).toBe(false);
@@ -153,8 +152,8 @@ describe('réseau coupé', () => {
   });
 });
 
-describe('erreurs API', () => {
-  it('laisse remonter une erreur API à l\'appelant (404 activité supprimée)', async () => {
+describe('API errors', () => {
+  it('lets an API error bubble up to the caller (404 deleted activity)', async () => {
     await fillBuffer(5);
     upload.mockRejectedValueOnce(
       new ApiError({ title: 'Not Found', status: 404, detail: 'Activité introuvable' }),
@@ -164,7 +163,7 @@ describe('erreurs API', () => {
     expect(await buffer.pendingPoints(100)).toHaveLength(5);
   });
 
-  it('laisse remonter un 401 sans acquitter quoi que ce soit', async () => {
+  it('lets a 401 bubble up without acknowledging anything', async () => {
     await fillBuffer(5);
     upload.mockRejectedValueOnce(
       new ApiError({ title: 'Unauthorized', status: 401, detail: 'Token expiré' }),
@@ -174,7 +173,7 @@ describe('erreurs API', () => {
     expect(await buffer.pendingPoints(100)).toHaveLength(5);
   });
 
-  it('reste utilisable après une erreur API (verrou relâché)', async () => {
+  it('stays usable after an API error (lock released)', async () => {
     await fillBuffer(5);
     upload.mockRejectedValueOnce(
       new ApiError({ title: 'Server Error', status: 500, detail: 'Boom' }),
@@ -186,12 +185,12 @@ describe('erreurs API', () => {
   });
 });
 
-describe('verrou de concurrence', () => {
-  it('ignore un flush lancé pendant qu\'un autre tourne', async () => {
+describe('concurrency lock', () => {
+  it('ignores a flush started while another one runs', async () => {
     await fillBuffer(10);
     let release: (() => void) | undefined;
-    // Résolue dès que l'envoi est réellement en vol : pas de course entre le
-    // premier flush et l'assertion sur le second.
+    // Resolved as soon as the upload is really in flight: no race between the first
+    // flush and the assertion on the second.
     const inFlight = new Promise<void>((uploadStarted) => {
       upload.mockImplementationOnce(
         () =>
@@ -204,7 +203,7 @@ describe('verrou de concurrence', () => {
 
     const first = flushTrackPoints(ACTIVITY_ID);
     await inFlight;
-    // Le tick du flush périodique tombe pendant l'envoi : il doit passer son tour.
+    // The periodic flush tick lands during the upload: it must skip its turn.
     await expect(flushTrackPoints(ACTIVITY_ID)).resolves.toBe(false);
 
     release?.();

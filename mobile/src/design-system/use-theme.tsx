@@ -1,7 +1,6 @@
 /**
- * Sélection du thème. Le thème sombre est aussi le mode « plein soleil » :
- * le moteur de séance (core/session) le force pendant le tracking via
- * <ThemeOverride theme={darkTheme}>.
+ * Theme selection. The dark theme is also the "full sun" mode: the session engine
+ * (core/session) forces it during tracking through <ThemeOverride theme={darkTheme}>.
  */
 import React from 'react';
 import { useColorScheme } from 'react-native';
@@ -12,7 +11,7 @@ import { darkTheme, lightTheme, type Theme } from './theme';
 
 const ThemeOverrideContext = React.createContext<Theme | null>(null);
 
-/** Force un thème pour tout un sous-arbre, quel que soit le réglage système. */
+/** Forces a theme for a whole subtree, whatever the system setting. */
 export function ThemeOverride({
   theme,
   children,
@@ -24,14 +23,14 @@ export function ThemeOverride({
 }
 
 /**
- * Thème effectif (#31).
+ * Effective theme (#31).
  *
- * Ordre de priorité, du plus fort au plus faible :
- *  1. `ThemeOverride` — le tracking force le sombre (mode « plein soleil » en
- *     extérieur). La DoD de #31 l'exige : le réglage utilisateur ne doit PAS pouvoir
- *     éclaircir un écran qu'on lit en plein soleil, un bras tendu.
- *  2. la préférence `theme` (light | dark) ;
- *  3. `auto` — le réglage système, comportement d'avant #31 et défaut conservé.
+ * Priority order, from strongest to weakest:
+ *  1. `ThemeOverride`: tracking forces dark ("full sun" mode outdoors). #31's DoD requires
+ *     it: the user setting must NOT be able to lighten a screen read in full sun, at arm's
+ *     length.
+ *  2. the `theme` preference (light | dark);
+ *  3. `auto`: the system setting, the behaviour from before #31 and the kept default.
  */
 export function useTheme(): Theme {
   const override = React.useContext(ThemeOverrideContext);

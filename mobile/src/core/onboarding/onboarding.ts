@@ -1,9 +1,9 @@
 /**
- * Onboarding de premier lancement (#82) : état « déjà vu », **par appareil**.
+ * First-launch onboarding (#82): "already seen" state, **per device**.
  *
- * Par appareil et non par compte : ce qu'il explique — les permissions de localisation —
- * appartient au téléphone. Un second compte sur le même téléphone n'a rien à réapprendre.
- * Stocké dans AsyncStorage : ce n'est pas une donnée sensible.
+ * Per device and not per account: what it explains (location permissions) belongs to the
+ * phone. A second account on the same phone has nothing to learn again.
+ * Stored in AsyncStorage: it isn't sensitive data.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
@@ -16,15 +16,15 @@ type Status = 'unknown' | 'pending' | 'done';
 
 interface OnboardingState {
   status: Status;
-  /** Lit l'état une fois ; sans effet si déjà connu. */
+  /** Reads the state once; no effect if already known. */
   load(): Promise<void>;
   complete(): Promise<void>;
 }
 
 /**
- * Lecture en cours, partagée : deux `load()` rapprochés (la mise en page des onglets se
- * monte avant et après la connexion) ne doivent pas lancer deux lectures, dont la plus
- * lente écraserait un `complete()` survenu entre-temps (revue PR #85).
+ * Shared in-flight read: two close `load()` calls (the tabs layout mounts before and after
+ * login) must not start two reads, the slower of which would overwrite a `complete()` that
+ * happened in between (PR #85 review).
  */
 let inFlight: Promise<void> | null = null;
 
@@ -46,8 +46,8 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
         settle('done');
         return;
       }
-      // Déjà autorisé (mise à jour de l'app, réinstallation) : il n'y a plus rien à
-      // expliquer avant de demander, puisque plus rien ne sera demandé.
+      // Already allowed (app update, reinstall): there's nothing left to explain before
+      // asking, since nothing will be asked anymore.
       const granted = await hasForegroundPermission().catch(() => false);
       if (granted) {
         await get().complete();
@@ -56,7 +56,7 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
       settle('pending');
     }
 
-    /** Une lecture ne revient jamais sur un onboarding terminé pendant qu'elle attendait. */
+    /** A read never reopens an onboarding completed while it was waiting. */
     function settle(status: Status): void {
       if (get().status !== 'done') {
         set({ status });

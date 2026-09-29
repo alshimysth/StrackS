@@ -22,12 +22,12 @@ body:json {
 }
 
 script:pre-request {
-  // Séance démarrée il y a 30 min : laisse la place aux points GPS puis au stop
+  // Session started 30 min ago: leaves room for the GPS points and then the stop
   bru.setVar("startedAt", new Date(Date.now() - 30 * 60 * 1000).toISOString());
 }
 
 tests {
-  test("201 Created + statut in_progress", function () {
+  test("201 Created + in_progress status", function () {
     expect(res.getStatus()).to.equal(201);
   });
   const body = res.getBody();

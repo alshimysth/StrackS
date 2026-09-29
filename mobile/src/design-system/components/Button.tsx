@@ -1,7 +1,7 @@
 /**
- * Button — transposition RN de components/actions/Button.jsx (Claude Design).
- * Variantes : primary / volt (célébration uniquement) / secondary / text.
- * Appui = scale(0.97), 120 ms, pas de changement de couleur (ton « performance »).
+ * Button: RN port of components/actions/Button.jsx (Claude Design).
+ * Variants: primary / volt (celebration only) / secondary / text.
+ * Press = scale(0.97), 120 ms, no colour change ("performance" tone).
  */
 import React from 'react';
 import { Animated, Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
@@ -20,9 +20,9 @@ interface Props {
   disabled?: boolean;
   fullWidth?: boolean;
   style?: ViewStyle;
-  /** Icône avant le libellé (#39), de la couleur du libellé. Décorative : le texte nomme l'action. */
+  /** Icon before the label (#39), in the label's colour. Decorative: the text names the action. */
   icon?: IconName;
-  /** Complète le libellé pour un lecteur d'écran quand l'effet n'est pas évident (#42). */
+  /** Completes the label for a screen reader when the effect isn't obvious (#42). */
   accessibilityHint?: string;
 }
 
@@ -50,8 +50,8 @@ export function Button({
     <Animated.View style={[{ transform: [{ scale }] }, fullWidth && styles.fullWidth, style]}>
       <Pressable
         accessibilityRole="button"
-        // L'état désactivé est annoncé (« estompé ») au lieu d'un bouton muet qui ne
-        // réagit pas (#42).
+        // The disabled state is announced ("dimmed") instead of a mute button that doesn't
+        // react (#42).
         accessibilityState={{ disabled }}
         accessibilityHint={accessibilityHint}
         disabled={disabled}
@@ -106,7 +106,7 @@ const variantStyles: Record<Variant, ViewStyle> = {
 
 const textStyles: Record<Variant, { color: string }> = {
   primary: { color: colors.neutral0 },
-  // `textOnVolt` a la même valeur dans les deux thèmes : le fond volt ne change pas.
+  // `textOnVolt` has the same value in both themes: the volt background doesn't change.
   volt: { color: lightTheme.textOnVolt },
   secondary: { color: colors.primary500 },
   text: { color: colors.primary500 },

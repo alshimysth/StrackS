@@ -1,8 +1,7 @@
 /**
- * Contrat d'un module de sport côté mobile. Le socle (core/, app/) ne connaît
- * aucun sport : il ne consomme que cette interface via sports/registry.ts.
- * SessionState/LiveMetric sont définis par core/session (le moteur) et
- * re-exportés ici pour les modules.
+ * Contract of a sport module on mobile. The core (core/, app/) knows no sport: it only
+ * consumes this interface through sports/registry.ts. SessionState/LiveMetric are defined
+ * by core/session (the engine) and re-exported here for the modules.
  */
 import type React from 'react';
 import type { ZodSchema } from 'zod';
@@ -17,23 +16,23 @@ export interface SportModule {
   code: string;
   label: string;
   /**
-   * Pictogramme du sport (#39), choisi par le module dans le vocabulaire du design system.
-   * Le socle l'affiche sans savoir de quel sport il s'agit ; un nouveau sport en déclare un
-   * nouveau sans toucher aux écrans.
+   * Sport pictogram (#39), chosen by the module from the design system vocabulary. The core
+   * shows it without knowing which sport it is; a new sport declares a new one without
+   * touching the screens.
    */
   icon?: IconName;
   usesGps: boolean;
   /**
-   * Seuil de plausibilité GPS (miroir de SportPlugin.maxGpsSpeedKmh backend) —
-   * au-delà, un segment est écarté comme bruit. Requis si usesGps.
+   * GPS plausibility threshold (mirror of the backend's SportPlugin.maxGpsSpeedKmh):
+   * beyond it, a segment is dropped as noise. Required if usesGps.
    */
   maxGpsSpeedKmh?: number;
-  /** Écran de tracking live, rendu plein écran par le socle (Epic 3/4). */
+  /** Live tracking screen, rendered full screen by the core (Epic 3/4). */
   TrackingScreen: React.ComponentType;
-  /** Bloc de résumé spécifique (fin de séance, détail d'activité). */
+  /** Specific summary block (end of session, activity detail). */
   SummaryPanel: React.ComponentType<{ activity: Activity }>;
-  /** Métriques dérivées affichées en live à partir de l'état de séance. */
+  /** Derived metrics shown live from the session state. */
   deriveLiveMetrics(session: SessionState): LiveMetric[];
-  /** Schéma zod du champ metrics (miroir du schéma backend). */
+  /** zod schema of the metrics field (mirror of the backend schema). */
   metricsSchema: ZodSchema;
 }

@@ -1,7 +1,7 @@
 /**
- * File d'upload du tracé (Epic 3). Envoie les points du buffer par lots vers
- * l'endpoint idempotent (rejeu sans doublon côté serveur). Tolérant au réseau
- * coupé : un échec laisse les points en attente, le prochain flush réessaie.
+ * Track upload queue (Epic 3). Sends the buffer's points in batches to the idempotent
+ * endpoint (replay without duplicates on the server). Tolerant to network loss: a failure
+ * leaves the points pending, the next flush retries.
  */
 import { markUploaded, pendingPoints } from './buffer';
 import { ApiError } from '../api/client';
@@ -12,9 +12,8 @@ const BATCH_SIZE = 100;
 let flushing = false;
 
 /**
- * Pousse tous les points en attente. @returns true si le buffer est vidé,
- * false si le réseau a lâché (réessayer plus tard). Les erreurs API
- * (404 activité supprimée, 401…) remontent à l'appelant.
+ * Pushes every pending point. @returns true if the buffer is emptied, false if the network
+ * gave out (retry later). API errors (404 deleted activity, 401…) bubble up to the caller.
  */
 export async function flushTrackPoints(activityId: string): Promise<boolean> {
   if (flushing) {
@@ -44,7 +43,7 @@ export async function flushTrackPoints(activityId: string): Promise<boolean> {
     if (error instanceof ApiError) {
       throw error;
     }
-    return false; // panne réseau : les points restent en attente
+    return false; // network failure: the points stay pending
   } finally {
     flushing = false;
   }

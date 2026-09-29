@@ -1,9 +1,9 @@
 /**
- * Détail d'une activité terminée (#6) — consultation depuis l'historique.
+ * Detail of a completed activity (#6), viewed from the history.
  *
- * Distinct du résumé de fin de séance (#22) : pas de célébration, pas de « Terminer »
- * qui renvoie à l'accueil, mais un retour arrière normal et les actions d'archive
- * (renommer, supprimer). Le fond est partagé via `ActivityDetailBody`.
+ * Distinct from the end-of-session summary (#22): no celebration, no "Terminer" going back
+ * to the home screen, but a normal back navigation and the archive actions (rename,
+ * delete). The body is shared through `ActivityDetailBody`.
  */
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
@@ -44,9 +44,9 @@ export default function ActivityDetailScreen() {
           style: 'destructive',
           onPress: () => {
             remove.mutate(id as string, {
-              // On ne quitte l'écran qu'une fois la suppression confirmée par le
-              // serveur : revenir tout de suite puis échouer laisserait la séance
-              // réapparaître dans l'historique sans explication.
+              // Only leave the screen once the server confirmed the deletion: going back
+              // right away and then failing would make the session reappear in the history
+              // without explanation.
               onSuccess: () => router.back(),
               onError: () =>
                 Alert.alert(

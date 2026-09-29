@@ -1,9 +1,9 @@
 /**
- * Ligne de réglage : un libellé, une aide facultative, et un choix par puces (#7).
+ * Setting row: a label, an optional helper, and a chip choice (#7).
  *
- * Le choix est appliqué immédiatement — pas de bouton « Enregistrer ». Un réglage
- * d'affichage se juge en le voyant : l'unité change sous les yeux de l'utilisateur,
- * ce qui vaut mieux que n'importe quelle explication.
+ * The choice applies immediately, with no "Enregistrer" button. A display setting is
+ * judged by seeing it: the unit changes before the user's eyes, which beats any
+ * explanation.
  */
 import React from 'react';
 
@@ -18,7 +18,7 @@ interface Props<T extends string> {
   options: ChipOption<T>[];
   value: T;
   onChange: (value: T) => void;
-  /** Grisé pendant qu'un enregistrement est en vol. */
+  /** Greyed out while a save is in flight. */
   disabled?: boolean;
   testID?: string;
 }

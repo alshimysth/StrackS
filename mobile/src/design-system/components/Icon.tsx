@@ -1,17 +1,17 @@
 /**
- * Iconographie du design system (#39) — set **Lucide**, trait 2 px.
+ * Design system iconography (#39): the **Lucide** set, 2 px stroke.
  *
- * Choix : Lucide, recommandé dès l'inventaire du design system (« set stroke-based type
- * Lucide/Phosphor, trait ~2 px »). Licence ISC (permissive, sans attribution requise à
- * l'écran). Aucun nouveau module natif : il s'appuie sur `react-native-svg`, déjà présent.
+ * Choice: Lucide, recommended from the design system inventory on ("stroke-based set like
+ * Lucide/Phosphor, ~2 px stroke"). ISC licence (permissive, no on-screen attribution
+ * required). No new native module: it relies on `react-native-svg`, already present.
  *
- * Les écrans n'importent jamais Lucide directement : ils passent par un **nom sémantique**
- * (`tab-home`, `action-pause`, `state-offline`). Changer une icône, ou le set entier, se
- * fait ici et nulle part ailleurs — c'est ce qui garantit l'usage homogène que demande la
- * DoD. Ajouter une icône = ajouter une entrée à `ICONS`.
+ * Screens never import Lucide directly: they go through a **semantic name** (`tab-home`,
+ * `action-pause`, `state-offline`). Changing an icon, or the whole set, happens here and
+ * nowhere else: that's what guarantees the consistent usage the DoD asks for. Adding an
+ * icon = adding an entry to `ICONS`.
  *
- * Accessibilité : une icône est **décorative** par défaut (masquée aux lecteurs d'écran),
- * parce qu'elle accompagne presque toujours un libellé. Une icône seule doit recevoir un
+ * Accessibility: an icon is **decorative** by default (hidden from screen readers),
+ * because it almost always accompanies a label. A standalone icon must receive an
  * `accessibilityLabel`.
  */
 import {
@@ -46,7 +46,7 @@ export const ICONS = {
   'tab-history': History,
   'tab-stats': ChartColumn,
   'tab-profile': User,
-  // Sports — référencés par nom depuis les modules de sport (`SportModule.icon`)
+  // Sports: referenced by name from the sport modules (`SportModule.icon`)
   'sport-run': Footprints,
   'sport-walk': PersonStanding,
   // Actions
@@ -55,7 +55,7 @@ export const ICONS = {
   'action-finish': Square,
   'action-retry': RotateCw,
   'action-locate': LocateFixed,
-  // États
+  // States
   'state-gps': Satellite,
   'state-offline': WifiOff,
   'state-server-error': ServerCrash,
@@ -64,26 +64,26 @@ export const ICONS = {
   'state-goal': Flag,
   'state-privacy': ShieldCheck,
   'state-place': MapPin,
-  // Métriques
+  // Metrics
   'metric-elevation-gain': ArrowUp,
   'metric-elevation-loss': ArrowDown,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;
 
-/** Tailles alignées sur la grille de 4 px. */
+/** Sizes aligned on the 4 px grid. */
 export const ICON_SIZE = { sm: 16, md: 20, lg: 24, xl: 32 } as const;
 
 interface Props {
   name: IconName;
   color: string;
   size?: keyof typeof ICON_SIZE;
-  /** Obligatoire pour une icône sans libellé visible ; sinon l'icône est décorative. */
+  /** Mandatory for an icon without a visible label; otherwise the icon is decorative. */
   accessibilityLabel?: string;
   testID?: string;
 }
 
-/** Trait constant du set, quelle que soit la taille — c'est l'identité « stroke-based ». */
+/** Constant stroke of the set, whatever the size: it's the "stroke-based" identity. */
 const STROKE_WIDTH = 2;
 
 export function Icon({ name, color, size = 'lg', accessibilityLabel, testID }: Props) {
@@ -98,8 +98,8 @@ export function Icon({ name, color, size = 'lg', accessibilityLabel, testID }: P
       absoluteStrokeWidth
       accessible={!decorative}
       accessibilityLabel={accessibilityLabel}
-      // Lucide pose `aria-hidden` par défaut : sans ce réglage, même une icône nommée
-      // serait tue aux lecteurs d'écran.
+      // Lucide sets `aria-hidden` by default: without this setting, even a named icon
+      // would be silent for screen readers.
       aria-hidden={decorative}
       accessibilityElementsHidden={decorative}
       importantForAccessibility={decorative ? 'no-hide-descendants' : 'auto'}

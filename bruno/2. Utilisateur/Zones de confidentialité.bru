@@ -23,7 +23,7 @@ body:json {
 }
 
 tests {
-  test("200 + liste remplacée d'un bloc", function () {
+  test("200 + list replaced as a whole", function () {
     expect(res.getStatus()).to.equal(200);
     const zones = res.getBody().privacyZones;
     expect(zones).to.have.length(1);

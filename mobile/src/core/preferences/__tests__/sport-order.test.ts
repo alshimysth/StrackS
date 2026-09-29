@@ -1,15 +1,15 @@
 /**
- * Ordre et présélection des sports (#34).
+ * Sport order and preselection (#34).
  *
- * DoD : « démarrer une séance du sport préféré se fait en ≤ 2 interactions » et
- * « rester tolérant si le sport préféré disparaît du registre ».
+ * DoD: "starting a session of the preferred sport takes ≤ 2 interactions" and "stay
+ * tolerant if the preferred sport disappears from the registry".
  */
 import { initialSelection, orderSports } from '../sport-order';
 
 const SPORTS = [{ code: 'running' }, { code: 'walking' }, { code: 'strength' }];
 
 describe('orderSports', () => {
-  it('laisse l’ordre serveur sans préférence', () => {
+  it('keeps the server order without a preference', () => {
     expect(orderSports(SPORTS, null).map((s) => s.code)).toEqual([
       'running',
       'walking',
@@ -17,7 +17,7 @@ describe('orderSports', () => {
     ]);
   });
 
-  it('remonte le sport préféré en tête', () => {
+  it('moves the preferred sport to the top', () => {
     expect(orderSports(SPORTS, 'walking').map((s) => s.code)).toEqual([
       'walking',
       'running',
@@ -25,7 +25,7 @@ describe('orderSports', () => {
     ]);
   });
 
-  it('préserve l’ordre serveur pour les autres', () => {
+  it('preserves the server order for the others', () => {
     expect(orderSports(SPORTS, 'strength').map((s) => s.code)).toEqual([
       'strength',
       'running',
@@ -33,8 +33,8 @@ describe('orderSports', () => {
     ]);
   });
 
-  /** Tolérance exigée par la DoD : sport retiré du backend, ou renommé. */
-  it('laisse la liste intacte si le sport préféré a disparu', () => {
+  /** Tolerance required by the DoD: sport removed from the backend, or renamed. */
+  it('leaves the list intact if the preferred sport disappeared', () => {
     expect(orderSports(SPORTS, 'kayak').map((s) => s.code)).toEqual([
       'running',
       'walking',
@@ -42,46 +42,46 @@ describe('orderSports', () => {
     ]);
   });
 
-  it('supporte une liste vide', () => {
+  it('handles an empty list', () => {
     expect(orderSports([], 'running')).toEqual([]);
   });
 });
 
 describe('initialSelection', () => {
-  /** Sans présélection, remonter le sport en tête ne fait gagner aucune interaction. */
-  it('présélectionne le sport préféré', () => {
+  /** Without preselection, moving the sport to the top saves no interaction. */
+  it('preselects the preferred sport', () => {
     expect(initialSelection(SPORTS, 'walking')).toBe('walking');
   });
 
-  it('ne présélectionne rien sans préférence', () => {
+  it('preselects nothing without a preference', () => {
     expect(initialSelection(SPORTS, null)).toBeNull();
   });
 
-  it('ne présélectionne rien si le sport préféré a disparu', () => {
+  it('preselects nothing if the preferred sport disappeared', () => {
     expect(initialSelection(SPORTS, 'kayak')).toBeNull();
   });
 
-  it('supporte une liste vide', () => {
+  it('handles an empty list', () => {
     expect(initialSelection([], 'running')).toBeNull();
   });
 });
 
 /**
- * Sports non démarrables (revue #68).
+ * Sports that can't be started (#68 review).
  *
- * Le backend peut exposer un sport dont le mobile n'a pas de module. Le laisser entrer
- * dans la liste permettrait de le définir comme défaut, de le présélectionner, puis de
- * ne rien faire au clic sur « Démarrer » — un cul-de-sac. Le filtre a donc lieu AVANT
- * l'ordonnancement et la présélection, ce que ces cas figent.
+ * The backend may expose a sport the mobile app has no module for. Letting it into the
+ * list would allow setting it as default, preselecting it, then doing nothing when
+ * "Démarrer" is tapped: a dead end. Filtering therefore happens BEFORE ordering and
+ * preselection, which these cases pin down.
  */
-describe('sports non démarrables', () => {
+describe('sports that cannot be started', () => {
   const startable = SPORTS.filter((s) => s.code !== 'strength');
 
-  it('n’ordonne que les sports démarrables', () => {
+  it('only orders sports that can be started', () => {
     expect(orderSports(startable, 'walking').map((s) => s.code)).toEqual(['walking', 'running']);
   });
 
-  it('ne présélectionne pas un sport absent de la liste filtrée', () => {
+  it('does not preselect a sport missing from the filtered list', () => {
     expect(initialSelection(startable, 'strength')).toBeNull();
   });
 });

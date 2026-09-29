@@ -1,13 +1,13 @@
 /**
- * Fallback web du buffer de séance : en mémoire uniquement (pas de SQLite
- * wasm — le web n'est pas une cible produit de la Phase 1). Même contrat que
- * buffer.ts ; la récupération anti-crash n'existe donc pas sur web.
+ * Web fallback of the session buffer: in memory only (no wasm SQLite, the web isn't a
+ * Phase 1 product target). Same contract as buffer.ts; crash recovery therefore doesn't
+ * exist on the web.
  *
- * Le contrat est tenu **à l'identique** (#52), vérifié par la même suite que SQLite :
- * un seq déjà écrit est ignoré (`INSERT OR IGNORE`, la première valeur gagne) et les
- * lectures sortent triées par seq (`ORDER BY seq`). Ce n'est pas du zèle : `recover()`
- * rejoue `allPoints()` dans l'accumulateur GPS, et un tracé hors ordre y produirait
- * des segments à rebours — donc une distance fausse.
+ * The contract is kept **identically** (#52), checked by the same suite as SQLite: an
+ * already written seq is ignored (`INSERT OR IGNORE`, the first value wins) and reads come
+ * out sorted by seq (`ORDER BY seq`). It isn't overzealous: `recover()` replays
+ * `allPoints()` into the GPS accumulator, and an out-of-order track would produce
+ * backwards segments there, hence a wrong distance.
  */
 import type { GpsFix } from '../gps';
 
@@ -25,14 +25,14 @@ export interface BufferedPoint extends GpsFix {
 }
 
 let session: BufferedSession | null = null;
-/** Indexé par seq : c'est la clé primaire de la table SQLite. */
+/** Indexed by seq: it's the primary key of the SQLite table. */
 let points = new Map<number, BufferedPoint & { uploaded: boolean }>();
 
 function bySeq(): (BufferedPoint & { uploaded: boolean })[] {
   return [...points.values()].sort((a, b) => a.seq - b.seq);
 }
 
-/** Copie sans le drapeau interne, comme une ligne relue depuis SQLite. */
+/** Copy without the internal flag, like a row read back from SQLite. */
 function toPoint({ uploaded: _uploaded, ...point }: BufferedPoint & { uploaded: boolean }) {
   return point;
 }
@@ -61,8 +61,8 @@ export async function appendPoint(seq: number, fix: GpsFix): Promise<void> {
 }
 
 /**
- * Miroir de `buffer.ts` (#16). Le suivi en arrière-plan n'existe pas sur le web, mais la
- * fonction doit exister pour que les deux modules tiennent le même contrat.
+ * Mirror of `buffer.ts` (#16). Background tracking doesn't exist on the web, but the
+ * function must exist so both modules keep the same contract.
  */
 export async function nextSeqAfterBuffer(): Promise<number> {
   let max = -1;

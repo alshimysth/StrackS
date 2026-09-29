@@ -21,7 +21,7 @@ body:json {
 }
 
 tests {
-  test("409 + Transition invalide", function () {
+  test("409 + invalid transition", function () {
     expect(res.getStatus()).to.equal(409);
     expect(res.getBody().title).to.equal("Transition invalide");
   });

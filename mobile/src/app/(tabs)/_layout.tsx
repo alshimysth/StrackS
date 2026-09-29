@@ -18,11 +18,11 @@ export default function TabsLayout() {
     void useOnboarding.getState().load();
   }, []);
 
-  // Anti-crash (DoD Epic 3) : une séance orpheline dans le buffer SQLite
-  // (app tuée en plein tracking) est récupérée et rouverte en pause.
+  // Crash-proof (Epic 3 DoD): an orphan session in the SQLite buffer (app killed while
+  // tracking) is recovered and reopened paused.
   React.useEffect(() => {
-    // Pas de reprise de séance avant la fin de l'onboarding (revue PR #85) : la redirection
-    // vers le tracking passerait par-dessus l'explication de la localisation.
+    // No session resume before onboarding ends (PR #85 review): the redirect to tracking
+    // would jump over the location explanation.
     if (!token || onboarding !== 'done') {
       return;
     }
@@ -40,9 +40,9 @@ export default function TabsLayout() {
   if (!token) {
     return <Redirect href="/(auth)/login" />;
   }
-  // Premier lancement (#82) : expliquer la localisation avant qu'un « Démarrer » ne la
-  // demande. Rien n'est affiché tant que l'état n'est pas connu, pour ne pas faire
-  // clignoter l'accueil avant la redirection.
+  // First launch (#82): explain location before a "Démarrer" asks for it. Nothing is
+  // shown until the state is known, so the home screen doesn't flash before the
+  // redirect.
   if (onboarding === 'unknown') {
     return null;
   }
@@ -55,15 +55,15 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary500,
-        // `textSecondary` et non `textTertiary` : le libellé d'un onglet inactif reste un
-        // texte à lire (contraste AA, #42).
+        // `textSecondary` and not `textTertiary`: an inactive tab's label is still text to
+        // read (AA contrast, #42).
         tabBarInactiveTintColor: theme.textSecondary,
         tabBarStyle: {
           backgroundColor: theme.surfaceCard,
           borderTopColor: theme.borderSubtle,
           height: spacing.tabBarHeight,
         },
-        // Taille du jeton `label`, sans sa mise en majuscules : un onglet n'est pas une étiquette.
+        // Size of the `label` token, without its uppercasing: a tab isn't a tag.
         tabBarLabelStyle: { fontFamily: fonts.bodySemiBold, fontSize: typography.label.fontSize },
       }}
     >
@@ -72,9 +72,9 @@ export default function TabsLayout() {
         name="history"
         options={{ title: 'Historique', tabBarIcon: tabIcon('tab-history') }}
       />
-      {/* Onglet dédié plutôt qu'une section du profil (#24) : le PRD promet
-          « comprendre ta progression », l'enterrer dans les réglages la rendrait
-          invisible. La barre reste confortable à 4 ; au-delà il faudra revoir. */}
+      {/* A dedicated tab rather than a profile section (#24): the PRD promises
+          "understand your progress", burying it in the settings would make it invisible.
+          The bar stays comfortable with 4; beyond that it will need rethinking. */}
       <Tabs.Screen name="stats" options={{ title: 'Stats', tabBarIcon: tabIcon('tab-stats') }} />
       <Tabs.Screen name="profile" options={{ title: 'Profil', tabBarIcon: tabIcon('tab-profile') }} />
     </Tabs>
@@ -82,9 +82,9 @@ export default function TabsLayout() {
 }
 
 /**
- * Icône d'onglet (#2, #39). La couleur vient de la barre : active ou inactive, elle suit
- * exactement le libellé, ce qui distingue l'onglet courant sans règle supplémentaire.
- * Décorative : le libellé de l'onglet nomme déjà la destination.
+ * Tab icon (#2, #39). The colour comes from the bar: active or inactive, it follows the
+ * label exactly, which distinguishes the current tab without any extra rule.
+ * Decorative: the tab label already names the destination.
  */
 function tabIcon(name: IconName) {
   function TabIcon({ color }: { color: string }) {

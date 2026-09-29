@@ -27,11 +27,11 @@ script:pre-request {
 }
 
 tests {
-  test("200 OK + statut completed", function () {
+  test("200 OK + completed status", function () {
     expect(res.getStatus()).to.equal(200);
     expect(res.getBody().status).to.equal("completed");
   });
-  test("Métriques recalculées serveur depuis le tracé brut", function () {
+  test("Metrics recomputed by the server from the raw track", function () {
     const body = res.getBody();
     expect(Number(body.distanceM)).to.be.greaterThan(0);
     expect(body.metrics).to.have.property("avgPaceSecPerKm");

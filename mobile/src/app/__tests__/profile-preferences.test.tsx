@@ -1,10 +1,10 @@
 /**
- * Section Préférences du profil (#7) — comportement en cas d'échec d'enregistrement.
+ * Profile Preferences section (#7): behaviour when a save fails.
  *
- * Signalé en revue : le bandeau d'erreur ne peut décrire qu'UNE mutation. Si un PATCH
- * échoue et qu'un second réussit, `update.isError` ne reflète plus que le second, et
- * le premier choix est perdu sans un mot. Le garde-fou retenu est de bloquer les puces
- * pendant l'enregistrement — il ne peut donc jamais y avoir deux PATCH en vol.
+ * Raised in review: the error banner can only describe ONE mutation. If a PATCH fails and
+ * a second one succeeds, `update.isError` only reflects the second, and the first choice
+ * is lost without a word. The chosen safeguard is to disable the chips during the save,
+ * so there can never be two PATCHes in flight.
  */
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
@@ -32,9 +32,9 @@ jest.mock('../../core/auth/use-auth-store', () => ({
 }));
 
 /**
- * Le registre est stubé : l'écran ne s'en sert que pour filtrer les sports démarrables,
- * mais l'importer tire tout le moteur de séance derrière lui — donc `expo-sqlite`,
- * absent sous jest.
+ * The registry is stubbed: the screen only uses it to filter the sports that can be
+ * started, but importing it pulls the whole session engine behind it, hence
+ * `expo-sqlite`, missing under jest.
  */
 jest.mock('../../sports/registry', () => ({
   sportRegistry: { running: { code: 'running' }, walking: { code: 'walking' } },
@@ -50,7 +50,7 @@ const SPORTS = [
   { code: 'walking', label: 'Marche', usesGps: true, schemaVersion: 1 },
 ];
 
-/** Totaux du profil (#7) : servis par chemin, ils ne sont pas le sujet de cette suite. */
+/** Profile totals (#7): served by path, they aren't the subject of this suite. */
 const ALL_TIME = {
   from: '1970-01-01T00:00:00Z',
   to: '2026-09-28T00:00:00Z',
@@ -83,8 +83,8 @@ afterEach(() => {
 
 const renderScreen = () => render(<ProfileScreen />, { wrapper: Wrapper });
 
-describe('Préférences — échec d’enregistrement', () => {
-  it('affiche une erreur exploitable quand le PATCH échoue', async () => {
+describe('Preferences: save failure', () => {
+  it('shows an actionable error when the PATCH fails', async () => {
     await renderScreen();
     await waitFor(() => expect(screen.getByTestId('preferences-section')).toBeOnTheScreen());
 
@@ -97,13 +97,13 @@ describe('Préférences — échec d’enregistrement', () => {
   });
 
   /**
-   * Le cœur du garde-fou : tant qu'un enregistrement est en vol, aucun second choix
-   * ne part. Sans ça, le succès du second effacerait l'erreur du premier.
+   * The heart of the safeguard: while a save is in flight, no second choice goes out.
+   * Otherwise the second one's success would erase the first one's error.
    *
-   * La mutation est retenue par une promesse qu'on résout à la main en fin de test —
-   * une promesse jamais résolue laisserait jest suspendu.
+   * The mutation is held by a promise resolved by hand at the end of the test; a promise
+   * never resolved would leave jest hanging.
    */
-  it('bloque les puces pendant l’enregistrement', async () => {
+  it('disables the chips during the save', async () => {
     await renderScreen();
     await waitFor(() => expect(screen.getByTestId('preferences-section')).toBeOnTheScreen());
 
@@ -123,7 +123,7 @@ describe('Préférences — échec d’enregistrement', () => {
     await waitFor(() => expect(screen.getByTestId('chip-dark')).not.toBeDisabled());
   });
 
-  it('réessaie le même patch depuis le bandeau d’erreur', async () => {
+  it('retries the same patch from the error banner', async () => {
     await renderScreen();
     await waitFor(() => expect(screen.getByTestId('preferences-section')).toBeOnTheScreen());
 
@@ -143,8 +143,8 @@ describe('Préférences — échec d’enregistrement', () => {
   });
 });
 
-describe('Mode GPS (#36)', () => {
-  it('enregistre le mode choisi et en explique l’effet', async () => {
+describe('GPS mode (#36)', () => {
+  it('saves the chosen mode and explains its effect', async () => {
     mockApi.mockImplementation((path: string, options?: { method?: string; body?: object }) =>
       Promise.resolve(
         options?.method === 'PATCH'

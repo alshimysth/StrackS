@@ -1,11 +1,11 @@
 /**
- * Mise en forme des splits (#22). Les valeurs viennent du JSONB `metrics.splits`
- * calculé par `RunningPlugin` — donc d'une source non typée qu'il faut filtrer.
+ * Splits formatting (#22). Values come from the `metrics.splits` JSONB computed by
+ * `RunningPlugin`, hence from an untyped source that must be filtered.
  */
 import { barRatio, parseSplits } from '../SplitsList';
 
 describe('parseSplits', () => {
-  it('lit les splits bien formés', () => {
+  it('reads well-formed splits', () => {
     expect(
       parseSplits([
         { km: 1, paceSecPerKm: 300 },
@@ -17,14 +17,14 @@ describe('parseSplits', () => {
     ]);
   });
 
-  /** `metrics` est du JSONB : une séance de marche n'a pas de splits du tout. */
-  it('rend une liste vide pour une valeur absente ou non tabulaire', () => {
+  /** `metrics` is JSONB: a walking session has no splits at all. */
+  it('returns an empty list for a missing or non-array value', () => {
     expect(parseSplits(undefined)).toEqual([]);
     expect(parseSplits(null)).toEqual([]);
     expect(parseSplits({ km: 1 })).toEqual([]);
   });
 
-  it('écarte les entrées incomplètes sans jeter les bonnes', () => {
+  it('drops incomplete entries without discarding the good ones', () => {
     expect(
       parseSplits([{ km: 1, paceSecPerKm: 300 }, { km: 2 }, null, { paceSecPerKm: 320 }]),
     ).toEqual([{ km: 1, paceSecPerKm: 300 }]);
@@ -32,20 +32,20 @@ describe('parseSplits', () => {
 });
 
 describe('barRatio', () => {
-  it('donne la barre pleine au km le plus lent', () => {
+  it('gives the full bar to the slowest km', () => {
     expect(barRatio(360, 360)).toBe(1);
   });
 
-  it('proportionne les autres au plus lent', () => {
+  it('scales the others to the slowest', () => {
     expect(barRatio(180, 360)).toBeCloseTo(0.5);
   });
 
-  /** Sans plancher, un km très rapide se réduirait à un trait invisible. */
-  it('applique un plancher de 15 %', () => {
+  /** Without a floor, a very fast km would shrink to an invisible line. */
+  it('applies a 15 % floor', () => {
     expect(barRatio(10, 600)).toBe(0.15);
   });
 
-  it('ne divise pas par zéro', () => {
+  it('does not divide by zero', () => {
     expect(barRatio(300, 0)).toBe(1);
   });
 });

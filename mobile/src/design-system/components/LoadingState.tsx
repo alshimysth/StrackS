@@ -1,9 +1,9 @@
 /**
- * LoadingState — chargement initial d'un écran, avant toute donnée.
+ * LoadingState: a screen's initial load, before any data.
  *
- * À ne PAS utiliser pour un rafraîchissement : quand des données sont déjà à l'écran,
- * les remplacer par un spinner est une régression (l'utilisateur perd sa lecture).
- * Dans ce cas, `RefreshControl` ou l'indicateur de pied de liste suffisent.
+ * NOT to be used for a refresh: when data is already on screen, replacing it with a
+ * spinner is a regression (the user loses their reading). In that case, `RefreshControl`
+ * or the list footer indicator is enough.
  */
 import React from 'react';
 import { ActivityIndicator } from 'react-native';

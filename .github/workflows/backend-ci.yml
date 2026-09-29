@@ -1,10 +1,10 @@
 name: Backend CI
 
-# Build + tests du backend Quarkus sur chaque push et pull request touchant backend/**.
-# Testcontainers / Dev Services fonctionnent tels quels : le runner ubuntu-latest a Docker préinstallé.
+# Build + tests of the Quarkus backend on every push and pull request touching backend/**.
+# Testcontainers / Dev Services work as is: the ubuntu-latest runner has Docker preinstalled.
 
 on:
-  # Réutilisable par backend-deploy.yml (job `test`) pour ne pas dupliquer les étapes.
+  # Reusable by backend-deploy.yml (`test` job) so the steps aren't duplicated.
   workflow_call:
   push:
     paths:
@@ -25,8 +25,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Le pom cible maven.compiler.release=25 et le Dockerfile.jvm utilise openjdk-25 :
-      # la CI DOIT utiliser JDK 25, pas 21 (sinon échec de compilation).
+      # The pom targets maven.compiler.release=25 and Dockerfile.jvm uses openjdk-25:
+      # CI MUST use JDK 25, not 21 (otherwise compilation fails).
       - name: Set up JDK 25 (Temurin)
         uses: actions/setup-java@v4
         with:
@@ -34,10 +34,10 @@ jobs:
           java-version: "25"
           cache: maven
 
-      # Les clés JWT (*.pem) sont volontairement gitignorées (une paire par environnement,
-      # cf. README §2). Sur un clone à froid elles sont absentes → on génère une paire
-      # ÉPHÉMÈRE, propre à ce run, jamais commitée. Sans elle, le boot Quarkus des tests
-      # d'auth (signature/vérification JWT) échouerait.
+      # JWT keys (*.pem) are deliberately gitignored (one pair per environment, see
+      # README §2). On a fresh clone they're missing → we generate an EPHEMERAL pair,
+      # specific to this run, never committed. Without it, the Quarkus boot of the auth
+      # tests (JWT signing/verification) would fail.
       - name: Generate ephemeral JWT keys
         run: |
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \

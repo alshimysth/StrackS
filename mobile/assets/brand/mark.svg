@@ -1,10 +1,10 @@
 <!--
-  Marque StrackS — proposition dérivée des jetons de theme.ts (lot 5 de finition), EN
-  ATTENDANT une version issue du projet Claude Design. Un parcours en S (le tracé d'une
-  séance) qui se termine sur le point volt : la couleur réservée aux célébrations marque
-  l'arrivée. Aucun texte : lisible à 20 px comme à 1024 px, et aucune police à embarquer.
+  StrackS mark: a proposal derived from the theme.ts tokens (finishing lot 5), UNTIL a
+  version comes out of the Claude Design project. An S-shaped route (a session's track)
+  ending on the volt dot: the colour reserved for celebrations marks the finish. No text:
+  readable at 20 px as at 1024 px, and no font to embed.
 
-  Couleurs : primary500 #3d78e6 (fond), neutral0 #ffffff (tracé), volt500 #d9f36a (arrivée).
+  Colours: primary500 #3d78e6 (background), neutral0 #ffffff (track), volt500 #d9f36a (finish).
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <path d="M 67 28 C 67 16, 33 16, 33 32 C 33 46, 67 46, 67 62 C 67 80, 33 80, 33 70"

@@ -1,27 +1,26 @@
 /**
- * Tests unitaires du mobile (#40). Preset `jest-expo` (SDK 54) : il transforme
- * react-native et les modules expo, et fournit les mocks des modules natifs.
+ * Mobile unit tests (#40). `jest-expo` preset (SDK 54): it transforms react-native and
+ * the expo modules, and provides mocks of the native modules.
  *
- * Config dans un fichier dédié plutôt que dans la clé `jest` de package.json :
- * plusieurs sessions éditent package.json en parallèle, autant réduire la
- * surface de conflit.
+ * Config in a dedicated file rather than in package.json's `jest` key: several sessions
+ * edit package.json in parallel, so better to reduce the conflict surface.
  */
 
 /** @type {import('jest').Config} */
 module.exports = {
   preset: 'jest-expo',
 
-  // Seuls les `*.test.ts(x)` sont des tests : les helpers de __tests__/support/
-  // sont de simples modules importés, pas des suites.
+  // Only `*.test.ts(x)` files are tests: the helpers in __tests__/support/ are plain
+  // imported modules, not suites.
   testMatch: ['**/__tests__/**/*.test.ts?(x)'],
 
-  // Mocks globaux des modules natifs (AsyncStorage) — voir le fichier.
+  // Global mocks of native modules (AsyncStorage); see the file.
   setupFiles: ['<rootDir>/jest.setup.js'],
 
-  // Même alias que tsconfig.json, pour que les tests puissent importer `@/…`.
+  // Same alias as tsconfig.json, so tests can import `@/…`.
   moduleNameMapper: {
-    // Icônes (#39) : le paquet expose un build `.mjs` que la transformation Babel de jest
-    // ne traite pas ; son build CommonJS, lui, se charge tel quel.
+    // Icons (#39): the package exposes an `.mjs` build that jest's Babel transform
+    // doesn't handle; its CommonJS build loads as is.
     '^lucide-react-native$': '<rootDir>/node_modules/lucide-react-native/dist/cjs/lucide-react-native.js',
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@/assets/(.*)$': '<rootDir>/assets/$1',
@@ -31,8 +30,8 @@ module.exports = {
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg)',
   ],
 
-  // mockClear entre chaque test (les implémentations posées dans les factories
-  // jest.mock sont conservées) ; restore des spies jest.spyOn.
+  // mockClear between tests (implementations set in jest.mock factories are kept);
+  // jest.spyOn spies are restored.
   clearMocks: true,
   restoreMocks: true,
 };

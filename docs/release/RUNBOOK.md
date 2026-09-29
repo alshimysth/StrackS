@@ -91,7 +91,7 @@ docker compose -f docker-compose.prod.yml up -d backup                          
 docker logs stracks-backup --tail 20
 ```
 
-Attendu : `[backup] OK : stracks-<date>.dump.gpg (… octets chiffrés)`. **Le pas de
+Attendu : `[backup] OK: stracks-<date>.dump.gpg (… encrypted bytes)`. **Le pas de
 surveillance est conseillé** : une sauvegarde qui échoue en silence est le vrai risque.
 healthchecks.io propose une offre gratuite qui alerte par email si le ping n'arrive pas.
 

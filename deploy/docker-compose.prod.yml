@@ -1,13 +1,13 @@
-# Déploiement production StrackS sur le VPS (Ubuntu + Docker).
+# StrackS production deployment on the VPS (Ubuntu + Docker).
 #
-# Intégration au reverse proxy EXISTANT du VPS : Traefik, sur le réseau Docker
-# externe `root_default` (même pattern que budget-app). Traefik termine le TLS
-# (certresolver `mytlschallenge` = Let's Encrypt) et route
-# https://stracks.alshimysth.cloud vers ce backend. AUCUN port n'est publié sur
-# l'hôte : Traefik atteint le conteneur par le réseau partagé.
+# Plugs into the VPS's EXISTING reverse proxy: Traefik, on the external Docker network
+# `root_default` (same pattern as budget-app). Traefik terminates TLS
+# (certresolver `mytlschallenge` = Let's Encrypt) and routes
+# https://stracks.alshimysth.cloud to this backend. NO port is published on the host:
+# Traefik reaches the container through the shared network.
 #
-# Secrets/valeurs (DATABASE_PASSWORD, clés JWT) : fichier `.env` + dossier de clés
-# créés UNE SEULE FOIS sur le VPS, jamais commités (cf. deploy/.env.example).
+# Secrets/values (DATABASE_PASSWORD, JWT keys): `.env` file + key directory created
+# ONCE on the VPS, never committed (see deploy/.env.example).
 
 services:
   postgres:
@@ -15,11 +15,11 @@ services:
     container_name: stracks-postgres
     environment:
       POSTGRES_USER: ${DATABASE_USER:-stracks}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD manquant dans .env}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD missing from .env}
       POSTGRES_DB: stracks
-    # PostgreSQL 18+ stocke les données dans un sous-dossier de /var/lib/postgresql
-    # (plus dans /var/lib/postgresql/data). Monter le volume sur le parent, sinon
-    # l'image 18 refuse de démarrer (garde-fou anti-perte de données).
+    # PostgreSQL 18+ stores its data in a subdirectory of /var/lib/postgresql (no longer
+    # in /var/lib/postgresql/data). Mount the volume on the parent, otherwise the 18 image
+    # refuses to start (a guard against data loss).
     volumes:
       - stracks_pgdata:/var/lib/postgresql
     healthcheck:
@@ -36,16 +36,16 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      # Profil %prod : lit ces variables (cf. application.properties).
+      # %prod profile: reads these variables (see application.properties).
       DATABASE_URL: ${DATABASE_URL:-jdbc:postgresql://postgres:5432/stracks}
       DATABASE_USER: ${DATABASE_USER:-stracks}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD manquant dans .env}
-      # Clés JWT montées en lecture seule — jamais dans l'image (design §5).
-      # Préfixe file: obligatoire : SmallRye résout ces locations comme des URL
-      # (un chemin absolu nu → MalformedURLException "no protocol").
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD missing from .env}
+      # JWT keys mounted read-only, never in the image (design §5).
+      # The file: prefix is mandatory: SmallRye resolves these locations as URLs
+      # (a bare absolute path → MalformedURLException "no protocol").
       MP_JWT_VERIFY_PUBLICKEY_LOCATION: file:/deployments/keys/publicKey.pem
       SMALLRYE_JWT_SIGN_KEY_LOCATION: file:/deployments/keys/privateKey.pem
-      # Monitoring des erreurs (lot 5) : vide = désactivé.
+      # Error monitoring (lot 5): empty = disabled.
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
     volumes:
@@ -68,13 +68,13 @@ services:
       - root_default
     restart: unless-stopped
 
-  # Sauvegarde quotidienne chiffrée hors du VPS (#45). Profil `backup` : ce service ne
-  # démarre PAS avec le déploiement tant qu'il n'est pas activé par COMPOSE_PROFILES=backup
-  # dans .env — c'est-à-dire tant que le stockage distant et la clé publique GPG n'existent
-  # pas. Sans ce garde-fou, le prochain déploiement lancerait un conteneur en échec.
-  # Procédure complète : docs/release/RUNBOOK.md, section « Sauvegardes ».
+  # Daily encrypted backup off the VPS (#45). `backup` profile: this service does NOT
+  # start with the deployment until enabled by COMPOSE_PROFILES=backup in .env, that is,
+  # until the remote storage and the GPG public key exist. Without this guard, the next
+  # deployment would start a failing container.
+  # Full procedure: docs/release/RUNBOOK.md, backups section.
   backup:
-    image: postgres:18-alpine # même version majeure que la base : pg_dump doit la suivre
+    image: postgres:18-alpine # same major version as the database: pg_dump must follow it
     container_name: stracks-backup
     profiles: ["backup"]
     depends_on:
@@ -83,13 +83,13 @@ services:
     entrypoint: ["sh", "/backup/entrypoint.sh"]
     environment:
       DATABASE_USER: ${DATABASE_USER:-stracks}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD manquant dans .env}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD missing from .env}
       PGHOST: postgres
       BACKUP_BUCKET: ${BACKUP_BUCKET:-}
       BACKUP_PREFIX: ${BACKUP_PREFIX:-}
       BACKUP_AT: ${BACKUP_AT:-03:15}
       BACKUP_PING_URL: ${BACKUP_PING_URL:-}
-      # Stockage S3 compatible, lu par rclone (distant nommé « store »).
+      # S3-compatible storage, read by rclone (remote named "store").
       RCLONE_CONFIG_STORE_TYPE: s3
       RCLONE_CONFIG_STORE_PROVIDER: ${BACKUP_S3_PROVIDER:-Cloudflare}
       RCLONE_CONFIG_STORE_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}

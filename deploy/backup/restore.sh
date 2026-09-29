@@ -1,19 +1,19 @@
 #!/bin/sh
-# Restauration d'une sauvegarde StrackS (#45) — À LANCER SUR LE POSTE DE L'OPÉRATEUR, là
-# où se trouve la clé GPG privée (jamais sur le VPS).
+# Restores a StrackS backup (#45). RUN ON THE OPERATOR'S MACHINE, where the private GPG
+# key lives (never on the VPS).
 #
-# Usage :
-#   restore.sh <objet distant ou fichier .dump.gpg> <URL PostgreSQL de destination>
+# Usage:
+#   restore.sh <remote object or .dump.gpg file> <destination PostgreSQL URL>
 #
 #   restore.sh store:stracks-backups/daily/stracks-2026-09-29T031500Z.dump.gpg \
-#              postgresql://stracks:MOTDEPASSE@localhost:5432/stracks_restore
+#              postgresql://stracks:PASSWORD@localhost:5432/stracks_restore
 #
-# La base de destination doit exister et être VIDE. `--single-transaction` rend la
-# restauration atomique : à la moindre erreur, tout est annulé et la base reste vide —
-# jamais à moitié restaurée (revue PR #88). Elle implique `--exit-on-error`.
+# The destination database must exist and be EMPTY. `--single-transaction` makes the
+# restore atomic: on any error, everything is rolled back and the database stays empty,
+# never half restored (PR #88 review). It implies `--exit-on-error`.
 set -eu
-SOURCE="${1:?objet ou fichier à restaurer}"
-TARGET="${2:?URL PostgreSQL de destination}"
+SOURCE="${1:?object or file to restore}"
+TARGET="${2:?destination PostgreSQL URL}"
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
 
 start=$(date +%s)
@@ -25,8 +25,8 @@ gpg --batch --yes --output "$WORK/in.dump" --decrypt "$WORK/in.dump.gpg"
 pg_restore --single-transaction --no-owner --no-privileges -d "$TARGET" "$WORK/in.dump"
 end=$(date +%s)
 
-echo "Restauration terminée en $((end - start)) s. Contrôle :"
-psql "$TARGET" -At -c "select 'utilisateurs', count(*) from users union all
-                        select 'activités', count(*) from activities union all
-                        select 'points GPS', count(*) from track_points union all
+echo "Restore finished in $((end - start)) s. Check:"
+psql "$TARGET" -At -c "select 'users', count(*) from users union all
+                        select 'activities', count(*) from activities union all
+                        select 'GPS points', count(*) from track_points union all
                         select 'migration max', max(version)::int from flyway_schema_history where success"

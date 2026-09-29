@@ -1,11 +1,11 @@
 name: Mobile CI
 
-# Vérification du mobile (pas de déploiement) : typecheck + tests unitaires +
-# bundle web, sur chaque push et pull request touchant mobile/**.
+# Mobile checks (no deployment): typecheck + unit tests + web bundle, on every push and
+# pull request touching mobile/**.
 
-# Un fichier backend en plus de mobile/** : la source lue par le test
-# de parité des préférences (#56). Sans lui, modifier une borne côté Java ne relancerait jamais
-# le test censé détecter la divergence avec le miroir zod.
+# One backend file on top of mobile/**: the source read by the preferences parity test
+# (#56). Without it, changing a bound on the Java side would never rerun the test meant to
+# detect the divergence from the zod mirror.
 on:
   push:
     paths:
@@ -28,11 +28,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Node 22 LTS : supporté par Expo SDK 54 (le projet ne fige pas d'engines).
-      # Passé de 20 à 22 avec l'arrivée des tests (#40) : Node 20 est en fin de
-      # vie depuis avril 2026, et better-sqlite3 — utilisé par les tests du
-      # buffer pour exécuter du vrai SQL — ne publie plus de binaire précompilé
-      # pour l'ABI de Node 20, ce qui forcerait une compilation node-gyp.
+      # Node 22 LTS: supported by Expo SDK 54 (the project doesn't pin engines).
+      # Moved from 20 to 22 when tests arrived (#40): Node 20 has been end-of-life since
+      # April 2026, and better-sqlite3, used by the buffer tests to run real SQL, no longer
+      # publishes a prebuilt binary for Node 20's ABI, which would force a node-gyp build.
       - name: Set up Node 22
         uses: actions/setup-node@v4
         with:
@@ -46,12 +45,12 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
-      # Tests unitaires (#40). En tête de liste des vérifications qui peuvent
-      # échouer sur du métier : `metrics.ts` doit rester le miroir exact de
-      # GpsComputations.java, une dérive de seuil casse ici.
+      # Unit tests (#40). First among the checks that can fail on business logic:
+      # `metrics.ts` must stay the exact mirror of GpsComputations.java, a threshold drift
+      # breaks here.
       - name: Unit tests
         run: npm test -- --ci
 
-      # Vérifie seulement que l'app bundle sans erreur — ne déploie rien.
+      # Only checks that the app bundles without error; deploys nothing.
       - name: Static web bundle
         run: npx expo export --platform web

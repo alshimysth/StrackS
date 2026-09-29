@@ -1,8 +1,8 @@
 name: Backend Deploy
 
-# Déploiement continu du backend : uniquement sur push vers main touchant backend/**
-# (ou deploy/**), + déclenchement manuel. Trois jobs séquentiels :
-#   test → build-and-push (image → GHCR) → deploy (SSH VPS + vérif santé externe).
+# Continuous deployment of the backend: only on push to main touching backend/**
+# (or deploy/**), plus manual trigger. Three sequential jobs:
+#   test → build-and-push (image → GHCR) → deploy (SSH to VPS + external health check).
 
 on:
   push:
@@ -14,11 +14,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  # 1. Réutilise à l'identique les tests de backend-ci (JDK 25, clés JWT éphémères, mvnw test).
+  # 1. Reuses backend-ci's tests as is (JDK 25, ephemeral JWT keys, mvnw test).
   test:
     uses: ./.github/workflows/backend-ci.yml
 
-  # 2. Construit l'image Docker (Dockerfile.jvm) et la pousse sur GHCR (public).
+  # 2. Builds the Docker image (Dockerfile.jvm) and pushes it to GHCR (public).
   build-and-push:
     needs: test
     runs-on: ubuntu-latest
@@ -36,9 +36,9 @@ jobs:
           java-version: "25"
           cache: maven
 
-      # Dockerfile.jvm copie un jar DÉJÀ construit → il faut packager avant.
-      # -DskipTests : les tests sont déjà validés par le job `test`.
-      # Pas de génération de clés ici : l'image doit rester keyless (clés montées au runtime).
+      # Dockerfile.jvm copies an ALREADY built jar → it must be packaged first.
+      # -DskipTests: the tests are already validated by the `test` job.
+      # No key generation here: the image must stay keyless (keys mounted at runtime).
       - name: Package application
         working-directory: backend
         run: ./mvnw -B package -DskipTests
@@ -60,7 +60,7 @@ jobs:
             ghcr.io/alshimysth/stracks-backend:latest
             ghcr.io/alshimysth/stracks-backend:${{ github.sha }}
 
-  # 3. Dépose le compose sur le VPS, pull + up, puis vérifie RÉELLEMENT la santé publique.
+  # 3. Drops the compose file on the VPS, pull + up, then ACTUALLY checks public health.
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
@@ -68,8 +68,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Dépose docker-compose.prod.yml dans /root/stracks (qui contient déjà .env + keys/,
-      # créés une seule fois sur le VPS). strip_components retire le préfixe `deploy/`.
+      # Drops docker-compose.prod.yml into /root/stracks (which already holds .env + keys/,
+      # created once on the VPS). strip_components removes the `deploy/` prefix.
       - name: Copy compose file to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -77,8 +77,8 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
-          # Le compose et les scripts de sauvegarde (#45) ; le dossier backup/keys, lui,
-          # est créé à la main sur le VPS et ne vient jamais du dépôt.
+          # The compose file and the backup scripts (#45); the backup/keys directory is
+          # created by hand on the VPS and never comes from the repository.
           source: "deploy/docker-compose.prod.yml,deploy/backup/backup.sh,deploy/backup/entrypoint.sh"
           target: "/root/stracks"
           strip_components: 1
@@ -97,9 +97,9 @@ jobs:
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
             docker image prune -f
 
-      # Vérification RÉELLE depuis le runner (donc de l'extérieur du VPS) : le job échoue
-      # si l'API publique ne répond pas 200/UP dans le délai (Traefik doit aussi avoir
-      # provisionné le certificat au premier déploiement).
+      # REAL check from the runner (hence from outside the VPS): the job fails if the
+      # public API doesn't answer 200/UP in time (Traefik must also have provisioned the
+      # certificate on the first deployment).
       - name: Verify deployment (external health check)
         run: |
           url="https://stracks.alshimysth.cloud/q/health/live"

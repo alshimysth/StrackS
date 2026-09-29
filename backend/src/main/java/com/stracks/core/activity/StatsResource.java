@@ -446,7 +446,7 @@ public class StatsResource {
             return instant;
         }
         throw new IllegalStateException(
-                "Type de borne temporelle inattendu : " + value.getClass());
+                "Unexpected time bound type: " + value.getClass());
     }
 
     private static double toDouble(Object value) {

@@ -30,7 +30,7 @@ public class RateLimiter {
         public static Limit parse(String spec) {
             String[] parts = spec.split("/", 2);
             if (parts.length != 2) {
-                throw new IllegalArgumentException("Seuil invalide (attendu n/PT…) : " + spec);
+                throw new IllegalArgumentException("Invalid threshold (expected n/PT…): " + spec);
             }
             int limit = Integer.parseInt(parts[0].trim());
             Duration window = Duration.parse(parts[1].trim());

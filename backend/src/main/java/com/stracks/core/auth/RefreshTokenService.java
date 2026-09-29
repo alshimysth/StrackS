@@ -171,7 +171,7 @@ public class RefreshTokenService {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest(secret.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 indisponible", e);
+            throw new IllegalStateException("SHA-256 unavailable", e);
         }
     }
 

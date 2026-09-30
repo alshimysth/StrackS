@@ -1,7 +1,7 @@
 /**
- * #42 : terminer une séance au lecteur d'écran. Maintenir 1,5 s n'y est pas fiable ;
- * l'action accessible « Terminer » demande une confirmation, qui garde la protection
- * contre l'arrêt accidentel.
+ * #42: finishing a session with a screen reader. Holding for 1.5 s isn't reliable there;
+ * the accessible "Terminer" action asks for a confirmation, which keeps the protection
+ * against an accidental stop.
  */
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
@@ -28,14 +28,14 @@ beforeEach(() => {
   jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
 });
 
-it('se nomme « Terminer la séance » et explique comment faire', async () => {
+it('is named "Terminer la séance" and explains how to do it', async () => {
   await render(<HoldToFinish onFinish={jest.fn()} />);
   const button = screen.getByRole('button', { name: 'Terminer la séance' });
   expect(button.props.accessibilityHint).toMatch(/Maintiens 1,5 seconde/);
   expect(button.props.accessibilityActions).toEqual([{ name: 'activate', label: 'Terminer' }]);
 });
 
-it('termine après confirmation seulement', async () => {
+it('finishes only after confirmation', async () => {
   const onFinish = jest.fn();
   await render(<HoldToFinish onFinish={onFinish} />);
 
@@ -50,7 +50,7 @@ it('termine après confirmation seulement', async () => {
   expect(onFinish).toHaveBeenCalledTimes(1);
 });
 
-it('n’offre aucune action quand le bouton est désactivé', async () => {
+it('offers no action when the button is disabled', async () => {
   await render(<HoldToFinish onFinish={jest.fn()} disabled />);
   expect(screen.getByRole('button').props.accessibilityActions).toEqual([]);
   expect(screen.getByRole('button').props.accessibilityState).toEqual({ disabled: true });

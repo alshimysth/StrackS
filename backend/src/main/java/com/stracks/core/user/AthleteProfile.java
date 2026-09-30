@@ -5,20 +5,19 @@ import java.time.Period;
 import java.util.OptionalInt;
 
 /**
- * Profil physique d'un utilisateur, sous une forme exploitable par les modules
- * de sport (estimation de dépense énergétique, plus tard zones d'effort).
+ * A user's athlete profile, in a form usable by sport modules (energy expenditure
+ * estimate, later effort zones).
  *
- * <p>Tous les champs sont facultatifs : l'application fonctionne intégralement
- * sans eux. Un module qui ne peut pas calculer avec ce qu'il reçoit ne doit
- * rien renvoyer — jamais une valeur inventée.
+ * <p>Every field is optional: the app works fully without them. A module that can't
+ * compute with what it receives must return nothing, never a made-up value.
  *
- * <p>Générique par construction : aucun sport n'apparaît ici.
+ * <p>Generic by design: no sport appears here.
  */
 public record AthleteProfile(Double weightKg, Double heightCm, LocalDate birthDate, String sex) {
 
     public static final AthleteProfile EMPTY = new AthleteProfile(null, null, null, null);
 
-    /** Vrai seulement si le poids est connu — seule donnée indispensable au calcul MET. */
+    /** True only when the weight is known, the only data the MET computation requires. */
     public boolean hasWeight() {
         return weightKg != null && weightKg > 0;
     }

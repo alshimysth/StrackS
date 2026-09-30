@@ -1,4 +1,4 @@
-/** #82 : expliquer avant de demander, et laisser passer sans insister. */
+/** #82: explain before asking, and let the user through without insisting. */
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import React, { type ReactNode } from 'react';
@@ -40,14 +40,14 @@ async function reachLocationStep() {
   await waitFor(() => expect(screen.getByTestId('onboarding-location')).toBeOnTheScreen());
 }
 
-it('explique avant de demander : aucune demande à l’ouverture', async () => {
+it('explains before asking: no request on opening', async () => {
   await reachLocationStep();
   expect(screen.getByText('Seulement pendant tes séances')).toBeOnTheScreen();
   expect(screen.getByText(/« Toujours », pour l’écran verrouillé/)).toBeOnTheScreen();
   expect(mockRequest).not.toHaveBeenCalled();
 });
 
-it('demande la permission de premier plan, puis ouvre l’app', async () => {
+it('requests the foreground permission, then opens the app', async () => {
   mockRequest.mockResolvedValue(true);
   await reachLocationStep();
   await fireEvent.press(screen.getByText('Autoriser la localisation'));
@@ -57,8 +57,8 @@ it('demande la permission de premier plan, puis ouvre l’app', async () => {
   expect(useOnboarding.getState().status).toBe('done');
 });
 
-/** Pas de redemande en boucle : un consentement explicite, pas insistant (PRD). */
-it('après un refus, dit où changer d’avis et laisse passer', async () => {
+/** No repeated request: explicit consent, not insistent consent (PRD). */
+it('after a refusal, says where to change the choice and lets the user through', async () => {
   mockRequest.mockResolvedValue(false);
   await reachLocationStep();
   await fireEvent.press(screen.getByText('Autoriser la localisation'));
@@ -70,7 +70,7 @@ it('après un refus, dit où changer d’avis et laisse passer', async () => {
   expect(mockRequest).toHaveBeenCalledTimes(1);
 });
 
-it('« Plus tard » ne demande rien et ne revient pas', async () => {
+it('"Plus tard" asks nothing and does not come back', async () => {
   await reachLocationStep();
   await fireEvent.press(screen.getByText('Plus tard'));
 

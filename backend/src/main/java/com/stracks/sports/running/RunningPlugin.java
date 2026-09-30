@@ -23,7 +23,7 @@ import com.stracks.core.user.AthleteProfile;
 import jakarta.enterprise.context.ApplicationScoped;
 
 /**
- * Module course à pied. Schéma metrics v1 :
+ * Running module. Metrics schema v1:
  * { schemaVersion, avgPaceSecPerKm, elevationGainM, elevationLossM,
  *   splits: [{ km, paceSecPerKm }] }
  */
@@ -31,7 +31,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 public class RunningPlugin implements SportPlugin {
 
     static final int SCHEMA_VERSION = 1;
-    private static final double MAX_SPEED_KMH = 25.0; // au-delà : bruit GPS pour un coureur
+    private static final double MAX_SPEED_KMH = 25.0; // beyond: GPS noise for a runner
     private static final JsonNodeFactory json = JsonNodeFactory.instance;
 
     @Override
@@ -96,8 +96,8 @@ public class RunningPlugin implements SportPlugin {
     }
 
     /**
-     * MET de la course selon l'allure (Compendium of Physical Activities).
-     * Table propre à ce sport : le socle n'a pas à la connaître.
+     * Running MET by pace (Compendium of Physical Activities).
+     * A table specific to this sport: the core doesn't need to know it.
      */
     private static double met(double speedKmh) {
         if (speedKmh < 6.4) {
@@ -132,9 +132,9 @@ public class RunningPlugin implements SportPlugin {
     }
 
     /**
-     * Records de ce sport (#61) : la plus longue distance, en plus de la durée que le
-     * socle suit pour tous. Lue sur la colonne recalculée par le serveur au stop,
-     * jamais sur une valeur envoyée par le client.
+     * This sport's records (#61): the longest distance, on top of the duration the core
+     * tracks for every sport. Read from the column recomputed by the server at stop, never
+     * from a value sent by the client.
      */
     @Override
     public List<PersonalRecordMetric> personalRecordMetrics() {
@@ -144,9 +144,9 @@ public class RunningPlugin implements SportPlugin {
 
     @Override
     public SportStats computeStats(List<ActivityEntity> activities) {
-        // Distance et dénivelé sont nommés ici, par le sport, et non listés comme
-        // champs de SportStats : c'est ce qui permet à un sport sans GPS de n'en
-        // déclarer aucun sans que le socle ait à changer (#46).
+        // Distance and elevation are named here, by the sport, not listed as SportStats
+        // fields: that's what lets a sport without GPS declare none of them without the
+        // core having to change (#46).
         return new SportStats(
                 "running",
                 "Course à pied",

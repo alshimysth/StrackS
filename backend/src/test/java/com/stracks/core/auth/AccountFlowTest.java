@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Cycle de vie des secrets du compte : #73 mot de passe, #74 oubli, #75 email. */
+/** Lifecycle of the account's secrets: #73 password, #74 forgotten password, #75 email. */
 @QuarkusTest
 class AccountFlowTest {
 
@@ -60,15 +60,15 @@ class AccountFlowTest {
     }
 
     String codeFor(String address) {
-        return mailbox.lastCodeFor(address).orElseThrow(() -> new AssertionError("aucun code reçu par " + address));
+        return mailbox.lastCodeFor(address).orElseThrow(() -> new AssertionError("no code received by " + address));
     }
 
     @Nested
-    class ChangementDeMotDePasse {
+    class PasswordChange {
 
-        /** 403 et pas 401 : le client mobile prendrait un 401 pour une session expirée. */
+        /** 403 and not 401: the mobile client would take a 401 for an expired session. */
         @Test
-        void un_mauvais_mot_de_passe_actuel_repond_403() {
+        void a_wrong_current_password_answers_403() {
             Account a = register();
             post(a, "/password", Map.of("currentPassword", "faux-mdp-1", "newPassword", "nouveau-mdp"))
                     .statusCode(403);
@@ -76,7 +76,7 @@ class AccountFlowTest {
         }
 
         @Test
-        void change_le_mot_de_passe_et_coupe_les_autres_sessions() {
+        void changes_the_password_and_cuts_the_other_sessions() {
             Account a = register();
             String otherDevice = login(a.email(), "motdepasse8").statusCode(200)
                     .extract().path("refreshToken");
@@ -90,16 +90,16 @@ class AccountFlowTest {
 
             refresh(a.refreshToken()).statusCode(401);
             refresh(otherDevice).statusCode(401);
-            refresh(renewed.getString("refreshToken")).statusCode(200); // l'appareil courant reste connecté
+            refresh(renewed.getString("refreshToken")).statusCode(200); // the current device stays logged in
 
             login(a.email(), "motdepasse8").statusCode(401);
             login(a.email(), "nouveau-mdp").statusCode(200);
             assertFalse(mailbox.sentTo(a.email()).stream()
-                    .filter(m -> m.subject().contains("modifié")).toList().isEmpty(), "alerte envoyée");
+                    .filter(m -> m.subject().contains("modifié")).toList().isEmpty(), "alert sent");
         }
 
         @Test
-        void refuse_un_nouveau_mot_de_passe_trop_court() {
+        void rejects_a_new_password_that_is_too_short() {
             Account a = register();
             post(a, "/password", Map.of("currentPassword", "motdepasse8", "newPassword", "court"))
                     .statusCode(400);
@@ -107,7 +107,7 @@ class AccountFlowTest {
     }
 
     @Nested
-    class MotDePasseOublie {
+    class ForgottenPassword {
 
         static ValidatableResponse requestReset(String email) {
             return given().contentType("application/json").body(Map.of("email", email))
@@ -121,29 +121,29 @@ class AccountFlowTest {
         }
 
         @Test
-        void une_adresse_sans_compte_recoit_la_meme_reponse_et_aucun_email() {
+        void an_address_without_account_gets_the_same_response_and_no_email() {
             String ghost = "absent-" + UUID.randomUUID() + "@example.com";
             requestReset(ghost).statusCode(202);
             assertTrue(mailbox.sentTo(ghost).isEmpty());
         }
 
         @Test
-        void le_code_recu_permet_de_choisir_un_nouveau_mot_de_passe_et_coupe_les_sessions() {
+        void the_received_code_lets_the_user_choose_a_new_password_and_cuts_the_sessions() {
             Account a = register();
             requestReset(a.email()).statusCode(202);
             String code = codeFor(a.email());
 
-            // Recopié en minuscules et sans tiret : toléré.
+            // Copied in lowercase and without the dash: tolerated.
             confirm(a.email(), code.toLowerCase().replace("-", ""), "reinitialise-1").statusCode(204);
 
             refresh(a.refreshToken()).statusCode(401);
             login(a.email(), "motdepasse8").statusCode(401);
             login(a.email(), "reinitialise-1").statusCode(200)
-                    .body("user.emailVerified", equalTo(true)); // le code prouvait le contrôle de l'adresse
+                    .body("user.emailVerified", equalTo(true)); // the code proved control of the address
         }
 
         @Test
-        void un_code_ne_sert_qu_une_fois() {
+        void a_code_can_only_be_used_once() {
             Account a = register();
             requestReset(a.email());
             String code = codeFor(a.email());
@@ -152,9 +152,9 @@ class AccountFlowTest {
             login(a.email(), "reinitialise-1").statusCode(200);
         }
 
-        /** Le plafond d'essais tient même si chaque essai faux échoue en 400 (dontRollbackOn). */
+        /** The attempt cap holds even though each wrong attempt fails with a 400 (dontRollbackOn). */
         @Test
-        void cinq_essais_faux_brulent_le_code() {
+        void five_wrong_attempts_burn_the_code() {
             Account a = register();
             requestReset(a.email());
             String code = codeFor(a.email());
@@ -167,7 +167,7 @@ class AccountFlowTest {
         }
 
         @Test
-        void un_code_expire_est_refuse() {
+        void an_expired_code_is_rejected() {
             Account a = register();
             requestReset(a.email());
             String code = codeFor(a.email());
@@ -176,7 +176,7 @@ class AccountFlowTest {
         }
 
         @Test
-        void un_nouveau_code_invalide_le_precedent() {
+        void a_new_code_invalidates_the_previous_one() {
             Account a = register();
             requestReset(a.email());
             String first = codeFor(a.email());
@@ -187,7 +187,7 @@ class AccountFlowTest {
         }
 
         @Test
-        void le_message_d_erreur_ne_distingue_pas_une_adresse_inconnue() {
+        void the_error_message_does_not_reveal_an_unknown_address() {
             String ghost = "absent-" + UUID.randomUUID() + "@example.com";
             confirm(ghost, "ABCD-EFGH", "reinitialise-1").statusCode(400)
                     .body("title", equalTo("Code invalide"));
@@ -201,10 +201,10 @@ class AccountFlowTest {
     }
 
     @Nested
-    class VerificationDEmail {
+    class EmailVerification {
 
         @Test
-        void l_inscription_envoie_un_code_qui_verifie_l_adresse() {
+        void registration_sends_a_code_that_verifies_the_address() {
             Account a = register();
             given().header("Authorization", "Bearer " + a.token()).when().get("/api/v1/users/me")
                     .then().statusCode(200).body("emailVerified", equalTo(false));
@@ -215,7 +215,7 @@ class AccountFlowTest {
         }
 
         @Test
-        void on_peut_redemander_un_code() {
+        void a_new_code_can_be_requested() {
             Account a = register();
             String first = codeFor(a.email());
             post(a, "/email-verifications", null).statusCode(202);
@@ -227,21 +227,21 @@ class AccountFlowTest {
     }
 
     @Nested
-    class ChangementDEmail {
+    class EmailChange {
 
         static String freshAddress() {
             return "nouvelle-" + UUID.randomUUID() + "@example.com";
         }
 
         @Test
-        void le_code_part_vers_la_nouvelle_adresse_et_l_ancienne_reste_valable_jusqu_a_confirmation() {
+        void the_code_goes_to_the_new_address_and_the_old_one_stays_valid_until_confirmation() {
             Account a = register();
             String target = freshAddress();
             post(a, "/email-changes", Map.of("newEmail", target, "currentPassword", "motdepasse8"))
                     .statusCode(202);
             String code = codeFor(target);
 
-            login(a.email(), "motdepasse8").statusCode(200); // rien n'a encore changé
+            login(a.email(), "motdepasse8").statusCode(200); // nothing has changed yet
             login(target, "motdepasse8").statusCode(401);
 
             post(a, "/email-change-confirmations", Map.of("code", code))
@@ -252,27 +252,27 @@ class AccountFlowTest {
             login(target, "motdepasse8").statusCode(200);
             login(a.email(), "motdepasse8").statusCode(401);
             assertFalse(mailbox.sentTo(a.email()).stream()
-                    .filter(m -> m.subject().contains("a changé")).toList().isEmpty(), "ancienne adresse prévenue");
+                    .filter(m -> m.subject().contains("a changé")).toList().isEmpty(), "old address notified");
         }
 
         @Test
-        void exige_le_mot_de_passe_actuel() {
+        void requires_the_current_password() {
             Account a = register();
             post(a, "/email-changes", Map.of("newEmail", freshAddress(), "currentPassword", "faux-mdp-1"))
                     .statusCode(403);
         }
 
         @Test
-        void refuse_une_adresse_deja_prise() {
+        void rejects_an_address_already_taken() {
             Account a = register();
             Account b = register();
             post(a, "/email-changes", Map.of("newEmail", b.email(), "currentPassword", "motdepasse8"))
                     .statusCode(409);
         }
 
-        /** Un autre compte prend l'adresse entre la demande et la confirmation. */
+        /** Another account takes the address between the request and the confirmation. */
         @Test
-        void revérifie_l_unicite_a_la_confirmation() {
+        void checks_uniqueness_again_on_confirmation() {
             Account a = register();
             String target = freshAddress();
             post(a, "/email-changes", Map.of("newEmail", target, "currentPassword", "motdepasse8"))
@@ -288,13 +288,13 @@ class AccountFlowTest {
         }
 
         /**
-         * Revue CodeRabbit (PR #78). Quelqu'un qui connaît l'ancien mot de passe lance un
-         * changement d'email vers une adresse qu'il contrôle ; la victime réinitialise son
-         * mot de passe. Le JWT de l'attaquant vit encore quelques minutes : il ne doit plus
-         * suffire à confirmer le changement, sinon il reprend le compte par l'adresse.
+         * CodeRabbit review (PR #78). Someone who knows the old password starts an email
+         * change to an address they control; the victim resets their password. The
+         * attacker's JWT still lives for a few minutes: it must no longer be enough to
+         * confirm the change, otherwise they take the account over through the address.
          */
         @Test
-        void une_reinitialisation_du_mot_de_passe_annule_un_changement_d_email_en_attente() {
+        void a_password_reset_cancels_a_pending_email_change() {
             Account victim = register();
             String attackerAddress = freshAddress();
             post(victim, "/email-changes", Map.of("newEmail", attackerAddress, "currentPassword", "motdepasse8"))
@@ -308,13 +308,13 @@ class AccountFlowTest {
                             "newPassword", "reprise-en-main"))
                     .when().post("/api/v1/auth/password-reset-confirmations").then().statusCode(204);
 
-            // Le JWT d'accès d'origine est encore valide : c'est lui que l'attaquant utilise.
+            // The original access JWT is still valid: it's the one the attacker uses.
             post(victim, "/email-change-confirmations", Map.of("code", attackerCode)).statusCode(400);
             login(victim.email(), "reprise-en-main").statusCode(200);
         }
 
         @Test
-        void un_changement_de_mot_de_passe_annule_aussi_un_changement_d_email_en_attente() {
+        void a_password_change_also_cancels_a_pending_email_change() {
             Account a = register();
             String target = freshAddress();
             post(a, "/email-changes", Map.of("newEmail", target, "currentPassword", "motdepasse8"))
@@ -328,7 +328,7 @@ class AccountFlowTest {
         }
 
         @Test
-        void refuse_l_adresse_actuelle() {
+        void rejects_the_current_address() {
             Account a = register();
             post(a, "/email-changes", Map.of("newEmail", a.email().toUpperCase(), "currentPassword", "motdepasse8"))
                     .statusCode(422);
@@ -336,11 +336,11 @@ class AccountFlowTest {
     }
 
     @Test
-    void les_codes_ne_sont_jamais_stockes_en_clair() {
+    void codes_are_never_stored_in_clear_text() {
         Account a = register();
         String code = codeFor(a.email());
         String stored = storedHash(a.email());
-        assertTrue(stored.startsWith("$2"), "empreinte BCrypt");
+        assertTrue(stored.startsWith("$2"), "BCrypt hash");
         assertFalse(stored.contains(code.replace("-", "")));
         assertEquals(60, stored.length());
     }

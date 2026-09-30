@@ -1,10 +1,10 @@
 /**
- * Export RGPD (#76) : récupère le document JSON du serveur et le confie à la feuille de
- * partage du système — l'utilisateur choisit où il va (Fichiers, email, cloud).
+ * GDPR export (#76): fetches the server's JSON document and hands it to the system share
+ * sheet; the user chooses where it goes (Files, email, cloud).
  *
- * Le fichier contient les tracés GPS, donnée sensible (PRD, contrainte 6). Il n'existe que
- * le temps du partage : écrit dans le cache, supprimé dès que la feuille se ferme, que
- * l'utilisateur ait partagé ou annulé.
+ * The file contains the GPS tracks, sensitive data (PRD, constraint 6). It only exists for
+ * the duration of the share: written to the cache, deleted as soon as the sheet closes,
+ * whether the user shared or cancelled.
  */
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -29,8 +29,8 @@ export async function exportPersonalData(): Promise<void> {
     throw new Error('Le partage de fichiers n’est pas disponible sur cet appareil.');
   }
   const file = new File(Paths.cache, name);
-  // Tout ce qui écrit est dans le `try` : un disque plein en pleine écriture laisserait
-  // sinon un fichier partiel — tracés GPS compris — dans le cache (revue CodeRabbit, PR #78).
+  // Everything that writes is inside the `try`: a full disk mid-write would otherwise leave
+  // a partial file, GPS tracks included, in the cache (CodeRabbit review, PR #78).
   try {
     if (file.exists) {
       file.delete();
@@ -49,7 +49,7 @@ export async function exportPersonalData(): Promise<void> {
   }
 }
 
-/** Le web n'est pas une cible produit ; le bundle doit simplement rester fonctionnel. */
+/** The web isn't a product target; the bundle simply has to keep working. */
 function downloadInBrowser(json: string, name: string): void {
   const doc = (globalThis as { document?: Document }).document;
   if (doc == null) {

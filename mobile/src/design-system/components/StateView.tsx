@@ -1,10 +1,10 @@
 /**
- * Socle commun aux états système (vide, erreur, chargement).
+ * Common base of the system states (empty, error, loading).
  *
- * Les trois composants partagent exactement la même boîte : c'est ce qui fait qu'un
- * écran ne « saute » pas quand il passe du chargement au vide ou à l'erreur. Garder
- * cette mise en page ici plutôt que de la dupliquer trois fois est la seule façon de
- * garantir que ça reste vrai après une retouche.
+ * The three components share exactly the same box: that's what keeps a screen from
+ * "jumping" when it goes from loading to empty or error. Keeping this layout here rather
+ * than duplicating it three times is the only way to guarantee it stays true after an
+ * edit.
  */
 import React, { type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -13,13 +13,13 @@ import { useTheme } from '../use-theme';
 import { spacing, typography } from '../theme';
 
 export interface StateViewProps {
-  /** Une phrase, sans point final : c'est un titre, pas une phrase de corps. */
+  /** One sentence, without a final full stop: it's a title, not body text. */
   title: string;
-  /** Ce que l'utilisateur peut faire, ou pourquoi c'est arrivé. Optionnel. */
+  /** What the user can do, or why it happened. Optional. */
   message?: string;
-  /** Bouton d'action (réessayer, démarrer une séance…). */
+  /** Action button (retry, start a session…). */
   action?: ReactNode;
-  /** Pictogramme ou indicateur affiché au-dessus du titre. */
+  /** Pictogram or indicator shown above the title. */
   glyph?: ReactNode;
   testID?: string;
 }

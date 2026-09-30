@@ -1,27 +1,27 @@
 /**
- * Classification des échecs d'appel API.
+ * Classification of API call failures.
  *
- * Story #41 : « un utilisateur hors ligne comprend que le problème vient du réseau,
- * pas de l'app ». Distinguer ces cas exige de savoir POURQUOI l'appel a échoué, et
- * cette information se perd si chaque écran teste `error` à sa façon.
+ * Story #41: "an offline user understands the problem comes from the network, not the
+ * app". Telling these cases apart requires knowing WHY the call failed, and that
+ * information is lost if each screen tests `error` its own way.
  *
- * Le client HTTP (`api()`) ne lève un `ApiError` que lorsque le serveur a répondu.
- * Quand `fetch` rejette — avion, tunnel, Wi-Fi capté mais sans route — l'erreur qui
- * remonte est un `TypeError`. C'est cette asymétrie qui sert de signal : pas de
- * réponse du tout = réseau, réponse = serveur.
+ * The HTTP client (`api()`) only throws an `ApiError` when the server answered. When
+ * `fetch` rejects (plane, tunnel, Wi-Fi connected but with no route), the error that
+ * bubbles up is a `TypeError`. That asymmetry is the signal: no response at all =
+ * network, a response = server.
  */
 import { ApiError } from './client';
 
 export type ErrorKind =
-  /** Aucune réponse : l'appareil n'a pas pu joindre le serveur. */
+  /** No response: the device couldn't reach the server. */
   | 'offline'
-  /** Le serveur a répondu, mais il est en panne (5xx). */
+  /** The server answered, but it's down (5xx). */
   | 'server'
-  /** Session refusée (401/403) — le renouvellement a déjà échoué en amont. */
+  /** Session refused (401/403): the refresh already failed upstream. */
   | 'unauthorized'
-  /** Trop de tentatives (429, #72) : rien n'est cassé, il faut attendre. */
+  /** Too many attempts (429, #72): nothing is broken, the user has to wait. */
   | 'rate-limited'
-  /** Le serveur a répondu une erreur qui vient de la requête (4xx). */
+  /** The server answered an error caused by the request (4xx). */
   | 'client';
 
 export function classifyError(error: unknown): ErrorKind {
@@ -41,11 +41,11 @@ export function classifyError(error: unknown): ErrorKind {
 }
 
 /**
- * Messages en ton coach, à la deuxième personne, sans emoji (contrainte #41).
+ * Messages in a coach's tone, in the second person, without emoji (#41 constraint).
  *
- * `offline` ne dit pas « erreur » : hors ligne n'est pas une panne, c'est un état
- * transitoire dont l'utilisateur est déjà conscient. Le lui présenter comme un
- * dysfonctionnement de l'app est précisément ce que la DoD interdit.
+ * `offline` doesn't say "error": being offline isn't a failure, it's a transient state the
+ * user is already aware of. Presenting it as an app malfunction is precisely what the DoD
+ * forbids.
  */
 export const errorCopy: Record<ErrorKind, { title: string; message: string }> = {
   offline: {

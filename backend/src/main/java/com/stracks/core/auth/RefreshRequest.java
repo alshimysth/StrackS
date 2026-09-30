@@ -3,11 +3,11 @@ package com.stracks.core.auth;
 import jakarta.validation.constraints.NotBlank;
 
 /**
- * Corps de {@code POST /auth/refresh} et {@code POST /auth/logout}.
+ * Body of {@code POST /auth/refresh} and {@code POST /auth/logout}.
  *
- * <p>Aucun identifiant d'utilisateur n'est accepté du client : l'utilisateur est toujours
- * déduit de la ligne en base portant l'empreinte du jeton présenté. C'est ce qui rend
- * l'endpoint insensible à l'IDOR — il n'y a rien à substituer.
+ * <p>No user id is accepted from the client: the user is always derived from the database
+ * row holding the hash of the presented token. That's what makes the endpoint immune to
+ * IDOR: there is nothing to substitute.
  */
 public record RefreshRequest(@NotBlank String refreshToken) {
 }

@@ -1,4 +1,4 @@
-# --- Vault de documentation (hors git, demandé explicitement)
+# --- Documentation vault (outside git, explicitly requested)
 /StrackDoc/
 
 # --- macOS
@@ -6,7 +6,7 @@
 
 # --- Backend (Quarkus / Maven)
 backend/target/
-# Clés JWT dev — à générer localement (voir README) ; jamais dans le repo
+# Dev JWT keys: generate them locally (see README); never in the repo
 backend/src/main/resources/privateKey.pem
 backend/src/main/resources/publicKey.pem
 

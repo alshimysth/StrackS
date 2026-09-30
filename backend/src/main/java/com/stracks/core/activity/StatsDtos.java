@@ -4,16 +4,16 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-/** DTOs des agrégats statistiques. Aucun sport n'est nommé ici (voir {@link SportStats}). */
+/** Statistics aggregate DTOs. No sport is named here (see {@link SportStats}). */
 public final class StatsDtos {
 
     private StatsDtos() {
     }
 
     /**
-     * Totaux d'une fenêtre, tous sports confondus. {@code totals} agrège clé par clé
-     * ce que les plugins ont nommé : une clé absente signifie « aucun sport de la
-     * période ne mesure cette grandeur », ce qui n'est pas la même chose que zéro.
+     * Totals of a window, all sports combined. {@code totals} aggregates key by key what
+     * the plugins named: a missing key means "no sport in the period measures this
+     * quantity", which is not the same thing as zero.
      */
     public record StatsTotals(
             int sessions,
@@ -22,12 +22,12 @@ public final class StatsDtos {
     }
 
     /**
-     * Réponse de {@code GET /stats/summary}.
+     * Response of {@code GET /stats/summary}.
      *
-     * <p>{@code previous} porte la même fenêtre décalée d'une période (juin quand on
-     * regarde juillet) : la comparaison exige une fenêtre <em>fermée</em> des deux
-     * côtés, sinon on compare un mois entamé à un mois complet et l'évolution est
-     * toujours négative.
+     * <p>{@code previous} holds the same window shifted back by one period (June when
+     * viewing July): the comparison requires a window <em>closed</em> on both sides,
+     * otherwise a month in progress is compared to a full month and the trend is
+     * always negative.
      */
     public record StatsSummaryResponse(
             Instant from,
@@ -40,13 +40,12 @@ public final class StatsDtos {
     }
 
     /**
-     * Valeur d'un sport dans un intervalle du graphique.
+     * Value of one sport within a chart interval.
      *
-     * <p>Les trois grandeurs sont des <strong>colonnes du socle</strong>
-     * ({@code status}, {@code duration_s}, {@code distance_m}) : le découpage
-     * temporel se calcule donc en SQL sans qu'aucun plugin intervienne, et sans
-     * jamais ouvrir le JSONB {@code metrics}. Un sport sans distance renvoie
-     * simplement 0 et n'a pas de barre.
+     * <p>All three quantities are <strong>core columns</strong> ({@code status},
+     * {@code duration_s}, {@code distance_m}): the time bucketing is therefore computed in
+     * SQL with no plugin involved, and without ever opening the {@code metrics} JSONB. A
+     * sport without distance simply returns 0 and has no bar.
      */
     public record TimelineSportValue(
             String sportType,
@@ -55,7 +54,7 @@ public final class StatsDtos {
             double distanceM) {
     }
 
-    /** Un intervalle du graphique — un jour, une semaine ou un mois selon le zoom. */
+    /** One chart interval: a day, a week or a month depending on the zoom. */
     public record TimelineBucket(
             Instant start,
             Instant end,
@@ -63,12 +62,12 @@ public final class StatsDtos {
     }
 
     /**
-     * Réponse de {@code GET /stats/timeline}.
+     * Response of {@code GET /stats/timeline}.
      *
-     * <p>Les intervalles vides sont <strong>présents</strong> et à zéro : c'est au
-     * serveur de dire que la semaine du 13 n'a rien, pas au client de le déduire
-     * d'un trou dans la liste — sinon le graphique tasse ses barres et ment sur
-     * l'espacement du temps.
+     * <p>Empty intervals are <strong>present</strong> and zeroed: it's up to the server to
+     * say that the week of the 13th has nothing, not up to the client to infer it from a
+     * hole in the list; otherwise the chart squeezes its bars and misrepresents the
+     * spacing of time.
      */
     public record StatsTimelineResponse(
             Instant from,
@@ -78,8 +77,8 @@ public final class StatsDtos {
     }
 
     /**
-     * Records personnels (#61). Calculés sur <strong>tout</strong> l'historique, côté
-     * serveur : un record lu sur une page d'historique serait faux dès la 21e séance.
+     * Personal records (#61). Computed over the <strong>whole</strong> history, server
+     * side: a record read from a page of history would be wrong from the 21st session on.
      */
     public record PersonalRecordsResponse(List<SportRecords> bySport) {
     }
@@ -88,9 +87,9 @@ public final class StatsDtos {
     }
 
     /**
-     * Détenteur d'un record : la séance qui a la plus grande valeur, la plus ancienne en
-     * cas d'égalité. Égaler son record n'est donc pas en battre un — la séance du jour ne
-     * devient détentrice que si elle fait strictement mieux.
+     * Holder of a record: the session with the highest value, the oldest one on a tie.
+     * Equalling your record therefore doesn't beat it: today's session only becomes the
+     * holder if it does strictly better.
      */
     public record PersonalRecord(
             String key,

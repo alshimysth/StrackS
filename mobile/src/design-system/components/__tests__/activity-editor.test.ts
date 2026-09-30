@@ -1,38 +1,38 @@
 /**
- * Construction du PATCH d'édition (#25).
+ * Building the edit PATCH (#25).
  *
- * Le backend traite un champ absent comme « ne pas toucher ». Envoyer les deux champs
- * à chaque enregistrement écraserait donc une note écrite entre-temps ailleurs — d'où
- * un patch réduit à ce qui a réellement changé.
+ * The backend treats an absent field as "don't touch". Sending both fields on every save
+ * would therefore overwrite a note written elsewhere in the meantime, hence a patch
+ * reduced to what actually changed.
  */
 import { buildPatch } from '../ActivityEditor';
 
 describe('buildPatch', () => {
-  it('n’envoie rien quand rien n’a bougé', () => {
+  it('sends nothing when nothing changed', () => {
     expect(buildPatch({ title: 'Trail', notes: 'RAS' }, { title: 'Trail', notes: 'RAS' })).toEqual(
       {},
     );
   });
 
-  it('n’envoie que le champ modifié', () => {
+  it('only sends the changed field', () => {
     expect(buildPatch({ title: 'Trail', notes: 'RAS' }, { title: 'Sortie', notes: 'RAS' })).toEqual(
       { title: 'Trail' },
     );
   });
 
-  /** Champ vidé : la chaîne vide est l'effacement explicite attendu par le backend. */
-  it('envoie une chaîne vide pour effacer un titre', () => {
+  /** Cleared field: the empty string is the explicit clear the backend expects. */
+  it('sends an empty string to clear a title', () => {
     expect(buildPatch({ title: '', notes: '' }, { title: 'Trail', notes: null })).toEqual({
       title: '',
     });
   });
 
-  /** `null` en base et `''` dans le champ décrivent le même état : rien à envoyer. */
-  it('ne confond pas null et chaîne vide avec une modification', () => {
+  /** `null` in the database and `''` in the field describe the same state: nothing to send. */
+  it('does not mistake null and empty string for a change', () => {
     expect(buildPatch({ title: '', notes: '' }, { title: null, notes: null })).toEqual({});
   });
 
-  it('envoie les deux champs quand les deux changent', () => {
+  it('sends both fields when both change', () => {
     expect(
       buildPatch({ title: 'Trail', notes: 'Jambes lourdes' }, { title: null, notes: null }),
     ).toEqual({ title: 'Trail', notes: 'Jambes lourdes' });

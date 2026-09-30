@@ -11,7 +11,7 @@ get {
 }
 
 tests {
-  test("200 OK + métriques présentes", function () {
+  test("200 OK + metrics present", function () {
     expect(res.getStatus()).to.equal(200);
     expect(res.getBody().metrics.schemaVersion).to.equal(1);
   });

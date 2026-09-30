@@ -1,13 +1,13 @@
 /**
- * Client HTTP et renouvellement de session (#44, #49).
+ * HTTP client and session refresh (#44, #49).
  *
- * Depuis #49, le JWT d'accès vit 15 min : une séance de 2 h le voit expirer huit fois, et
- * un retour de veille fait repartir plusieurs requêtes ensemble avec un jeton périmé. La
- * garantie du lot D — renouvellement transparent, zéro point perdu — n'était prouvée que
- * par une manipulation manuelle. Ces tests la fixent.
+ * Since #49, the access JWT lives 15 min: a 2 h session sees it expire eight times, and
+ * waking from sleep sends several requests together with a stale token. Lot D's guarantee
+ * (transparent refresh, zero lost points) was only proven by a manual procedure. These
+ * tests pin it down.
  *
- * Le serveur est simulé au niveau de `fetch` : c'est le vrai client qui tourne, avec sa
- * mutualisation du renouvellement et son rejeu.
+ * The server is simulated at the `fetch` level: it's the real client running, with its
+ * shared refresh and its replay.
  */
 import { ApiError, api } from '../client';
 
@@ -58,7 +58,7 @@ function json(status: number, body: unknown): Response {
   } as Response;
 }
 
-/** Serveur simulé : seul `validToken` passe ; le renouvellement fait tourner la paire. */
+/** Simulated server: only `validToken` passes; refreshing rotates the pair. */
 async function fakeServer(url: string, init: RequestInit = {}): Promise<Response> {
   const path = url.replace('https://api.test', '');
   const headers = (init.headers ?? {}) as Record<string, string>;
@@ -72,7 +72,7 @@ async function fakeServer(url: string, init: RequestInit = {}): Promise<Response
     if (refreshBehaviour === 'reject') {
       return json(401, { title: 'Session expirée', status: 401, detail: 'Reconnectez-vous.' });
     }
-    // Petite latence : laisse les requêtes concurrentes arriver pendant le renouvellement.
+    // Small latency: lets concurrent requests arrive during the refresh.
     await new Promise((resolve) => setTimeout(resolve, 5));
     rotations += 1;
     validToken = `access-${rotations}`;
@@ -104,24 +104,24 @@ beforeEach(() => {
 
 const refreshCalls = () => calls.filter((c) => c.path === '/api/v1/auth/refresh');
 
-describe('renouvellement transparent (#49)', () => {
-  it('renouvelle puis rejoue une requête partie avec un JWT expiré', async () => {
+describe('transparent refresh (#49)', () => {
+  it('refreshes then replays a request sent with an expired JWT', async () => {
     await expect(api('/api/v1/activities/a/track-points', { method: 'POST', body: { points: [] } }))
       .resolves.toMatchObject({ ok: true });
 
     expect(refreshCalls()).toHaveLength(1);
     const replay = calls[calls.length - 1];
     expect(replay.authorization).toBe('Bearer access-1');
-    expect(replay.body).toEqual({ points: [] }); // même lot, rejoué tel quel
+    expect(replay.body).toEqual({ points: [] }); // same batch, replayed as is
     expect(mockLogout).not.toHaveBeenCalled();
   });
 
   /**
-   * Retour de veille : l'uploader, l'accueil et les stats repartent ensemble. Deux
-   * rotations concurrentes du même refresh token seraient prises pour un vol côté
-   * serveur (#44) et feraient tomber la famille : UN seul renouvellement doit partir.
+   * Waking from sleep: the uploader, home and stats all restart together. Two concurrent
+   * rotations of the same refresh token would be taken for a theft by the server (#44)
+   * and bring the family down: ONE refresh only must go out.
    */
-  it('mutualise le renouvellement quand plusieurs requêtes reviennent ensemble', async () => {
+  it('shares the refresh when several requests come back together', async () => {
     const results = await Promise.all([
       api('/api/v1/activities?page=0'),
       api('/api/v1/stats/summary?period=week'),
@@ -135,10 +135,10 @@ describe('renouvellement transparent (#49)', () => {
     expect(mockLogout).not.toHaveBeenCalled();
   });
 
-  /** Séance de 2 h à 15 min de durée de vie : huit expirations, zéro reconnexion. */
-  it('tient huit expirations successives sans déconnecter ni perdre un lot', async () => {
+  /** A 2 h session with a 15 min lifetime: eight expiries, zero re-login. */
+  it('survives eight successive expiries without logging out or losing a batch', async () => {
     for (let lot = 0; lot < 8; lot++) {
-      mockSession.token = 'expired-access'; // le JWT courant vient d'expirer
+      mockSession.token = 'expired-access'; // the current JWT just expired
       await api(`/api/v1/activities/a/track-points`, { method: 'POST', body: { lot } });
     }
 
@@ -150,28 +150,28 @@ describe('renouvellement transparent (#49)', () => {
     expect(mockLogout).not.toHaveBeenCalled();
   });
 
-  /** Un tunnel n'est pas une fin de session : le coureur ne doit pas être déconnecté. */
-  it('ne déconnecte pas quand le serveur est injoignable pendant le renouvellement', async () => {
+  /** A tunnel isn't the end of a session: the runner must not be logged out. */
+  it('does not log out when the server is unreachable during the refresh', async () => {
     refreshBehaviour = 'network-error';
     await expect(api('/api/v1/activities')).rejects.toBeInstanceOf(ApiError);
     expect(mockLogout).not.toHaveBeenCalled();
     expect(mockSession.refreshToken).toBe('refresh-0');
   });
 
-  it('déconnecte quand le serveur refuse le renouvellement', async () => {
+  it('logs out when the server refuses the refresh', async () => {
     refreshBehaviour = 'reject';
     await expect(api('/api/v1/activities')).rejects.toMatchObject({ status: 401 });
     expect(mockLogout).toHaveBeenCalledTimes(1);
   });
 });
 
-describe('sessions ouvertes par un endpoint de compte (#73)', () => {
+describe('sessions opened by an account endpoint (#73)', () => {
   /**
-   * Le serveur révoque toutes les sessions et en rend une neuve. Sans la capter, le
-   * prochain renouvellement présenterait un refresh token révoqué et déconnecterait
-   * l'utilisateur qui vient justement de sécuriser son compte.
+   * The server revokes every session and returns a fresh one. Without capturing it, the
+   * next refresh would present a revoked refresh token and log out the user who just
+   * secured their account.
    */
-  it('range la session neuve rendue par le changement de mot de passe', async () => {
+  it('stores the fresh session returned by the password change', async () => {
     mockSession.token = 'access-0';
     await api('/api/v1/users/me/password', {
       method: 'POST',
@@ -182,8 +182,8 @@ describe('sessions ouvertes par un endpoint de compte (#73)', () => {
   });
 });
 
-describe('réponse texte (#76)', () => {
-  it('rend le corps sans le parser', async () => {
+describe('text response (#76)', () => {
+  it('returns the body without parsing it', async () => {
     mockSession.token = 'access-0';
     await expect(api<string>('/api/v1/users/me/export', { parse: 'text' })).resolves.toBe(
       '{"formatVersion":1}',

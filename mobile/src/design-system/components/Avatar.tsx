@@ -1,7 +1,6 @@
 /**
- * Avatar à initiales (#7). Aucun fichier, aucun stockage : c'est l'option minimale
- * proposée dans le ticket en attendant une décision sur l'envoi de photos, qui supposerait
- * un stockage de fichiers inexistant aujourd'hui.
+ * Initials avatar (#7). No file, no storage: profile photos are out of scope for now
+ * (#79), and they would require a file storage that doesn't exist.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -15,10 +14,10 @@ interface Props {
   size?: number;
 }
 
-/** « Marie Curie » → « MC » ; sans nom, l'initiale de l'email ; sinon « ? ». */
+/** "Marie Curie" → "MC"; without a name, the email's initial; otherwise "?". */
 export function initialsOf(displayName: string | null | undefined, email: string | null | undefined): string {
-  // Par point de code (`Array.from`), pas par unité UTF-16 : `"😀 Alice"[0]` rendrait une
-  // moitié d'emoji, affichée comme un caractère de remplacement (revue PR #80).
+  // By code point (`Array.from`), not by UTF-16 unit: `"😀 Alice"[0]` would return half an
+  // emoji, shown as a replacement character (PR #80 review).
   const chars = (word: string) => Array.from(word);
   const words = (displayName ?? '').trim().split(/\s+/).filter(Boolean);
   if (words.length >= 2) {

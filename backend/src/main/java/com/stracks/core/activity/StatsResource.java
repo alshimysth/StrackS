@@ -37,37 +37,37 @@ import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
 /**
- * Agrégats par période (#24).
+ * Aggregates per period (#24).
  *
- * <p>Deux routes, deux stratégies assumées :
+ * <p>Two routes, two deliberate strategies:
  * <ul>
- *   <li>{@code /summary} charge les activités et <strong>délègue à chaque plugin</strong>.
- *       Les métriques d'un sport vivent dans le JSONB {@code metrics}, dont seul le
- *       plugin connaît les clés — les agréger en SQL obligerait le socle à écrire
- *       {@code metrics->>'elevationGainM'}, c'est-à-dire à connaître un sport.</li>
- *   <li>{@code /timeline} agrège <strong>en SQL</strong>. Le graphique ne trace que
- *       des colonnes du socle ({@code duration_s}, {@code distance_m}) : aucun plugin
- *       n'a son mot à dire, et on évite de rapatrier une année de séances en mémoire
- *       pour en tirer douze nombres (#28).</li>
+ *   <li>{@code /summary} loads the activities and <strong>delegates to each plugin</strong>.
+ *       A sport's metrics live in the {@code metrics} JSONB, whose keys only the plugin
+ *       knows; aggregating them in SQL would force the core to write
+ *       {@code metrics->>'elevationGainM'}, that is, to know a sport.</li>
+ *   <li>{@code /timeline} aggregates <strong>in SQL</strong>. The chart only plots core
+ *       columns ({@code duration_s}, {@code distance_m}): no plugin has a say, and we
+ *       avoid pulling a year of sessions into memory to get twelve numbers out of it
+ *       (#28).</li>
  * </ul>
  *
- * <p>Toutes les fenêtres sont <strong>fermées</strong> et alignées sur le calendrier
- * local de l'utilisateur : comparer un mois en cours à un mois complet donnerait une
- * évolution systématiquement négative, et découper les semaines en UTC ferait basculer
- * une sortie du lundi 00h30 à Paris dans la semaine précédente.
+ * <p>Every window is <strong>closed</strong> and aligned on the user's local calendar:
+ * comparing a month in progress to a full month would give a systematically negative
+ * trend, and cutting weeks in UTC would push a Monday 00:30 run in Paris into the
+ * previous week.
  */
 @Path("/api/v1/stats")
 @Produces(MediaType.APPLICATION_JSON)
 @RolesAllowed("user")
 public class StatsResource {
 
-    /** Zoom du graphique : à chaque période sa maille, jamais plus de ~31 barres. */
+    /** Chart zoom: each period has its own granularity, never more than ~31 bars. */
     private static final Map<String, ChronoUnit> BUCKET_OF_PERIOD = Map.of(
             "week", ChronoUnit.DAYS,
             "month", ChronoUnit.WEEKS,
             "year", ChronoUnit.MONTHS);
 
-    /** Fenêtre « depuis toujours » de {@code /summary} (#7). */
+    /** "All time" window of {@code /summary} (#7). */
     static final String PERIOD_ALL = "all";
 
     @Inject
@@ -121,9 +121,9 @@ public class StatsResource {
         Window window = windowOf(resolvedPeriod, from, zone);
         ChronoUnit unit = BUCKET_OF_PERIOD.get(resolvedPeriod);
 
-        // Les bornes sont calculées en Java, pas déduites des lignes rendues : une
-        // semaine sans séance doit exister dans la réponse, à zéro. Le SQL ne peut
-        // pas inventer une ligne pour un groupe vide.
+        // Bounds are computed in Java, not inferred from the returned rows: a week
+        // without sessions must exist in the response, at zero. SQL can't invent a row
+        // for an empty group.
         List<Instant> starts = bucketStarts(window, unit, zone);
         Map<Instant, List<TimelineSportValue>> rows = aggregateByBucket(
                 userId, window, resolvedSport, unit, zone);
@@ -131,8 +131,8 @@ public class StatsResource {
         List<TimelineBucket> buckets = new ArrayList<>(starts.size());
         for (int i = 0; i < starts.size(); i++) {
             Instant start = starts.get(i);
-            // Le dernier intervalle est coupé à la fenêtre : une semaine à cheval sur
-            // août ne prétend pas contenir des jours qui n'ont pas été comptés.
+            // The last interval is clipped to the window: a week straddling August
+            // doesn't claim days that weren't counted.
             Instant end = i + 1 < starts.size()
                     ? starts.get(i + 1).isBefore(window.end()) ? starts.get(i + 1) : window.end()
                     : window.end();
@@ -144,11 +144,11 @@ public class StatsResource {
     }
 
     /**
-     * Records personnels (#61), sur tout l'historique terminé de l'utilisateur.
+     * Personal records (#61), over the user's whole completed history.
      *
-     * <p>Calcul en mémoire, sport par sport, pour que chaque plugin lise ses propres
-     * valeurs — même choix que {@code /summary}. Le client n'y lit que les détenteurs :
-     * il ne rapatrie jamais l'historique pour les déduire lui-même.
+     * <p>Computed in memory, sport by sport, so that each plugin reads its own values:
+     * same choice as {@code /summary}. The client only reads the holders; it never
+     * pulls the history to infer them itself.
      */
     @GET
     @Path("/records")
@@ -162,9 +162,9 @@ public class StatsResource {
             params.add(resolvedSport);
             query.append(" and sportType = ?2");
         }
-        // Ordre chronologique : à valeur égale, la séance la plus ancienne reste détentrice.
-        // `startedAt` vient du client et peut coïncider ; l'id est un UUID aléatoire. C'est
-        // donc l'instant d'enregistrement serveur qui départage (revue PR #80).
+        // Chronological order: on equal values, the oldest session remains the holder.
+        // `startedAt` comes from the client and may coincide; the id is a random UUID. So
+        // the server-side recording instant breaks the tie (PR #80 review).
         List<ActivityEntity> activities = ActivityEntity.list(
                 query.append(" order by startedAt, createdAt, id").toString(), params.toArray());
 
@@ -186,10 +186,10 @@ public class StatsResource {
         List<PersonalRecord> records = new ArrayList<>();
         for (PersonalRecordMetric metric : metrics) {
             ActivityEntity holder = null;
-            double best = 0; // une valeur nulle ou négative n'est un record de rien
+            double best = 0; // a zero or negative value is a record of nothing
             for (ActivityEntity activity : chronological) {
                 Double value = metric.value().apply(activity);
-                if (value != null && value > best) { // strictement : égaler ne détrône pas
+                if (value != null && value > best) { // strictly: equalling doesn't dethrone
                     best = value;
                     holder = activity;
                 }
@@ -204,10 +204,10 @@ public class StatsResource {
     }
 
     // ------------------------------------------------------------------
-    // Agrégation
+    // Aggregation
     // ------------------------------------------------------------------
 
-    /** Délègue à chaque plugin le calcul de ses propres métriques. */
+    /** Delegates to each plugin the computation of its own metrics. */
     private List<SportStats> aggregateBySport(UUID userId, Window window, String sport) {
         StringBuilder query = new StringBuilder(
                 "userId = ?1 and status = 'completed' and startedAt >= ?2 and startedAt < ?3");
@@ -228,9 +228,9 @@ public class StatsResource {
     }
 
     /**
-     * Découpage temporel, en SQL. {@code AT TIME ZONE} ramène l'instant à l'heure
-     * locale avant la troncature, puis l'y renvoie : sans ça les semaines seraient
-     * coupées à minuit UTC, soit 2h du matin en heure d'été française.
+     * Time bucketing, in SQL. {@code AT TIME ZONE} brings the instant back to local time
+     * before truncating, then converts it back: without it weeks would be cut at UTC
+     * midnight, i.e. 2 a.m. in French summer time.
      */
     private Map<Instant, List<TimelineSportValue>> aggregateByBucket(
             UUID userId, Window window, String sport, ChronoUnit unit, ZoneId zone) {
@@ -274,7 +274,7 @@ public class StatsResource {
         return byBucket;
     }
 
-    /** Somme clé à clé ce que les plugins ont nommé — sans savoir ce que ces clés désignent. */
+    /** Sums key by key what the plugins named, without knowing what those keys mean. */
     private StatsTotals sum(List<SportStats> bySport) {
         Map<String, Double> totals = new LinkedHashMap<>();
         for (SportStats stats : bySport) {
@@ -287,16 +287,16 @@ public class StatsResource {
     }
 
     // ------------------------------------------------------------------
-    // Fenêtres de période
+    // Period windows
     // ------------------------------------------------------------------
 
-    /** Fenêtre fermée [start, end[, alignée sur le calendrier de {@code zone}. */
+    /** Closed window [start, end[, aligned on the calendar of {@code zone}. */
     private record Window(Instant start, Instant end) {
 
         Window previous(String period, ZoneId zone) {
             if (PERIOD_ALL.equals(period)) {
-                // « Depuis toujours » n'a pas de période précédente : fenêtre vide, donc
-                // des totaux à zéro — le client n'affiche pas de comparaison.
+                // "All time" has no previous period: empty window, hence zero totals;
+                // the client shows no comparison.
                 return new Window(start(), start());
             }
             ZonedDateTime start = start().atZone(zone);
@@ -309,14 +309,14 @@ public class StatsResource {
     }
 
     /**
-     * {@code from} désigne un instant <em>dans</em> la période voulue, pas sa borne
-     * basse : c'est ce qui permet à l'écran de naviguer de mois en mois en envoyant
-     * n'importe quelle date de juillet pour obtenir juillet entier.
+     * {@code from} designates an instant <em>within</em> the wanted period, not its lower
+     * bound: that's what lets the screen navigate month by month by sending any date in
+     * July to get the whole of July.
      */
     private Window windowOf(String period, Instant from, ZoneId zone) {
         if (PERIOD_ALL.equals(period)) {
-            // Depuis toujours (#7) : toute l'histoire du compte, jusqu'à maintenant.
-            // `from` n'a pas de sens ici et est ignoré ; le fuseau non plus.
+            // All time (#7): the account's whole history, up to now.
+            // `from` is meaningless here and ignored; so is the time zone.
             return new Window(Instant.EPOCH, Instant.now());
         }
         ZonedDateTime anchor = (from != null ? from : Instant.now()).atZone(zone);
@@ -334,19 +334,19 @@ public class StatsResource {
     }
 
     /**
-     * Bornes de chaque intervalle, calculées sur le calendrier local.
+     * Bounds of each interval, computed on the local calendar.
      *
-     * <p>Le premier intervalle est <strong>reculé jusqu'à sa frontière naturelle</strong>
-     * — le lundi de la semaine qui contient le 1er du mois. C'est obligatoire : côté
-     * base, {@code date_trunc('week', …)} cale sur le lundi ISO, et des bornes calculées
-     * « le 1er, puis tous les 7 jours » ne tomberaient jamais sur les mêmes clés. Les
-     * lignes agrégées ne se rattacheraient à aucun intervalle et le graphique serait
-     * vide alors que les séances existent.
+     * <p>The first interval is <strong>moved back to its natural boundary</strong>: the
+     * Monday of the week containing the 1st of the month. This is mandatory: on the
+     * database side, {@code date_trunc('week', …)} snaps to the ISO Monday, and bounds
+     * computed as "the 1st, then every 7 days" would never land on the same keys. The
+     * aggregated rows would match no interval and the chart would be empty although the
+     * sessions exist.
      *
-     * <p>La fenêtre de la requête, elle, reste strictement le mois : la semaine à cheval
-     * ne compte que ses jours de juillet, jamais ceux de juin — sans quoi le total du
-     * graphique cesserait d'égaler celui de {@code /summary}. C'est aussi ce que montre
-     * la maquette, dont la première barre de juillet est étiquetée « 29/6 ».
+     * <p>The query window itself stays strictly the month: the straddling week only
+     * counts its July days, never the June ones; otherwise the chart total would stop
+     * matching the {@code /summary} one. It's also what the mockup shows, whose first
+     * July bar is labelled "29/6".
      */
     private List<Instant> bucketStarts(Window window, ChronoUnit unit, ZoneId zone) {
         List<Instant> starts = new ArrayList<>();
@@ -354,15 +354,15 @@ public class StatsResource {
         ZonedDateTime end = window.end().atZone(zone);
         while (cursor.isBefore(end)) {
             starts.add(cursor.toInstant());
-            // plus(1, unit) plutôt qu'un ajout de 7 jours en secondes : le passage à
-            // l'heure d'été fait des journées de 23 et 25 heures, et une arithmétique
-            // en durée fixe décalerait tous les intervalles suivants.
+            // plus(1, unit) rather than adding 7 days in seconds: daylight saving time
+            // makes 23- and 25-hour days, and fixed-duration arithmetic would shift every
+            // following interval.
             cursor = cursor.plus(1, unit);
         }
         return starts;
     }
 
-    /** Même frontière que {@code date_trunc} côté PostgreSQL — lundi ISO pour la semaine. */
+    /** Same boundary as {@code date_trunc} on the PostgreSQL side: ISO Monday for weeks. */
     private static ZonedDateTime truncateTo(ZonedDateTime moment, ChronoUnit unit) {
         return switch (unit) {
             case DAYS -> moment.truncatedTo(ChronoUnit.DAYS);
@@ -372,7 +372,7 @@ public class StatsResource {
     }
 
     // ------------------------------------------------------------------
-    // Validation des paramètres
+    // Parameter validation
     // ------------------------------------------------------------------
 
     private UUID currentUser() {
@@ -380,9 +380,9 @@ public class StatsResource {
     }
 
     /**
-     * {@code /summary} accepte en plus {@code all} (#7, statistiques du profil). Pas
-     * {@code /timeline} : un graphique « depuis toujours » n'a pas de maille naturelle,
-     * et aucun écran n'en a besoin.
+     * {@code /summary} additionally accepts {@code all} (#7, profile statistics). Not
+     * {@code /timeline}: an "all time" chart has no natural granularity, and no screen
+     * needs one.
      */
     private String requireSummaryPeriod(String period) {
         if (PERIOD_ALL.equals(period)) {
@@ -446,7 +446,7 @@ public class StatsResource {
             return instant;
         }
         throw new IllegalStateException(
-                "Type de borne temporelle inattendu : " + value.getClass());
+                "Unexpected time bound type: " + value.getClass());
     }
 
     private static double toDouble(Object value) {

@@ -1,16 +1,16 @@
 /**
- * Calculs GPS côté client — miroir allégé de GpsComputations.java (backend),
- * mêmes seuils : précision 50 m, hystérésis dénivelé 2 m, fenêtre de lissage 5 points.
- * Sert UNIQUEMENT l'affichage live ; le serveur recalcule tout au stop depuis
- * le tracé brut (source de vérité), splits compris.
+ * Client-side GPS computations: a lighter mirror of GpsComputations.java (backend), same
+ * thresholds: 50 m accuracy, 2 m elevation hysteresis, 5-point smoothing window.
+ * ONLY serves the live display; the server recomputes everything at stop from the raw
+ * track (source of truth), splits included.
  *
- * **Le lissage d'altitude n'est pas le même des deux côtés** (#53) : moyenne GLISSANTE
- * sur les 5 derniers points ici (un accumulateur temps réel ne voit pas l'avenir),
- * moyenne CENTRÉE côté serveur. Les fixtures de parité sont choisies pour que les deux
- * coïncident ; sur une trace réelle bruitée, le D+ affiché pendant la séance peut donc
- * différer de celui du résumé. L'écart n'est pas encore chiffré — il se mesure avec
- * `scripts/measure-elevation-drift.mts` sur les traces de la sortie terrain (#17), et la
- * décision (tolérer, afficher comme provisoire, ou lissage centré retardé) en dépend.
+ * **Altitude smoothing isn't the same on both sides** (#53): TRAILING average over the
+ * last 5 points here (a real-time accumulator can't see the future), CENTRED average on
+ * the server. The parity fixtures are chosen so both agree; on a real noisy track, the
+ * elevation gain shown during the session may therefore differ from the summary's. The
+ * gap isn't quantified yet: it's measured with `scripts/measure-elevation-drift.mts` on
+ * the field test tracks (#17), and the decision (tolerate, show as provisional, or
+ * delayed centred smoothing) depends on it.
  */
 import type { GpsFix } from '../gps';
 import type { SessionState } from './types';
@@ -20,15 +20,15 @@ const ELEVATION_HYSTERESIS_M = 2;
 const SMOOTHING_WINDOW = 5;
 const SPEED_WINDOW_MS = 15_000;
 /**
- * Au-delà de ce trou entre deux fix acceptés, le signal est considéré comme perdu et
- * le segment n'est PAS compté (#19). Sans cette règle, une traversée de tunnel ajoute
- * la corde entre l'entrée et la sortie : le filtre de plausibilité ne l'attrape pas
- * (1 km en 5 min = 12 km/h, plausible), et la distance parcourue en ligne droite est
- * comptée alors qu'elle ne l'a pas été. Le ticket tranche explicitement : pas
- * d'interpolation par défaut.
+ * Beyond this gap between two accepted fixes, the signal is considered lost and the
+ * segment is NOT counted (#19). Without this rule, going through a tunnel adds the chord
+ * between entry and exit: the plausibility filter doesn't catch it (1 km in 5 min =
+ * 12 km/h, plausible), and a straight-line distance gets counted although it was never
+ * covered. The ticket explicitly decides: no interpolation by default.
  *
- * MIROIR EXACT de GpsComputations.SIGNAL_LOST_MS — toute modification ici doit être
- * répercutée côté serveur, sinon le live diverge du recalcul au stop (parité #40).
+ * EXACT MIRROR of GpsComputations.SIGNAL_LOST_MS: any change here must be carried over to
+ * the server, otherwise the live display diverges from the recomputation at stop
+ * (parity #40).
  */
 export const SIGNAL_LOST_MS = 15_000;
 const EARTH_RADIUS_M = 6_371_000;
@@ -49,16 +49,16 @@ export function haversineM(lat1: number, lng1: number, lat2: number, lng2: numbe
 }
 
 /**
- * Accumulateur incrémental : chaque fix accepté met à jour distance, dénivelé
- * (lissage glissant + hystérésis) et vitesse lissée. Rejouable depuis le
- * buffer pour la récupération après kill.
+ * Incremental accumulator: each accepted fix updates distance, elevation (trailing
+ * smoothing + hysteresis) and smoothed speed. Replayable from the buffer for recovery
+ * after a kill.
  */
 export class GpsAccumulator {
   distanceM = 0;
   elevationGainM = 0;
   elevationLossM = 0;
   smoothedSpeedMs = 0;
-  /** Tracé des points acceptés, prêt pour la Polyline de la carte. */
+  /** Track of the accepted points, ready for the map's Polyline. */
   readonly path: LatLng[] = [];
   lastAcceptedMs: number | null = null;
 
@@ -72,7 +72,7 @@ export class GpsAccumulator {
     this.maxSpeedMs = maxSpeedKmh / 3.6;
   }
 
-  /** @returns true si le fix passe les filtres (précision, plausibilité). */
+  /** @returns true if the fix passes the filters (accuracy, plausibility). */
   add(fix: GpsFix): boolean {
     if (fix.accuracyM != null && fix.accuracyM > MAX_ACCURACY_M) {
       return false;
@@ -87,8 +87,8 @@ export class GpsAccumulator {
       if (segmentM / seconds > this.maxSpeedMs) {
         return false;
       }
-      // Trou trop long : le point est accepté (il rouvre le tracé) mais le segment
-      // n'est pas compté — on ne sait pas quel chemin a été suivi entre les deux.
+      // Gap too long: the point is accepted (it reopens the track) but the segment isn't
+      // counted, since we don't know which path was taken in between.
       if (gapMs < SIGNAL_LOST_MS) {
         this.distanceM += segmentM;
       }

@@ -1,6 +1,6 @@
 /**
- * Sections ajoutées au profil par le lot 3 : totaux (#7), poids (#32), zones de
- * confidentialité (#37), mode GPS (#36), avatar (#7).
+ * Sections added to the profile by lot 3: totals (#7), weight (#32), privacy zones (#37),
+ * GPS mode (#36), avatar (#7).
  */
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
@@ -53,7 +53,7 @@ function summary(totalSessions: number, totals: Record<string, number>) {
   };
 }
 
-/** Le serveur renvoie le document complet après un PATCH : on renvoie le patch fusionné. */
+/** The server returns the full document after a PATCH: we return the merged patch. */
 function echoPatches() {
   mockApi.mockImplementation((path: string, options?: { body?: Partial<Preferences> }) =>
     Promise.resolve({ ...DEFAULT_PREFERENCES, ...(options?.body ?? {}) }),
@@ -77,8 +77,8 @@ afterEach(() => {
   client.clear();
 });
 
-describe('Totaux depuis le début (#7)', () => {
-  it('affiche séances, temps total et distance agrégés par le serveur', async () => {
+describe('All-time totals (#7)', () => {
+  it('shows sessions, total time and distance aggregated by the server', async () => {
     mockApi.mockResolvedValue(summary(42, { distanceM: 321_000 }));
     await render(<AllTimeStats />, { wrapper: Wrapper });
 
@@ -88,8 +88,8 @@ describe('Totaux depuis le début (#7)', () => {
     expect(mockApi).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/v1\/stats\/summary\?period=all/));
   });
 
-  /** Le socle ne sait pas qu'un sport « a » une distance : pas de clé, pas de carte. */
-  it('n’invente pas de distance quand aucun sport pratiqué n’en déclare', async () => {
+  /** The core doesn't know that a sport "has" a distance: no key, no card. */
+  it('does not invent a distance when no practised sport declares one', async () => {
     mockApi.mockResolvedValue(summary(3, {}));
     await render(<AllTimeStats />, { wrapper: Wrapper });
 
@@ -97,24 +97,24 @@ describe('Totaux depuis le début (#7)', () => {
     expect(screen.queryByTestId('all-time-distance')).toBeNull();
   });
 
-  it('invite à une première séance plutôt que d’afficher des zéros', async () => {
+  it('invites to a first session rather than showing zeros', async () => {
     mockApi.mockResolvedValue(summary(0, {}));
     await render(<AllTimeStats />, { wrapper: Wrapper });
     expect(await screen.findByTestId('all-time-empty')).toBeOnTheScreen();
   });
 });
 
-describe('Poids (#32)', () => {
-  it('explique à quoi sert le poids', async () => {
+describe('Weight (#32)', () => {
+  it('explains what the weight is for', async () => {
     await render(<PhysicalProfile />, { wrapper: Wrapper });
     expect(screen.getByText(/Sert uniquement à estimer les calories/)).toBeOnTheScreen();
   });
 
   /**
-   * Revue PR #80 : seul le poids part. Recopier les autres champs depuis un état pas
-   * encore chargé enverrait des `null`, que le serveur lit comme « effacer ».
+   * PR #80 review: only the weight goes out. Copying the other fields from a state not
+   * yet loaded would send `null`s, which the server reads as "clear".
    */
-  it('n’envoie que le poids, jamais les autres données physiques', async () => {
+  it('only sends the weight, never the other physical data', async () => {
     withPreferences({ physical: { ...DEFAULT_PREFERENCES.physical, heightCm: 180 } });
     echoPatches();
     await render(<PhysicalProfile />, { wrapper: Wrapper });
@@ -125,7 +125,7 @@ describe('Poids (#32)', () => {
     await waitFor(() => expect(patches()).toEqual([{ physical: { weightKg: 72.5 } }]));
   });
 
-  it('saisit en livres en impérial et stocke des kg', async () => {
+  it('enters pounds in imperial and stores kg', async () => {
     withPreferences({ units: 'imperial' });
     echoPatches();
     await render(<PhysicalProfile />, { wrapper: Wrapper });
@@ -137,8 +137,8 @@ describe('Poids (#32)', () => {
     await waitFor(() => expect(patches()[0]).toMatchObject({ physical: { weightKg: 72 } }));
   });
 
-  /** Mêmes bornes que le serveur (30–300 kg) : le front refuse avant d'envoyer. */
-  it.each(['12', '420', 'soixante', ''])('refuse « %s » sans appel serveur', async (input) => {
+  /** Same bounds as the server (30–300 kg): the front end rejects before sending. */
+  it.each(['12', '420', 'soixante', ''])('rejects "%s" without a server call', async (input) => {
     await render(<PhysicalProfile />, { wrapper: Wrapper });
     await fireEvent.changeText(screen.getByTestId('weight-input'), input);
     await fireEvent.press(screen.getByText('Enregistrer le poids'));
@@ -147,7 +147,7 @@ describe('Poids (#32)', () => {
     expect(patches()).toEqual([]);
   });
 
-  it('permet de retirer le poids', async () => {
+  it('allows removing the weight', async () => {
     withPreferences({ physical: { ...DEFAULT_PREFERENCES.physical, weightKg: 70 } });
     echoPatches();
     await render(<PhysicalProfile />, { wrapper: Wrapper });
@@ -158,14 +158,14 @@ describe('Poids (#32)', () => {
   });
 });
 
-describe('Zones de confidentialité (#37)', () => {
-  it('dit que le tracé reste enregistré : masqué n’est pas supprimé', async () => {
+describe('Privacy zones (#37)', () => {
+  it('says the track stays recorded: masked is not deleted', async () => {
     await render(<PrivacyZones />, { wrapper: Wrapper });
     expect(screen.getByText(/reste enregistré en entier/)).toBeOnTheScreen();
   });
 
-  /** Centre décalé au hasard (revue PR #80) : la position réelle n'est jamais envoyée. */
-  it('ajoute une zone qui couvre la position actuelle sans être centrée dessus', async () => {
+  /** Randomly offset centre (PR #80 review): the real position is never sent. */
+  it('adds a zone covering the current position without being centred on it', async () => {
     mockPosition.mockResolvedValue({ lat: 48.8566123, lng: 2.3522219, accuracyM: 8 });
     echoPatches();
     await render(<PrivacyZones />, { wrapper: Wrapper });
@@ -177,15 +177,15 @@ describe('Zones de confidentialité (#37)', () => {
     const [zone] = (patches()[0] as { privacyZones: PrivacyZoneT[] }).privacyZones;
     expect(zone).toMatchObject({ radiusM: 200, label: 'Domicile' });
     const offset = haversineM(48.8566123, 2.3522219, zone.lat, zone.lng);
-    expect(offset).toBeLessThanOrEqual(0.3 * 200 + 1); // position réelle couverte
+    expect(offset).toBeLessThanOrEqual(0.3 * 200 + 1); // real position covered
     expect(String(zone.lat).split('.')[1]?.length ?? 0).toBeLessThanOrEqual(5);
   });
 
   /**
-   * Revue PR #80 : deux retraits avant la réponse du premier. Calculés depuis le même
-   * rendu, le second PATCH renverrait la zone que le premier venait d'enlever.
+   * PR #80 review: two removals before the first one's response. Computed from the same
+   * render, the second PATCH would send back the zone the first had just removed.
    */
-  it('enchaîne deux retraits rapides sans que le second annule le premier', async () => {
+  it('chains two quick removals without the second cancelling the first', async () => {
     withPreferences({
       privacyZones: [
         { lat: 1, lng: 1, radiusM: 500, label: 'Domicile' },
@@ -193,7 +193,7 @@ describe('Zones de confidentialité (#37)', () => {
         { lat: 3, lng: 3, radiusM: 500, label: 'Zone 3' },
       ],
     });
-    // Réponse lente : les deux appuis ont lieu avant que le premier PATCH ne revienne.
+    // Slow response: both taps happen before the first PATCH comes back.
     mockApi.mockImplementation(
       (path: string, options?: { body?: Partial<Preferences> }) =>
         new Promise((resolve) => {
@@ -202,7 +202,7 @@ describe('Zones de confidentialité (#37)', () => {
     );
     await render(<PrivacyZones />, { wrapper: Wrapper });
 
-    // L'utilisateur touche ce qui est à l'écran : deux fois le premier « Retirer ».
+    // The user taps what's on screen: the first "Retirer" twice.
     await fireEvent.press(screen.getAllByText('Retirer')[0]);
     await fireEvent.press(screen.getAllByText('Retirer')[0]);
 
@@ -210,7 +210,7 @@ describe('Zones de confidentialité (#37)', () => {
     expect(patches()[1]).toEqual({ privacyZones: [{ lat: 3, lng: 3, radiusM: 500, label: 'Zone 3' }] });
   });
 
-  it('retire une zone en renvoyant la liste restante', async () => {
+  it('removes a zone by sending the remaining list', async () => {
     withPreferences({
       privacyZones: [
         { lat: 1, lng: 1, radiusM: 500, label: 'Domicile' },
@@ -226,7 +226,7 @@ describe('Zones de confidentialité (#37)', () => {
     );
   });
 
-  it('affiche un refus de localisation sans rien enregistrer', async () => {
+  it('shows a location refusal without saving anything', async () => {
     mockPosition.mockRejectedValue(new Error('Permission de localisation refusée — active-la dans les réglages.'));
     await render(<PrivacyZones />, { wrapper: Wrapper });
 
@@ -235,7 +235,7 @@ describe('Zones de confidentialité (#37)', () => {
     expect(patches()).toEqual([]);
   });
 
-  it('n’offre plus d’ajout au-delà de cinq zones', async () => {
+  it('no longer offers adding beyond five zones', async () => {
     withPreferences({
       privacyZones: [1, 2, 3, 4, 5].map((i) => ({ lat: i, lng: i, radiusM: 500, label: null })),
     });
@@ -252,7 +252,7 @@ describe('Avatar (#7)', () => {
     ['Zoé', null, 'ZO'],
     [null, 'coureur@example.com', 'C'],
     ['   ', null, '?'],
-    // Revue PR #80 : un emoji est un seul caractère, jamais une moitié de paire UTF-16.
+    // PR #80 review: an emoji is a single character, never half of a UTF-16 pair.
     ['😀 Alice', null, '😀A'],
     ['😀', null, '😀'],
     [null, '😀@example.com', '😀'],
@@ -261,12 +261,12 @@ describe('Avatar (#7)', () => {
   });
 });
 
-describe('Nom affiché (#7)', () => {
+describe('Display name (#7)', () => {
   const { DisplayName } = jest.requireActual('../../core/profile/DisplayName');
 
   /**
-   * Revue PR #85 : le parent lit l'utilisateur dans le cache `['me']`, comme l'écran Profil
-   * via `useProfile`. C'est le nom réellement affiché après l'enregistrement qui compte.
+   * PR #85 review: the parent reads the user from the `['me']` cache, like the Profile
+   * screen through `useProfile`. What counts is the name actually shown after saving.
    */
   function ProfileLike() {
     const { useQuery } = jest.requireActual('@tanstack/react-query');
@@ -274,7 +274,7 @@ describe('Nom affiché (#7)', () => {
     return <DisplayName value={me.data?.displayName} />;
   }
 
-  it('modifie le nom et affiche le nouveau nom', async () => {
+  it('changes the name and shows the new name', async () => {
     const updated = { id: 'u', email: 'a@example.com', displayName: 'Marie', createdAt: '2026-01-01T00:00:00Z' };
     client.setQueryData(['me'], { ...updated, displayName: 'Ancien nom' });
     mockApi.mockResolvedValue(updated);
@@ -292,7 +292,7 @@ describe('Nom affiché (#7)', () => {
     await waitFor(() => expect(screen.getByTestId('display-name')).toHaveTextContent('Marie'));
   });
 
-  it('efface l’erreur dès qu’on corrige la saisie', async () => {
+  it('clears the error as soon as the input is corrected', async () => {
     mockApi.mockRejectedValueOnce(new (jest.requireActual('../../core/api/client').ApiError)({
       status: 400, title: 'Requête invalide', detail: 'Nom refusé par le serveur.',
     }));
@@ -305,7 +305,7 @@ describe('Nom affiché (#7)', () => {
     expect(screen.queryByText('Nom refusé par le serveur.')).toBeNull();
   });
 
-  it('annule sans rien envoyer', async () => {
+  it('cancels without sending anything', async () => {
     await render(<DisplayName value="Ancien nom" />, { wrapper: Wrapper });
     await fireEvent.press(screen.getByText('Modifier'));
     await fireEvent.press(screen.getByText('Annuler'));

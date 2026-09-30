@@ -41,10 +41,10 @@ import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
 /**
- * Cycle de vie générique des activités. Ne connaît aucun sport : validation et
- * calculs de métriques sont délégués au plugin du sport_type concerné.
- * Toutes les routes sont scopées à l'utilisateur du token (anti-IDOR : une
- * activité d'un autre utilisateur répond 404, jamais 403).
+ * Generic activity lifecycle. Knows no sport: validation and metric computation are
+ * delegated to the plugin of the activity's sport_type.
+ * Every route is scoped to the token's user (anti-IDOR: another user's activity
+ * answers 404, never 403).
  */
 @Path("/api/v1/activities")
 @Produces(MediaType.APPLICATION_JSON)
@@ -76,12 +76,12 @@ public class ActivityResource {
         return activity;
     }
 
-    // --- Cycle de vie ---
+    // --- Lifecycle ---
 
     @POST
     @Transactional
     public Response start(@Valid CreateActivityRequest request) {
-        SportPlugin plugin = registry.require(request.sportType()); // 422 si inconnu
+        SportPlugin plugin = registry.require(request.sportType()); // 422 if unknown
         ActivityEntity activity = new ActivityEntity();
         activity.userId = userId();
         activity.sportType = plugin.descriptor().code();
@@ -93,7 +93,7 @@ public class ActivityResource {
 
     @POST
     @Path("/{id}/pause")
-    @Consumes(MediaType.WILDCARD) // POST sans corps
+    @Consumes(MediaType.WILDCARD) // body-less POST
     @Transactional
     public ActivityResponse pause(@PathParam("id") UUID id) {
         ActivityEntity activity = owned(id);
@@ -107,7 +107,7 @@ public class ActivityResource {
 
     @POST
     @Path("/{id}/resume")
-    @Consumes(MediaType.WILDCARD) // POST sans corps
+    @Consumes(MediaType.WILDCARD) // body-less POST
     @Transactional
     public ActivityResponse resume(@PathParam("id") UUID id) {
         ActivityEntity activity = owned(id);
@@ -134,7 +134,7 @@ public class ActivityResource {
             activity.metrics = request.metrics();
         }
 
-        // Pause encore ouverte au moment du stop : la clore
+        // A pause still open when stopping: close it
         if (ActivityEntity.STATUS_PAUSED.equals(activity.status) && activity.pausedAt != null) {
             activity.pausedTotalS += (int) Duration.between(activity.pausedAt, request.endedAt()).toSeconds();
             activity.pausedAt = null;
@@ -147,7 +147,7 @@ public class ActivityResource {
                         - activity.pausedTotalS);
         activity.notes = request.notes() != null ? request.notes() : activity.notes;
 
-        // Le serveur recalcule les métriques finales depuis le tracé brut (source de vérité)
+        // The server recomputes the final metrics from the raw track (source of truth)
         List<TrackPointEntity> track = TrackPointEntity.findByActivity(activity.id);
         activity.metrics = plugin.computeFinalMetrics(activity, track);
         if (plugin.descriptor().usesGps() && !track.isEmpty()) {
@@ -155,10 +155,10 @@ public class ActivityResource {
             activity.distanceM = BigDecimal.valueOf(distance).setScale(1, RoundingMode.HALF_UP);
         }
 
-        // Calories : APRÈS la distance, dont dépend la vitesse moyenne. Le socle
-        // ne fait que transmettre le profil physique — c'est le module du sport
-        // qui sait ce que coûte son effort. Sans poids renseigné, rien n'est
-        // écrit : mieux vaut aucune valeur qu'une valeur inventée (#33).
+        // Calories: AFTER the distance, which the average speed depends on. The core
+        // only passes the athlete profile along; the sport module is the one that knows
+        // what its effort costs. Without a weight, nothing is written: no value is better
+        // than a made-up one (#33).
         UserEntity user = UserEntity.findById(UUID.fromString(jwt.getSubject()));
         AthleteProfile athlete = preferences.athleteProfile(user);
         plugin.estimateCalories(activity, track, athlete)
@@ -172,11 +172,11 @@ public class ActivityResource {
     @Path("/{id}")
     @Transactional
     public Response delete(@PathParam("id") UUID id) {
-        owned(id).delete(); // cascade SQL sur track_points
+        owned(id).delete(); // SQL cascade on track_points
         return Response.noContent().build();
     }
 
-    // --- Historique ---
+    // --- History ---
 
     @GET
     public PageResponse<ActivityResponse> list(
@@ -222,9 +222,9 @@ public class ActivityResource {
     @Transactional
     public ActivityResponse update(@PathParam("id") UUID id, @Valid UpdateActivityRequest request) {
         ActivityEntity activity = owned(id);
-        // Chaîne vide = effacement explicite ; absent = champ non touché. Le titre est
-        // rogné pour qu'une saisie d'espaces ne produise pas un titre « présent mais vide »,
-        // que l'affichage traiterait comme un titre alors qu'il n'y a rien à montrer.
+        // Empty string = explicit clear; absent = field untouched. The title is trimmed so
+        // that whitespace input doesn't produce a "present but empty" title, which the
+        // display would treat as a title with nothing to show.
         if (request.title() != null) {
             String trimmed = request.title().trim();
             activity.title = trimmed.isEmpty() ? null : trimmed;
@@ -239,14 +239,14 @@ public class ActivityResource {
         return ActivityResponse.of(activity);
     }
 
-    // --- Tracé GPS ---
+    // --- GPS track ---
 
     @POST
     @Path("/{id}/track-points")
     @Transactional
     public Response uploadTrackPoints(@PathParam("id") UUID id, @Valid TrackPointBatchRequest batch) {
         ActivityEntity activity = owned(id);
-        // Idempotent par (activity_id, seq) : un lot rejoué (retry réseau) n'est pas dupliqué
+        // Idempotent on (activity_id, seq): a replayed batch (network retry) isn't duplicated
         int inserted = 0;
         for (TrackPointDto p : batch.points()) {
             inserted += em.createNativeQuery("""

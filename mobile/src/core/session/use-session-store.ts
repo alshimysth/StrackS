@@ -1,12 +1,12 @@
 /**
- * Moteur de séance (Epic 3) — machine à états idle → starting → active ⇄
- * paused → stopping. Orchestration : GPS → buffer SQLite (anti-crash) →
- * accumulateur live → upload par lots. DoD : réseau coupé toute la séance →
- * upload complet au retour ; app tuée → séance récupérée via recover().
+ * Session engine (Epic 3), state machine idle → starting → active ⇄ paused → stopping.
+ * Orchestration: GPS → SQLite buffer (crash-proof) → live accumulator → batched upload.
+ * DoD: network down for the whole session → full upload when it returns; app killed →
+ * session recovered through recover().
  *
- * pause/resume côté serveur sont best-effort (offline toléré) : le stop
- * réconcilie tout via durationS mesuré localement, et le serveur recalcule
- * les métriques depuis le tracé brut.
+ * Server-side pause/resume are best effort (offline tolerated): stop reconciles everything
+ * through the locally measured durationS, and the server recomputes the metrics from the
+ * raw track.
  */
 import { create } from 'zustand';
 
@@ -43,7 +43,7 @@ export type SessionStatus = 'idle' | 'starting' | 'active' | 'paused' | 'stoppin
 
 const TICK_MS = 1000;
 const FLUSH_MS = 10_000;
-/** Sans fix accepté depuis ce délai, la vitesse affichée retombe à zéro. */
+/** Without an accepted fix for this long, the displayed speed drops back to zero. */
 const SPEED_STALE_MS = 5000;
 
 interface SessionStore {
@@ -52,31 +52,31 @@ interface SessionStore {
   sportType: string | null;
   live: SessionState;
   path: LatLng[];
-  /** Précision du dernier fix reçu (indicateur signal GPS) ; null avant le premier. */
+  /** Accuracy of the last received fix (GPS signal indicator); null before the first. */
   gpsAccuracyM: number | null;
   /**
-   * Aucun fix exploitable depuis SIGNAL_LOST_MS (#19). Distinct de `gpsAccuracyM` :
-   * une précision médiocre reste un signal, ici il n'y en a plus du tout.
+   * No usable fix for SIGNAL_LOST_MS (#19). Distinct from `gpsAccuracyM`: poor accuracy
+   * is still a signal, here there is none at all.
    */
   signalLost: boolean;
   /**
-   * Le suivi écran verrouillé est-il actif ? `false` = permission « toujours » refusée,
-   * la séance continue mais s'arrête si l'écran s'éteint (#16).
+   * Is locked-screen tracking active? `false` = "always" permission denied, the session
+   * goes on but stops if the screen turns off (#16).
    */
   backgroundTracking: boolean;
 
-  /** @param gpsMode préférence #36 ; `balanced` = réglages historiques */
+  /** @param gpsMode preference #36; `balanced` = historical settings */
   start(sportType: string, maxGpsSpeedKmh: number, gpsMode?: GpsMode): Promise<void>;
   pause(): Promise<void>;
   resume(): Promise<void>;
-  /** Flush final + stop serveur. Résout avec l'activité complétée (métriques serveur). */
+  /** Final flush + server stop. Resolves with the completed activity (server metrics). */
   stop(): Promise<import('../../types/api').Activity>;
-  /** Recharge une séance orpheline du buffer (app tuée). @returns true si récupérée. */
+  /** Reloads an orphan session from the buffer (app killed). @returns true if recovered. */
   recover(): Promise<boolean>;
 }
 
-// État moteur hors React : GPS, timers, compteurs. Le store ne publie que
-// ce que l'UI affiche.
+// Engine state outside React: GPS, timers, counters. The store only publishes what the
+// UI displays.
 let acc: GpsAccumulator | null = null;
 let gpsSub: GpsSubscription | null = null;
 let tickTimer: ReturnType<typeof setInterval> | null = null;
@@ -86,11 +86,11 @@ let startedAtMs = 0;
 let pausedTotalS = 0;
 let pausedAtMs: number | null = null;
 /**
- * Mode GPS de la séance en cours (#36), réutilisé à la reprise. Persisté dans le buffer :
- * une séance récupérée après un kill reprend avec ses propres réglages (revue PR #80).
+ * GPS mode of the current session (#36), reused on resume. Persisted in the buffer: a
+ * session recovered after a kill resumes with its own settings (PR #80 review).
  */
 let gpsMode: GpsMode = 'balanced';
-/** Reprise en cours : les appels concurrents de `resume()` partagent la même promesse. */
+/** Resume in progress: concurrent `resume()` calls share the same promise. */
 let resuming: Promise<void> | null = null;
 
 function elapsedS(now = Date.now()): number {
@@ -99,12 +99,12 @@ function elapsedS(now = Date.now()): number {
 }
 
 /**
- * Une séance close change les totaux et l'historique (#69). Sans cette invalidation,
- * le résumé lisait les totaux de la semaine d'avant la séance — la clé est partagée
- * avec la carte d'objectif de l'accueil — et pouvait célébrer un objectif déjà atteint.
+ * A closed session changes the totals and the history (#69). Without this invalidation,
+ * the summary read the totals of the week from before the session (the key is shared
+ * with the home screen's goal card) and could celebrate a goal already reached.
  *
- * Posée ici plutôt que dans l'écran de tracking : c'est le seul endroit par lequel
- * passe toute clôture réussie, quel que soit l'écran qui l'a demandée.
+ * Placed here rather than in the tracking screen: it's the only place every successful
+ * close goes through, whichever screen requested it.
  */
 function invalidateAfterSession(): void {
   void queryClient.invalidateQueries({ queryKey: ['stats'] });
@@ -114,8 +114,8 @@ function invalidateAfterSession(): void {
 function stopEngine(): void {
   gpsSub?.remove();
   gpsSub = null;
-  // Sans ça, la tâche d'arrière-plan survivrait à la séance et continuerait d'écrire
-  // dans le buffer — avec, sur Android, une notification persistante orpheline.
+  // Otherwise the background task would outlive the session and keep writing to the
+  // buffer, with an orphan persistent notification on Android.
   void stopBackgroundUpdates();
   if (tickTimer != null) {
     clearInterval(tickTimer);
@@ -138,7 +138,7 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
     const accepted = acc.add(fix);
     set({
       gpsAccuracyM: fix.accuracyM,
-      signalLost: false, // un fix reçu rétablit le signal, même s'il sera ensuite filtré
+      signalLost: false, // a received fix restores the signal, even if it's filtered afterwards
       live: acc.snapshot(elapsedS()),
       ...(accepted ? { path: [...acc.path] } : {}),
     });
@@ -152,8 +152,8 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
       const sinceLastFixMs = acc.lastAcceptedMs == null ? null : Date.now() - acc.lastAcceptedMs;
       const stale = sinceLastFixMs == null || sinceLastFixMs > SPEED_STALE_MS;
       const snapshot = acc.snapshot(elapsedS());
-      // La perte de signal se détecte ici plutôt qu'à la réception d'un fix : par
-      // définition, quand le signal est perdu il n'arrive plus rien à écouter.
+      // Signal loss is detected here rather than when a fix arrives: by definition, when
+      // the signal is lost nothing arrives to listen to.
       set({
         live: stale ? { ...snapshot, smoothedSpeedMs: 0 } : snapshot,
         signalLost: sinceLastFixMs != null && sinceLastFixMs >= SIGNAL_LOST_MS,
@@ -168,9 +168,9 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
   }
 
   /**
-   * Corps de `resume()`. Revérifie après chaque attente que la séance en pause est
-   * toujours celle qui a demandé la reprise : un `stop()` peut aboutir pendant
-   * l'obtention du GPS, et installer le watch ensuite relancerait une séance close.
+   * Body of `resume()`. Checks again after each wait that the paused session is still the
+   * one that requested the resume: a `stop()` may complete while the GPS is being
+   * obtained, and installing the watch afterwards would restart a closed session.
    */
   async function doResume(): Promise<void> {
     const { status, activityId: resumedId } = get();
@@ -179,18 +179,18 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
     }
     const stillPaused = () => get().status === 'paused' && get().activityId === resumedId;
     /**
-     * Le GPS d'abord, la comptabilité ensuite (#51). `startGpsWatch` peut rejeter —
-     * permission de localisation révoquée en pleine séance, cas réel sur iOS. Si la
-     * pause était close avant, la séance resterait en pause mais sans borne de fin :
-     * `stop()` facturerait tout le temps écoulé depuis comme du temps d'effort, et la
-     * durée est la seule métrique que le serveur prend telle quelle.
+     * GPS first, bookkeeping second (#51). `startGpsWatch` may reject: location permission
+     * revoked mid-session, a real case on iOS. If the pause had been closed before, the
+     * session would stay paused but without an end bound: `stop()` would bill all the
+     * time elapsed since as effort time, and duration is the only metric the server takes
+     * as is.
      *
-     * Tant que le watch n'est pas obtenu, rien ne bouge : ni `pausedAtMs`, ni
-     * `pausedTotalS`, ni le buffer.
+     * Until the watch is obtained, nothing moves: neither `pausedAtMs`, nor
+     * `pausedTotalS`, nor the buffer.
      */
     const watch = await startGpsWatch(handleFix, gpsMode);
     if (!stillPaused()) {
-      watch.remove(); // clôturée (ou abandonnée) pendant l'obtention du GPS
+      watch.remove(); // closed (or abandoned) while the GPS was being obtained
       return;
     }
     const nextPausedTotalS =
@@ -200,12 +200,12 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
     try {
       await updatePauseState(nextPausedTotalS, null);
     } catch (error) {
-      // Buffer indisponible : la reprise n'est pas persistée, elle n'a donc pas lieu.
+      // Buffer unavailable: the resume isn't persisted, so it doesn't happen.
       watch.remove();
       throw error;
     }
     if (!stillPaused()) {
-      // stop() a abouti pendant l'écriture : il a déjà purgé le buffer, rien à défaire.
+      // stop() completed during the write: it already purged the buffer, nothing to undo.
       watch.remove();
       return;
     }
@@ -274,9 +274,9 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
           gpsMode,
         });
         gpsSub = await startGpsWatch(handleFix, gpsMode);
-        // Demandée APRÈS le démarrage, jamais au lancement de l'app : hors contexte,
-        // iOS la refuse en bloc. Un refus n'interrompt pas la séance — on reste en
-        // premier plan, ce que l'écran de tracking signale (dégradation, pas échec).
+        // Requested AFTER the start, never at app launch: out of context, iOS flatly
+        // refuses it. A denial doesn't interrupt the session: we stay in the foreground,
+        // which the tracking screen reports (degradation, not failure).
         const background = await startBackgroundUpdates(gpsMode).catch(() => false);
         set({ backgroundTracking: background });
         startTimers();
@@ -291,7 +291,7 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
           backgroundTracking: false,
         });
       } catch (error) {
-        // GPS refusé ou buffer indisponible : on annule l'activité créée
+        // GPS denied or buffer unavailable: cancel the created activity
         if (created != null) {
           void deleteActivity(created).catch(() => {});
           void clearBuffer().catch(() => {});
@@ -320,8 +320,8 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
     },
 
     resume() {
-      // Une seule reprise à la fois : un double appui pendant l'obtention du GPS ne
-      // doit pas installer deux watches (revue CodeRabbit, PR #71).
+      // A single resume at a time: a double tap while the GPS is being obtained must not
+      // install two watches (CodeRabbit review, PR #71).
       if (resuming == null) {
         resuming = doResume().finally(() => {
           resuming = null;
@@ -351,20 +351,20 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
         });
       } catch (error) {
         if (error instanceof ApiError && error.status === 404) {
-          // L'activité n'existe plus côté serveur : le buffer local est orphelin
+          // The activity no longer exists on the server: the local buffer is orphaned
           await clearBuffer().catch(() => {});
           resetToIdle();
           throw new Error('Séance introuvable côté serveur — données locales purgées.');
         }
         if (error instanceof ApiError && error.status === 409) {
-          // Déjà close côté serveur : un stop précédent a abouti mais la purge locale
-          // avait échoué, et `recover()` a ressuscité le buffer. Le serveur fait foi.
+          // Already closed on the server: a previous stop succeeded but the local purge
+          // had failed, and `recover()` brought the buffer back. The server is authoritative.
           await clearBuffer().catch(() => {});
           resetToIdle();
           invalidateAfterSession();
           throw new Error('Séance déjà enregistrée — données locales purgées.');
         }
-        // Retour en pause : la séance reste récupérable, l'utilisateur réessaiera
+        // Back to pause: the session stays recoverable, the user will retry
         if (pausedAtMs == null) {
           pausedAtMs = endMs;
         }
@@ -374,10 +374,10 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
         throw error;
       }
       /**
-       * Le serveur a clos la séance : plus rien ne doit la rouvrir (revue CodeRabbit,
-       * PR #71). Un échec de purge locale renvoyait auparavant en pause, et chaque
-       * nouvel essai recevait un 409 — le serveur refuse de clore une séance close.
-       * La purge devient donc best-effort, et l'invalidation ne dépend plus d'elle.
+       * The server closed the session: nothing may reopen it anymore (CodeRabbit review,
+       * PR #71). A failed local purge used to send it back to pause, and each new attempt
+       * got a 409, since the server refuses to close a closed session. The purge is
+       * therefore best effort, and the invalidation no longer depends on it.
        */
       invalidateAfterSession();
       await clearBuffer().catch(() => {});
@@ -402,8 +402,8 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
         acc.add(p);
       }
       seq = points.length > 0 ? points[points.length - 1].seq + 1 : 0;
-      // App tuée en pleine séance : le temps mort compte comme pause,
-      // bornée au dernier point connu.
+      // App killed mid-session: the dead time counts as a pause, bounded by the last
+      // known point.
       pausedAtMs =
         session.pausedAtMs ??
         (points.length > 0 ? points[points.length - 1].recordedAtMs : Date.now());

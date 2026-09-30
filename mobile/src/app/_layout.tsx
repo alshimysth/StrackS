@@ -1,7 +1,7 @@
 /**
- * Layout racine : providers (TanStack Query), chargement des fontes du design
- * system, hydratation de la session et garde d'authentification par groupes
- * de routes — (auth) pour les anonymes, (tabs) pour les connectés.
+ * Root layout: providers (TanStack Query), loading of the design system fonts, session
+ * hydration and authentication guard by route group: (auth) for anonymous users, (tabs)
+ * for logged-in ones.
  */
 import {
   DMSans_400Regular,
@@ -23,22 +23,21 @@ import { setupOnlineManager } from '../core/network/online';
 import { darkTheme } from '../design-system/theme';
 import { useTheme } from '../design-system/use-theme';
 
-/**
- * Le provider react-query enveloppe TOUT, y compris l'écran de chargement.
- *
- * Depuis #31, `useTheme` lit la préférence de thème, donc react-query. L'appeler au-dessus
- * du provider ferait planter l'app au lancement avec « No QueryClient set » — d'où la
- * séparation en deux composants. Aucun test ne rend ce fichier : le piège ne se voit qu'à
- * l'exécution.
- */
-// Monitoring des erreurs (lot 5) : inactif sans `EXPO_PUBLIC_SENTRY_DSN`. Initialisé au
-// chargement du module, avant le premier rendu, pour capturer aussi les erreurs de démarrage.
+// Error monitoring (lot 5): inactive without `EXPO_PUBLIC_SENTRY_DSN`. Initialized when the
+// module loads, before the first render, so startup errors are captured too.
 initMonitoring();
 
 export default withMonitoring(RootLayout);
 
+/**
+ * The react-query provider wraps EVERYTHING, the loading screen included.
+ *
+ * Since #31, `useTheme` reads the theme preference, hence react-query. Calling it above the
+ * provider would crash the app at launch with "No QueryClient set", hence the split into
+ * two components. No test renders this file: the trap only shows at runtime.
+ */
 function RootLayout() {
-  // Sans ce câblage, react-query croit l'app toujours en ligne sous React Native.
+  // Without this wiring, react-query thinks the app is always online under React Native.
   React.useEffect(() => setupOnlineManager(), []);
 
   return (
@@ -83,9 +82,9 @@ function AppShell() {
 
   return (
     <>
-      {/* `style="auto"` suit le thème SYSTÈME, pas le thème résolu : quelqu'un qui
-          choisit « sombre » sur un système clair obtenait des icônes foncées sur fond
-          sombre. On dérive donc le style du thème effectif (signalé en revue). */}
+      {/* `style="auto"` follows the SYSTEM theme, not the resolved one: someone choosing
+          "dark" on a light system got dark icons on a dark background. The style is
+          therefore derived from the effective theme (raised in review). */}
       <StatusBar style={theme === darkTheme ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />

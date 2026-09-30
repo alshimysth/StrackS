@@ -11,7 +11,7 @@ get {
 }
 
 tests {
-  test("200 OK + running et walking enregistrés", function () {
+  test("200 OK + running and walking registered", function () {
     expect(res.getStatus()).to.equal(200);
     const codes = res.getBody().map((s) => s.code);
     expect(codes).to.include.members(["running", "walking"]);

@@ -1,6 +1,6 @@
 /**
- * Nom affiché, modifiable depuis le profil (#7, suggestion 5). Le `PATCH /users/me`
- * existait depuis le socle ; il manquait l'écran.
+ * Display name, editable from the profile (#7, suggestion 5). `PATCH /users/me` existed
+ * since the core was built; the screen was missing.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -54,7 +54,7 @@ export function DisplayName({ value }: { value: string | null | undefined }) {
         label="Nom affiché"
         value={draft}
         onChangeText={(next) => {
-          // Une erreur ne doit pas rester à côté d'une saisie qu'on est en train de corriger.
+          // An error must not stay next to an input that is being corrected.
           setDraft(next);
           setError(undefined);
           update.reset();

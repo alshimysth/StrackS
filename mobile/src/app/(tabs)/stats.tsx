@@ -1,19 +1,18 @@
 /**
- * Statistiques — 4e onglet (#24).
+ * Statistics: 4th tab (#24).
  *
- * Deux décisions de conception structurent cet écran :
+ * Two design decisions shape this screen:
  *
- * 1. **Onglet dédié, pas une section du profil.** Le PRD promet « comprendre ta
- *    progression » ; enterrer les stats dans les réglages les rendrait invisibles.
- * 2. **Tout est agrégé côté serveur.** L'écran ne connaît aucune règle de calcul :
- *    il affiche ce que `/stats/summary` et `/stats/timeline` renvoient. C'est la
- *    DoD (« les chiffres correspondent exactement à la réponse ») et c'est ce qui
- *    tient le budget de latence de #28.
+ * 1. **A dedicated tab, not a profile section.** The PRD promises "understand your
+ *    progress"; burying stats in the settings would make them invisible.
+ * 2. **Everything is aggregated server side.** The screen knows no computation rule: it
+ *    shows what `/stats/summary` and `/stats/timeline` return. That's the DoD ("the
+ *    figures match the response exactly") and what keeps #28's latency budget.
  *
- * Aucune métrique n'est codée en dur : le socle backend ne nomme que le nombre de
- * séances et la durée, les plugins déclarent le reste sous `totals`. Une carte
- * n'apparaît donc que si la clé correspondante est présente — c'est ce qui fait
- * que l'écran reste juste le jour où un sport sans distance arrive (#46).
+ * No metric is hard-coded: the backend core only names the session count and the
+ * duration, plugins declare the rest under `totals`. A card therefore only appears if the
+ * matching key is present, which keeps the screen right the day a sport without distance
+ * arrives (#46).
  */
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -66,14 +65,14 @@ export default function StatsScreen() {
     ...(sportTypes.data ?? []).map((s) => ({ value: s.code, label: s.label })),
   ];
 
-  // Le filtre part au serveur, jamais appliqué sur place : agréger localement
-  // demanderait de rapatrier les séances, ce que cet écran ne fait pas.
+  // The filter goes to the server, never applied locally: aggregating locally would
+  // require pulling the sessions, which this screen doesn't do.
   const query = { period, anchor, sport: sport === ALL_SPORTS ? undefined : sport };
   const summary = useStatsSummary(query);
   const timeline = useStatsTimeline(query);
 
-  // Changer de maille remet sur la période courante : garder l'ancre ferait
-  // passer de « juillet » à « semaine du 15 juillet », ce que personne n'a demandé.
+  // Changing granularity goes back to the current period: keeping the anchor would go
+  // from "juillet" to "semaine du 15 juillet", which nobody asked for.
   const changePeriod = (next: StatsPeriod) => {
     setPeriod(next);
     setAnchor(new Date());
@@ -174,7 +173,7 @@ function Body({ summary, timeline }: { summary: SummaryQuery; timeline: Timeline
     return <LoadingState message="Calcul de tes totaux" />;
   }
 
-  // Comme sur l'historique : l'erreur ne prend l'écran que si le cache est vide.
+  // As in history: the error only takes the screen if the cache is empty.
   if (summary.isError && summary.data == null) {
     return <ErrorState error={summary.error} onRetry={() => void summary.refetch()} />;
   }
@@ -245,9 +244,9 @@ function Body({ summary, timeline }: { summary: SummaryQuery; timeline: Timeline
 }
 
 /**
- * Les quatre totaux. Séances et durée existent toujours — ce sont les seules
- * grandeurs que le socle connaisse. Distance et dénivelé n'apparaissent que si un
- * plugin les a déclarées sur la période.
+ * The four totals. Sessions and duration always exist: they're the only quantities the
+ * core knows. Distance and elevation only appear if a plugin declared them over the
+ * period.
  */
 function Totals({ data }: { data: StatsSummary }) {
   const format = useFormat();
@@ -290,9 +289,9 @@ function Totals({ data }: { data: StatsSummary }) {
 }
 
 /**
- * Pour un compte de séances, l'écart brut parle mieux qu'un pourcentage : « + 3 »
- * se comprend d'un coup d'œil là où « + 14 % » demande de connaître le total
- * précédent. Rien à afficher quand la période précédente était vide.
+ * For a session count, the raw difference speaks better than a percentage: "+ 3" is
+ * understood at a glance where "+ 14 %" requires knowing the previous total. Nothing to
+ * show when the previous period was empty.
  */
 export function formatCountDelta(current: number, previous: number): string | null {
   if (previous <= 0) {
@@ -320,8 +319,8 @@ const styles = StyleSheet.create({
   filters: { gap: spacing.xs },
   body: { gap: spacing.md },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  // Deux colonnes : (100 % − gouttière) / 2, exprimé en flex-basis pour rester
-  // juste quel que soit la largeur de l'appareil.
+  // Two columns: (100 % − gutter) / 2, expressed as flex-basis to stay right whatever the
+  // device width.
   gridCell: { flexGrow: 1, flexBasis: '46%' },
   card: { borderWidth: 1, borderRadius: radius.md, padding: spacing.lg, gap: spacing.sm },
   cardCaption: { marginBottom: spacing.sm },

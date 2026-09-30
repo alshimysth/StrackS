@@ -15,11 +15,10 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 
 /**
- * Titre et notes d'activité (Story #25, migration V6).
+ * Activity title and notes (story #25, migration V6).
  *
- * La DoD demande explicitement la vérification anti-IDOR sur l'édition : `PATCH` est le
- * premier verbe d'écriture exposé sur une ressource qu'un autre utilisateur pourrait
- * cibler par son identifiant.
+ * The DoD explicitly asks for the anti-IDOR check on editing: `PATCH` is the first write
+ * verb exposed on a resource another user could target by its id.
  */
 @QuarkusTest
 class ActivityTitleTest {
@@ -37,7 +36,7 @@ class ActivityTitleTest {
                 .extract().path("id");
     }
 
-    /** `Map.of` refuse les valeurs nulles — indispensable pour tester l'effacement. */
+    /** `Map.of` rejects null values, which is needed to test clearing. */
     private static Map<String, Object> body(String key, Object value) {
         Map<String, Object> map = new HashMap<>();
         map.put(key, value);
@@ -72,8 +71,8 @@ class ActivityTitleTest {
     }
 
     /**
-     * Convention du PATCH : un champ absent n'est pas touché. Sans elle, éditer les
-     * notes effacerait le titre au passage.
+     * PATCH convention: an absent field isn't touched. Without it, editing the notes would
+     * clear the title along the way.
      */
     @Test
     void omitting_title_leaves_it_untouched() {
@@ -92,7 +91,7 @@ class ActivityTitleTest {
                 .body("notes", equalTo("Jambes lourdes"));
     }
 
-    /** Chaîne vide = effacement explicite, seule façon de distinguer « vider » de « ne pas toucher ». */
+    /** Empty string = explicit clear, the only way to tell "clear" from "don't touch". */
     @Test
     void empty_string_clears_the_title() {
         String token = freshToken();
@@ -109,7 +108,7 @@ class ActivityTitleTest {
                 .body("title", nullValue());
     }
 
-    /** Un titre d'espaces n'est pas un titre : il serait « présent mais vide » à l'affichage. */
+    /** A whitespace title isn't a title: it would be "present but empty" on display. */
     @Test
     void blank_title_is_stored_as_null() {
         String token = freshToken();
@@ -170,7 +169,7 @@ class ActivityTitleTest {
                 .body("title", nullValue());
     }
 
-    /** DoD #25 : impossible d'éditer l'activité d'un autre — et son existence n'est pas révélée. */
+    /** DoD #25: another user's activity can't be edited, and its existence isn't revealed. */
     @Test
     void another_user_cannot_edit_the_activity() {
         String owner = freshToken();

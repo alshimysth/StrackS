@@ -1,6 +1,6 @@
 /**
- * Fallback web : react-native-maps est natif uniquement. Reprend le
- * placeholder réglementaire du design (zone neutre + mention).
+ * Web fallback: react-native-maps is native only. Reuses the design's placeholder
+ * (neutral area + caption).
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';

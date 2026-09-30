@@ -1,10 +1,10 @@
 /**
- * Préférence de thème (#31).
+ * Theme preference (#31).
  *
- * Le point le plus fragile n'est pas la sélection mais son ORDRE DE PRIORITÉ :
- * `ThemeOverride` doit primer sur la préférence, sinon quelqu'un ayant choisi « clair »
- * verrait l'écran de tracking s'éclaircir — or ce sombre est le mode « plein soleil »,
- * lisible bras tendu en extérieur. C'est explicitement dans la DoD.
+ * The most fragile point isn't the selection but its PRIORITY ORDER: `ThemeOverride`
+ * must win over the preference, otherwise someone who chose "light" would see the tracking
+ * screen lighten, whereas that dark theme is the "full sun" mode, readable at arm's length
+ * outdoors. It's explicitly in the DoD.
  */
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react-native';
@@ -23,9 +23,9 @@ jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
 }));
 
 /**
- * Aucun appel réseau : le cache est prérempli par `setQueryData`. Sans ce mock, la
- * requête part pour de bon, se prend un 401 et déclenche une déconnexion — jusqu'à
- * faire tomber le processus jest sur le rejet non capturé du secure-store.
+ * No network call: the cache is prefilled with `setQueryData`. Without this mock, the
+ * request really goes out, gets a 401 and triggers a logout, to the point of bringing the
+ * jest process down on the secure-store's unhandled rejection.
  */
 jest.mock('../../core/api/client', () => ({
   ...jest.requireActual('../../core/api/client'),
@@ -38,7 +38,7 @@ function Wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-/** Rend la clé du thème effectif : le test n'assume aucune couleur précise. */
+/** Returns the key of the effective theme: the test assumes no specific colour. */
 function Probe() {
   const theme = useTheme();
   const name = theme === darkTheme ? 'dark' : theme === lightTheme ? 'light' : '?';
@@ -59,26 +59,26 @@ afterEach(() => {
 });
 
 describe('useTheme', () => {
-  it('suit le système en mode auto', async () => {
+  it('follows the system in auto mode', async () => {
     setPreference('auto');
     await render(<Probe />, { wrapper: Wrapper });
     expect(screen.getByTestId('probe')).toHaveTextContent('light');
   });
 
-  it('applique la préférence sombre malgré un système clair', async () => {
+  it('applies the dark preference despite a light system', async () => {
     setPreference('dark');
     await render(<Probe />, { wrapper: Wrapper });
     expect(screen.getByTestId('probe')).toHaveTextContent('dark');
   });
 
-  it('applique la préférence claire', async () => {
+  it('applies the light preference', async () => {
     setPreference('light');
     await render(<Probe />, { wrapper: Wrapper });
     expect(screen.getByTestId('probe')).toHaveTextContent('light');
   });
 
-  /** Le cœur de la DoD : le tracking reste sombre quel que soit le réglage. */
-  it('laisse ThemeOverride primer sur la préférence claire', async () => {
+  /** The heart of the DoD: tracking stays dark whatever the setting. */
+  it('lets ThemeOverride win over the light preference', async () => {
     setPreference('light');
     await render(
       <ThemeOverride theme={darkTheme}>
@@ -89,8 +89,8 @@ describe('useTheme', () => {
     expect(screen.getByTestId('probe')).toHaveTextContent('dark');
   });
 
-  /** Sans préférence chargée, on retombe sur le comportement d'avant #31. */
-  it('retombe sur le système quand rien n’est chargé', async () => {
+  /** Without a loaded preference, we fall back to the behaviour from before #31. */
+  it('falls back to the system when nothing is loaded', async () => {
     await render(<Probe />, { wrapper: Wrapper });
     expect(screen.getByTestId('probe')).toHaveTextContent('light');
   });

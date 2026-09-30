@@ -1,13 +1,13 @@
 /**
- * Monitoring des erreurs mobile (lot 5) — Sentry, **désactivé tant qu'aucun DSN n'est
- * fourni** (`EXPO_PUBLIC_SENTRY_DSN`). Aucun compte n'est créé par le code : le brancher
- * est une décision humaine (voir `docs/release/RUNBOOK.md`).
+ * Mobile error monitoring (lot 5) with Sentry, **disabled until a DSN is provided**
+ * (`EXPO_PUBLIC_SENTRY_DSN`). No account is created by the code: plugging it in is a
+ * human decision (see `docs/release/RUNBOOK.md`).
  *
- * Réglages de confidentialité, non négociables :
- *  - `sendDefaultPii: false` : ni IP, ni identifiant d'utilisateur ;
- *  - aucune trace de performance, aucun replay de session ;
- *  - chaque événement et chaque fil d'Ariane passent par `scrub` (positions, emails,
- *    jetons, codes retirés), et les URL perdent leur chaîne de requête.
+ * Privacy settings, non-negotiable:
+ *  - `sendDefaultPii: false`: no IP, no user id;
+ *  - no performance traces, no session replay;
+ *  - every event and every breadcrumb goes through `scrub` (locations, emails, tokens,
+ *    codes removed), and URLs lose their query string.
  */
 import * as Sentry from '@sentry/react-native';
 import type React from 'react';
@@ -28,8 +28,8 @@ export function initMonitoring(dsn: string | undefined = process.env.EXPO_PUBLIC
     enableAutoSessionTracking: true,
     environment: __DEV__ ? 'development' : 'production',
     beforeSend(event) {
-      // Contexte libre ajouté par un appelant : rien ne garantit ce qu'il contient.
-      // Il ne part pas ; l'exception, la pile et le contexte technique suffisent.
+      // Free context added by a caller: nothing guarantees what it contains. It isn't
+      // sent; the exception, stack and technical context are enough.
       delete event.extra;
       const clean = scrub(event);
       if (clean.request?.url != null) {
@@ -54,7 +54,7 @@ export function monitoringEnabled(): boolean {
   return enabled;
 }
 
-/** Enveloppe le composant racine : sans DSN, rend le composant tel quel. */
+/** Wraps the root component: without a DSN, returns the component as is. */
 export function withMonitoring(Component: React.ComponentType): React.ComponentType {
   return enabled ? (Sentry.wrap(Component as React.ComponentType<Record<string, unknown>>) as React.ComponentType) : Component;
 }

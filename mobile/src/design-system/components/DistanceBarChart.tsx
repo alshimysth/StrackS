@@ -1,22 +1,19 @@
 /**
- * Distance par intervalle, empilée par sport (#24).
+ * Distance per interval, stacked by sport (#24).
  *
- * Le seul graphique du produit. Règles de dataviz appliquées, chacune pour une
- * raison qui se voit à l'écran :
+ * The product's only chart. Dataviz rules applied, each for a reason visible on screen:
  *
- * - **Un seul axe.** Distance uniquement. Ajouter la durée demanderait une
- *   seconde échelle, dont l'alignement avec la première serait arbitraire — le
- *   graphique inventerait une corrélation absente des données.
- * - **La couleur suit le sport, jamais son rang.** Filtrer sur la course ne
- *   repeint pas les barres restantes ; qui a appris « la marche est verte » ne
- *   se fait pas piéger.
- * - **Étiquette directe sur le seul pic.** Un nombre sur chaque barre ne se lit
- *   plus ; les autres valeurs passent par la sélection et la légende.
- * - **Écart de 2 px en couleur de surface** entre segments empilés, plutôt qu'un
- *   trait de séparation : un contour ajouterait de l'encre qui n'est pas de la
- *   donnée.
- * - **Le texte ne porte jamais la couleur de la série** — l'identité vient de la
- *   pastille posée à côté, pas de la teinte des caractères.
+ * - **A single axis.** Distance only. Adding duration would require a second scale, whose
+ *   alignment with the first would be arbitrary: the chart would invent a correlation
+ *   absent from the data.
+ * - **Colour follows the sport, never its rank.** Filtering on running doesn't repaint
+ *   the remaining bars; whoever learned "walking is green" isn't tricked.
+ * - **Direct label on the single peak only.** A number on each bar becomes unreadable;
+ *   the other values go through selection and the legend.
+ * - **A 2 px gap in surface colour** between stacked segments, rather than a separator
+ *   line: an outline would add ink that isn't data.
+ * - **Text never takes the series colour**: identity comes from the dot placed next to
+ *   it, not from the colour of the characters.
  */
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -29,15 +26,15 @@ import type { StatsTimeline, TimelineBucket } from '../../types/api';
 const PLOT_HEIGHT = 158;
 const SEGMENT_GAP = 2;
 /**
- * Une sortie de 300 m dans un mois à 40 km ferait moins d'un pixel. On lui en
- * garantit trois : une barre invisible se lit « aucune séance », ce qui est faux.
- * La distorsion reste sous 2 % de la hauteur du tracé et ne change aucun ordre.
+ * A 300 m run in a 40 km month would be less than a pixel. It's guaranteed three: an
+ * invisible bar reads as "no session", which is wrong. The distortion stays under 2 % of
+ * the plot height and changes no ordering.
  */
 const MIN_VISIBLE_HEIGHT = 3;
 
 interface Props {
   timeline: StatsTimeline;
-  /** Libellés des sports, tels que le backend les nomme. */
+  /** Sport labels, as the backend names them. */
   labels: Record<string, string>;
 }
 
@@ -52,8 +49,8 @@ export function DistanceBarChart({ timeline, labels }: Props) {
   const [selected, setSelected] = React.useState<number | null>(null);
   const highlighted = selected ?? peakIndex;
 
-  // L'ordre des sports est figé sur l'ensemble du graphique : trier par valeur
-  // dans chaque colonne ferait sauter les couleurs d'un intervalle à l'autre.
+  // Sport order is fixed across the whole chart: sorting by value within each column
+  // would make colours jump from one interval to the next.
   const sports = seriesOrder(buckets);
 
   if (max <= 0) {
@@ -80,8 +77,8 @@ export function DistanceBarChart({ timeline, labels }: Props) {
               accessibilityLabel={`${bucketLabel(bucket, timeline.bucket)} : ${format.distance(total)} ${format.distanceUnit}`}
               style={styles.column}
             >
-              {/* Hauteur réservée en permanence : sans elle, afficher la valeur
-                  ferait monter et descendre toute la colonne à chaque sélection. */}
+              {/* Height reserved at all times: without it, showing the value would move
+                  the whole column up and down on each selection. */}
               <Text
                 numberOfLines={1}
                 style={[
@@ -118,10 +115,10 @@ export function DistanceBarChart({ timeline, labels }: Props) {
         })}
       </View>
 
-      {/* Légende dès DEUX séries : l'identité ne repose alors jamais sur la seule
-          couleur, et elle est chiffrée — c'est aussi le total par sport. Une série
-          unique s'en passe : le titre du graphique dit déjà ce qui est tracé, et
-          une pastille seule ne ferait que le répéter. */}
+      {/* Legend from TWO series on: identity then never relies on colour alone, and it's
+          quantified, which is also the per-sport total. A single series does without it:
+          the chart title already says what's plotted, and a lone dot would only repeat
+          it. */}
       {sports.length > 1 && (
       <View style={styles.legend}>
         {sports.map((sport) => (
@@ -158,8 +155,8 @@ function Stack({
   testID: string;
 }) {
   if (total <= 0) {
-    // L'intervalle existe et vaut zéro : un filet à la ligne de base le dit,
-    // là où une colonne absente se lirait « données manquantes ».
+    // The interval exists and is zero: a hairline at the baseline says so, where a missing
+    // column would read as "missing data".
     return <View testID={`${testID}-zero`} style={[styles.zeroRule, { backgroundColor: zeroRule }]} />;
   }
 
@@ -168,8 +165,8 @@ function Stack({
     .map((sport) => ({ sport, value: distanceOf(bucket, sport) }))
     .filter((entry) => entry.value > 0);
 
-  // Les écarts sont pris sur la hauteur utile, pas ajoutés par-dessus : sinon
-  // une colonne à trois sports dépasserait une colonne à un sport de même valeur.
+  // Gaps are taken from the usable height, not added on top: otherwise a three-sport
+  // column would exceed a one-sport column of the same value.
   const gaps = SEGMENT_GAP * Math.max(present.length - 1, 0);
   const usable = Math.max(columnHeight - gaps, MIN_VISIBLE_HEIGHT);
 
@@ -184,8 +181,8 @@ function Stack({
               height: Math.max((entry.value / total) * usable, MIN_VISIBLE_HEIGHT),
               backgroundColor: seriesColor(entry.sport, surface),
             },
-            // Coin arrondi en haut de pile seulement — le bas est ancré à la
-            // ligne de base et doit rester carré.
+            // Rounded corner at the top of the stack only: the bottom is anchored to the
+            // baseline and must stay square.
             index === 0 && styles.stackTop,
             index > 0 && { marginTop: SEGMENT_GAP },
           ]}
@@ -196,7 +193,7 @@ function Stack({
 }
 
 // ---------------------------------------------------------------------------
-// Dérivations
+// Derivations
 // ---------------------------------------------------------------------------
 
 export function bucketDistance(bucket: TimelineBucket): number {
@@ -212,8 +209,8 @@ export function seriesTotal(buckets: TimelineBucket[], sport: string): number {
 }
 
 /**
- * Ordre d'empilement, stable sur tout le graphique : premier vu, premier posé.
- * Le tri par valeur ferait changer l'ordre des segments d'une colonne à l'autre.
+ * Stacking order, stable across the whole chart: first seen, first placed. Sorting by
+ * value would change the segment order from one column to the next.
  */
 export function seriesOrder(buckets: TimelineBucket[]): string[] {
   const seen: string[] = [];
@@ -227,7 +224,7 @@ export function seriesOrder(buckets: TimelineBucket[]): string[] {
   return seen;
 }
 
-/** Un sport inconnu du design system retombe sur une neutre plutôt que sur rien. */
+/** A sport unknown to the design system falls back to a neutral colour rather than nothing. */
 function seriesColor(sport: string, fallback: string): string {
   return dataSeriesColors[sport] ?? fallback;
 }
@@ -240,13 +237,13 @@ export function bucketLabel(bucket: TimelineBucket, unit: StatsTimeline['bucket'
   if (unit === 'month') {
     return date.toLocaleDateString('fr-FR', { month: 'narrow' });
   }
-  // Semaine : le jour de son lundi, la seule étiquette qui tient sous une barre.
+  // Week: the day of its Monday, the only label that fits under a bar.
   return `${date.getDate()}/${date.getMonth() + 1}`;
 }
 
 /**
- * Libellé d'accessibilité du graphe. Helper pur : le formateur lui est passé, il
- * n'appelle pas de hook — la fonction est aussi utilisée hors rendu.
+ * Accessibility label of the chart. A pure helper: the formatter is passed to it, it
+ * calls no hook, since the function is also used outside rendering.
  */
 function summaryLabel(
   timeline: StatsTimeline,

@@ -1,6 +1,6 @@
 /**
- * Gabarit des écrans de formulaire hors onglets (compte, #73/#75) : titre, texte
- * d'introduction, contenu, retour — défilant au-dessus du clavier, bords sûrs respectés.
+ * Template of the form screens outside the tabs (account, #73/#75): title, intro text,
+ * content, back; scrolling above the keyboard, safe edges respected.
  */
 import React, { type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';

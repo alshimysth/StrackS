@@ -1,4 +1,4 @@
-/** DTOs partagés avec le backend Quarkus (JSON camelCase, dates ISO 8601). */
+/** DTOs shared with the Quarkus backend (camelCase JSON, ISO 8601 dates). */
 
 export interface User {
   id: string;
@@ -6,8 +6,8 @@ export interface User {
   displayName: string | null;
   createdAt: string;
   /**
-   * Adresse prouvée par un code (#75). Optionnel : un utilisateur mis en cache par une
-   * version antérieure de l'app n'a pas le champ — absent vaut « non vérifié ».
+   * Address proven by a code (#75). Optional: a user cached by an earlier app version
+   * lacks the field; absent means "not verified".
    */
   emailVerified?: boolean;
 }
@@ -35,7 +35,7 @@ export interface Activity {
   durationS: number | null;
   distanceM: number | null;
   calories: number | null;
-  /** Titre libre (#25). Null = titre dérivé du sport et de la date à l'affichage. */
+  /** Free-form title (#25). Null = title derived from the sport and date at display time. */
   title: string | null;
   notes: string | null;
   metrics: Record<string, unknown>;
@@ -48,7 +48,7 @@ export interface Page<T> {
   total: number;
 }
 
-/** Erreur RFC 7807 renvoyée par le backend. */
+/** RFC 7807 error returned by the backend. */
 export interface Problem {
   title: string;
   status: number;
@@ -56,16 +56,16 @@ export interface Problem {
 }
 
 // ---------------------------------------------------------------------------
-// Statistiques (#24)
+// Statistics (#24)
 // ---------------------------------------------------------------------------
 
 /**
- * Agrégats d'un sport sur une période.
+ * Aggregates of one sport over a period.
  *
- * `totals` est ouvert à dessein : le socle backend ne nomme aucune métrique de
- * sport, c'est le plugin qui déclare ses clés (`distanceM`, `elevationGainM`…).
- * Un sport sans distance n'en déclare simplement aucune — l'écran doit donc
- * tester la présence d'une clé, jamais supposer qu'elle est là.
+ * `totals` is open on purpose: the backend core names no sport metric, the plugin
+ * declares its keys (`distanceM`, `elevationGainM`…). A sport without distance simply
+ * declares none; the screen must therefore test a key's presence, never assume it's
+ * there.
  */
 export interface SportStats {
   sportType: string;
@@ -75,7 +75,7 @@ export interface SportStats {
   totals: Record<string, number>;
 }
 
-/** Totaux d'une fenêtre, tous sports confondus. */
+/** Totals of a window, all sports combined. */
 export interface StatsTotals {
   sessions: number;
   durationS: number;
@@ -89,11 +89,11 @@ export interface StatsSummary {
   totalSessions: number;
   totalDurationS: number;
   totals: Record<string, number>;
-  /** Même fenêtre décalée d'une période — la base de la comparaison. */
+  /** Same window shifted by one period: the basis of the comparison. */
   previous: StatsTotals;
 }
 
-/** Valeur d'un sport dans un intervalle du graphique (colonnes du socle only). */
+/** Value of one sport within a chart interval (core columns only). */
 export interface TimelineSportValue {
   sportType: string;
   sessions: number;
@@ -104,7 +104,7 @@ export interface TimelineSportValue {
 export interface TimelineBucket {
   start: string;
   end: string;
-  /** Vide quand l'intervalle n'a aucune séance — l'intervalle existe quand même. */
+  /** Empty when the interval has no session; the interval exists anyway. */
   bySport: TimelineSportValue[];
 }
 
@@ -115,13 +115,13 @@ export interface StatsTimeline {
   buckets: TimelineBucket[];
 }
 
-/** Détenteur d'un record personnel (#61) — la plus ancienne séance à égalité. */
+/** Holder of a personal record (#61): the oldest session on a tie. */
 export interface PersonalRecord {
-  /** Clé nommée par le module de sport (« distanceM ») ou par le socle (« durationS »). */
+  /** Key named by the sport module ("distanceM") or by the core ("durationS"). */
   key: string;
-  /** Libellé rédigé par le serveur (« Plus longue distance »). */
+  /** Label written by the server ("Plus longue distance"). */
   label: string;
-  /** Unité SI de `value` : `m` ou `s`. */
+  /** SI unit of `value`: `m` or `s`. */
   unit: string;
   value: number;
   activityId: string;

@@ -3,16 +3,16 @@ package com.stracks.core.activity;
 import java.util.function.Function;
 
 /**
- * Une grandeur dont un sport tient un record personnel (#61).
+ * A quantity for which a sport keeps a personal record (#61).
  *
- * <p>Le socle ne sait pas ce qui mérite un record : la plus longue distance a un sens en
- * course, pas en musculation, où ce serait la charge. Chaque plugin déclare donc ses
- * mesures ; le socle, lui, n'en impose qu'une, que toute activité possède — la durée.
+ * <p>The core doesn't know what deserves a record: the longest distance makes sense for
+ * running, not for weight training, where it would be the load. Each plugin therefore
+ * declares its own measures; the core imposes only one, which every activity has: duration.
  *
- * @param key   camelCase avec l'unité en suffixe, même convention que {@link SportStats}
- * @param label libellé affiché tel quel par le client (« Plus longue distance »)
- * @param unit  unité SI de la valeur ({@code m}, {@code s}) — le client formate
- * @param value extraction de la valeur ; {@code null} = pas de valeur pour cette séance
+ * @param key   camelCase with the unit as suffix, same convention as {@link SportStats}
+ * @param label label displayed as is by the client ("Plus longue distance")
+ * @param unit  SI unit of the value ({@code m}, {@code s}); the client formats it
+ * @param value extracts the value; {@code null} = no value for this session
  */
 public record PersonalRecordMetric(
         String key,
@@ -20,7 +20,7 @@ public record PersonalRecordMetric(
         String unit,
         Function<ActivityEntity, Double> value) {
 
-    /** La seule mesure que le socle connaisse : toute activité a une durée. */
+    /** The only measure the core knows: every activity has a duration. */
     public static final PersonalRecordMetric LONGEST_DURATION = new PersonalRecordMetric(
             "durationS", "Plus longue séance", "s",
             a -> a.durationS == null ? null : a.durationS.doubleValue());

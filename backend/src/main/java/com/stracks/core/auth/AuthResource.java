@@ -40,14 +40,14 @@ public class AuthResource {
     @POST
     @Path("/login")
     public AuthResponse login(@Valid LoginRequest request, @Context HttpServerRequest http) {
-        limits.login(clientIp(http), request.email()); // avant BCrypt : un 429 ne coûte rien
+        limits.login(clientIp(http), request.email()); // before BCrypt: a 429 costs nothing
         return toResponse(authService.login(request));
     }
 
     /**
-     * Renouvelle la session. Volontairement {@code @PermitAll} : l'appelant arrive
-     * précisément parce que son JWT d'accès est expiré — exiger un Bearer valide ici
-     * rendrait l'endpoint inutile.
+     * Refreshes the session. Deliberately {@code @PermitAll}: the caller arrives precisely
+     * because its access JWT has expired; requiring a valid Bearer here would make the
+     * endpoint useless.
      */
     @POST
     @Path("/refresh")
@@ -57,9 +57,9 @@ public class AuthResource {
     }
 
     /**
-     * Déconnexion : révoque la famille du jeton présenté côté serveur. Également
-     * {@code @PermitAll}, pour qu'une déconnexion aboutisse même avec un JWT déjà expiré —
-     * sinon un jeton de renouvellement resterait vivant sans moyen de le tuer.
+     * Logout: revokes the presented token's family on the server side. Also
+     * {@code @PermitAll}, so that a logout succeeds even with an already expired JWT;
+     * otherwise a refresh token would stay alive with no way to kill it.
      */
     @POST
     @Path("/logout")
@@ -69,8 +69,8 @@ public class AuthResource {
     }
 
     /**
-     * Mot de passe oublié (#74) : toujours 202, que l'adresse ait un compte ou non.
-     * Répondre autrement ferait de cet endpoint un annuaire des comptes existants.
+     * Forgotten password (#74): always 202, whether or not the address has an account.
+     * Answering otherwise would turn this endpoint into a directory of existing accounts.
      */
     @POST
     @Path("/password-resets")
@@ -81,7 +81,7 @@ public class AuthResource {
         return Response.accepted().build();
     }
 
-    /** Toutes les sessions sont révoquées : l'utilisateur se reconnecte avec le nouveau mot de passe. */
+    /** Every session is revoked: the user logs in again with the new password. */
     @POST
     @Path("/password-reset-confirmations")
     public Response confirmPasswordReset(@Valid AccountRequests.PasswordResetConfirmation request,
@@ -92,8 +92,8 @@ public class AuthResource {
     }
 
     /**
-     * IP du client. En prod, Quarkus la reconstruit depuis les en-têtes transférés par
-     * Traefik — et seulement depuis un proxy de confiance (voir application.properties).
+     * Client IP. In prod, Quarkus rebuilds it from the headers forwarded by Traefik, and
+     * only from a trusted proxy (see application.properties).
      */
     public static String clientIp(HttpServerRequest http) {
         if (http == null || http.remoteAddress() == null) {

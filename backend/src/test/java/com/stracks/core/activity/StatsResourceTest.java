@@ -24,8 +24,8 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 
 /**
- * Agrégats statistiques (#24) : forme de la réponse, fenêtres de période,
- * découpage temporel et respect du pattern plugin.
+ * Statistics aggregates (#24): response shape, period windows, time bucketing and
+ * respect of the plugin pattern.
  */
 @QuarkusTest
 class StatsResourceTest {
@@ -37,8 +37,8 @@ class StatsResourceTest {
     }
 
     /**
-     * Crée une séance terminée démarrant à {@code start}, avec un tracé synthétique
-     * plein nord — la distance est recalculée par le serveur, jamais fournie.
+     * Creates a completed session starting at {@code start}, with a synthetic track
+     * heading due north; the distance is recomputed by the server, never provided.
      */
     private static void completedActivity(String token, String sport, Instant start, int points) {
         String id = given().header("Authorization", "Bearer " + token)
@@ -53,7 +53,7 @@ class StatsResourceTest {
             track.add(Map.of(
                     "seq", i,
                     "recordedAt", start.plusSeconds(i * 6L).toString(),
-                    "lat", 45.0 + i * 0.0001,   // ≈ 11,1 m par pas
+                    "lat", 45.0 + i * 0.0001,   // ≈ 11.1 m per step
                     "lng", 5.0,
                     "altitudeM", 200.0 + i * 0.2,
                     "accuracyM", 5.0));
@@ -74,14 +74,14 @@ class StatsResourceTest {
                 .then().statusCode(200);
     }
 
-    /** Un instant sûr dans le mois courant : le 15 à midi, jamais à cheval sur une bordure. */
+    /** A safe instant in the current month: the 15th at noon, never straddling a boundary. */
     private static Instant middleOfThisMonth() {
         return ZonedDateTime.now(PARIS).withDayOfMonth(15).withHour(12)
                 .truncatedTo(java.time.temporal.ChronoUnit.HOURS).toInstant();
     }
 
     // ------------------------------------------------------------------
-    // Forme de la réponse — le socle ne nomme aucune métrique de sport
+    // Response shape: the core names no sport metric
     // ------------------------------------------------------------------
 
     @Test
@@ -92,19 +92,19 @@ class StatsResourceTest {
         given().header("Authorization", "Bearer " + token)
                 .when().get("/api/v1/stats/summary?period=month&tz=Europe/Paris")
                 .then().statusCode(200)
-                // Distance et dénivelé vivent sous `totals`, nommés par le plugin…
+                // Distance and elevation live under `totals`, named by the plugin...
                 .body("totals", hasKey("distanceM"))
                 .body("totals", hasKey("elevationGainM"))
                 .body("bySport[0].totals", hasKey("distanceM"))
-                // …et non comme champs du socle, ce qui était le défaut corrigé.
+                // ...and not as core fields, which was the defect that got fixed.
                 .body("totalDistanceM", nullValue())
                 .body("totalElevationGainM", nullValue())
                 .body("bySport[0].totalDistanceM", nullValue());
     }
 
     /**
-     * DoD #24 : « les chiffres affichés correspondent exactement à la réponse ».
-     * Les totaux ne sont pas une seconde source de vérité — ils somment `bySport`.
+     * DoD #24: "the displayed figures match the response exactly".
+     * The totals aren't a second source of truth: they sum `bySport`.
      */
     @Test
     void totals_are_exactly_the_sum_of_the_per_sport_rows() {
@@ -130,7 +130,7 @@ class StatsResourceTest {
     }
 
     // ------------------------------------------------------------------
-    // DoD #24 — un sport sans séance sur la période
+    // DoD #24: a sport with no session in the period
     // ------------------------------------------------------------------
 
     @Test
@@ -138,7 +138,7 @@ class StatsResourceTest {
         String token = freshToken();
         completedActivity(token, "running", middleOfThisMonth(), 20);
 
-        // La marche n'a aucune séance : liste vide, totaux à zéro, aucune clé inventée.
+        // Walking has no session: empty list, zero totals, no invented key.
         given().header("Authorization", "Bearer " + token)
                 .when().get("/api/v1/stats/summary?period=month&sport=walking&tz=Europe/Paris")
                 .then().statusCode(200)
@@ -162,12 +162,12 @@ class StatsResourceTest {
     }
 
     // ------------------------------------------------------------------
-    // Découpage temporel
+    // Time bucketing
     // ------------------------------------------------------------------
 
     /**
-     * Un intervalle sans séance doit exister, à zéro. Sans lui, le graphique tasse
-     * ses barres et ment sur l'espacement du temps.
+     * An interval without sessions must exist, at zero. Without it, the chart squeezes its
+     * bars and misrepresents the spacing of time.
      */
     @Test
     void empty_buckets_are_present_rather_than_omitted() {
@@ -182,19 +182,19 @@ class StatsResourceTest {
                 .body("bucket", equalTo("week"))
                 .extract().jsonPath().getList("buckets");
 
-        // Le mois compte 4 à 6 semaines calendaires ; une seule porte la séance.
+        // The month spans 4 to 6 calendar weeks; only one holds the session.
         org.junit.jupiter.api.Assertions.assertTrue(buckets.size() >= 4,
-                "mois découpé en " + buckets.size() + " semaines");
+                "month split into " + buckets.size() + " weeks");
         long nonEmpty = buckets.stream()
                 .filter(b -> !((List<?>) ((Map<?, ?>) b).get("bySport")).isEmpty())
                 .count();
         org.junit.jupiter.api.Assertions.assertEquals(1, nonEmpty,
-                "une seule semaine porte une séance, les autres existent à zéro");
+                "only one week holds a session, the others exist at zero");
     }
 
     /**
-     * Le découpage suit le calendrier de l'utilisateur, pas UTC : une sortie du lundi
-     * 00h30 à Paris appartient à cette semaine-là, pas à la précédente.
+     * Bucketing follows the user's calendar, not UTC: a Monday 00:30 run in Paris belongs
+     * to that week, not the previous one.
      */
     @Test
     void buckets_follow_the_users_calendar_not_utc() {
@@ -204,13 +204,13 @@ class StatsResourceTest {
                 .withHour(0).withMinute(30).truncatedTo(java.time.temporal.ChronoUnit.MINUTES);
         completedActivity(token, "running", mondayEarly.toInstant(), 20);
 
-        // En heure de Paris, la séance tombe dans la semaine courante.
+        // In Paris time, the session falls in the current week.
         given().header("Authorization", "Bearer " + token)
                 .when().get("/api/v1/stats/summary?period=week&tz=Europe/Paris")
                 .then().statusCode(200)
                 .body("totalSessions", equalTo(1));
 
-        // En UTC (00h30 Paris = 22h30 ou 23h30 la veille), elle tombe dans la précédente.
+        // In UTC (00:30 Paris = 22:30 or 23:30 the day before), it falls in the previous one.
         given().header("Authorization", "Bearer " + token)
                 .when().get("/api/v1/stats/summary?period=week")
                 .then().statusCode(200)
@@ -219,7 +219,7 @@ class StatsResourceTest {
     }
 
     // ------------------------------------------------------------------
-    // Comparaison à la période précédente
+    // Comparison with the previous period
     // ------------------------------------------------------------------
 
     @Test
@@ -235,14 +235,14 @@ class StatsResourceTest {
                 .when().get("/api/v1/stats/summary?period=month&tz=Europe/Paris")
                 .then().statusCode(200)
                 .body("totalSessions", equalTo(1))
-                // Le mois précédent seul — surtout pas les deux mois antérieurs cumulés.
+                // The previous month alone, certainly not the two earlier months combined.
                 .body("previous.sessions", equalTo(1))
                 .body("previous.totals.distanceM", greaterThan(0f));
     }
 
     /**
-     * `from` désigne un instant DANS la période voulue, pas sa borne basse : c'est
-     * ce qui permet à l'écran de naviguer de mois en mois.
+     * `from` designates an instant WITHIN the wanted period, not its lower bound: that's
+     * what lets the screen navigate month by month.
      */
     @Test
     void from_selects_the_whole_calendar_period_it_falls_in() {
@@ -252,8 +252,8 @@ class StatsResourceTest {
         completedActivity(token, "running", lastMonth.withDayOfMonth(3).toInstant(), 20);
         completedActivity(token, "running", lastMonth.withDayOfMonth(27).toInstant(), 20);
 
-        // Une date au milieu du mois ramène le mois entier — donc les deux séances,
-        // y compris celle du 3, antérieure à `from`.
+        // A date in the middle of the month brings back the whole month, hence both
+        // sessions, including the one on the 3rd, before `from`.
         given().header("Authorization", "Bearer " + token)
                 .when().get("/api/v1/stats/summary?period=month&tz=Europe/Paris&from="
                         + lastMonth.toInstant())
@@ -262,7 +262,7 @@ class StatsResourceTest {
     }
 
     // ------------------------------------------------------------------
-    // Cloisonnement et validation
+    // Isolation and validation
     // ------------------------------------------------------------------
 
     @Test
@@ -300,7 +300,7 @@ class StatsResourceTest {
         given().when().get("/api/v1/stats/timeline?period=week").then().statusCode(401);
     }
 
-    /** Le graphique ne trace que des colonnes du socle — il n'ouvre jamais le JSONB. */
+    /** The chart only plots core columns: it never opens the JSONB. */
     @Test
     void timeline_reports_core_columns_per_sport() {
         String token = freshToken();
@@ -320,13 +320,13 @@ class StatsResourceTest {
             filled.addAll(bySport);
         }
         org.junit.jupiter.api.Assertions.assertEquals(2, filled.size(),
-                "les deux sports apparaissent dans le découpage");
+                "both sports appear in the bucketing");
         org.junit.jupiter.api.Assertions.assertTrue(
                 filled.stream().allMatch(v -> ((Number) v.get("distanceM")).doubleValue() > 0),
-                "chaque valeur porte une distance recalculée par le serveur");
+                "each value carries a distance recomputed by the server");
         org.junit.jupiter.api.Assertions.assertTrue(
                 filled.stream().noneMatch(v -> v.containsKey("elevationGainM")),
-                "le découpage ne touche pas au JSONB metrics");
+                "the bucketing doesn't touch the metrics JSONB");
     }
 
     @Test
@@ -352,10 +352,10 @@ class StatsResourceTest {
                 buckets.stream().flatMap(b -> ((List<Map<String, Object>>)
                         ((Map<?, ?>) b).get("bySport")).stream())
                         .allMatch(v -> "running".equals(v.get("sportType"))),
-                "le filtre sport s'applique aussi au découpage");
+                "the sport filter also applies to the bucketing");
     }
 
-    /** Une séance en cours n'est pas une séance faite : seules les `completed` comptent. */
+    /** A session in progress isn't a session done: only `completed` ones count. */
     @Test
     void in_progress_sessions_are_excluded() {
         String token = freshToken();

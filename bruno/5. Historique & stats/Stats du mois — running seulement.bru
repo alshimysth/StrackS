@@ -21,7 +21,7 @@ tests {
     expect(res.getStatus()).to.equal(200);
   });
 
-  test("le filtre sport restreint bySport", function () {
+  test("the sport filter narrows bySport", function () {
     const bySport = res.getBody().bySport;
     expect(bySport.every((s) => s.sportType === "running")).to.equal(true);
   });

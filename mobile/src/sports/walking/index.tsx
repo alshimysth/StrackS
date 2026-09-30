@@ -1,6 +1,6 @@
 /**
- * Module marche. Mental model marcheur : vitesse (km/h) plutôt qu'allure.
- * Partage l'écran et le moteur de séance via core/ — zéro copier-coller.
+ * Walking module. A walker's mental model: speed (km/h) rather than pace. Shares the
+ * session screen and engine through core/, with no copy-paste.
  */
 import React from 'react';
 import { Text, View } from 'react-native';
@@ -12,7 +12,7 @@ import { formatDistance, formatElevation, formatSpeed } from '../../core/format/
 import type { Activity } from '../../types/api';
 import type { LiveMetric, SessionState, SportModule } from '../types';
 
-/** Miroir de WalkingPlugin.MAX_SPEED_KMH (backend). */
+/** Mirror of WalkingPlugin.MAX_SPEED_KMH (backend). */
 const MAX_GPS_SPEED_KMH = 12;
 
 const metricsSchema = z.object({
@@ -57,8 +57,8 @@ function SummaryPanel({ activity }: { activity: Activity }) {
   const format = useFormat();
   const metrics = metricsSchema.safeParse(activity.metrics);
   const speedKmh = metrics.success ? metrics.data.avgSpeedKmh : undefined;
-  // Le serveur renvoie des km/h : on repasse en m/s (SI) pour que la préférence
-  // d'unité s'applique, plutôt que de recoller « km/h » en dur.
+  // The server returns km/h: we go back to m/s (SI) so that the unit preference applies,
+  // rather than hard-coding "km/h".
   const speedMs = speedKmh != null ? speedKmh / 3.6 : 0;
   const label = format.speedDisplayFor('walking') === 'pace' ? 'Allure moyenne' : 'Vitesse moyenne';
   return (
@@ -71,7 +71,7 @@ function SummaryPanel({ activity }: { activity: Activity }) {
   );
 }
 
-/** Voir la note du module course : hors composant, donc métrique par construction. */
+/** See the running module's note: outside a component, hence metric by construction. */
 function deriveLiveMetrics(session: SessionState): LiveMetric[] {
   return [
     {

@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Tests unitaires du moteur GPS partagé (sans Quarkus). */
+/** Unit tests of the shared GPS engine (no Quarkus). */
 class GpsComputationsTest {
 
     private static TrackPointEntity point(int seq, Instant t, double lat, double lng,
@@ -35,7 +35,7 @@ class GpsComputationsTest {
         Instant t0 = Instant.now();
         List<TrackPointEntity> track = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
-            // ~11,1 m par pas de latitude 0.0001 → ~1,1 km au total
+            // ~11.1 m per 0.0001 latitude step → ~1.1 km in total
             track.add(point(i, t0.plusSeconds(i * 6L), 45.0 + i * 0.0001, 5.0, 200.0, 5.0));
         }
         double d = GpsComputations.compute(track, 25.0).distanceM();
@@ -47,11 +47,11 @@ class GpsComputationsTest {
         Instant t0 = Instant.now();
         List<TrackPointEntity> track = new ArrayList<>();
         track.add(point(0, t0, 45.0, 5.0, 200.0, 5.0));
-        // Point aberrant : 500 m de saut avec précision pourrie
+        // Outlier: a 500 m jump with lousy accuracy
         track.add(point(1, t0.plusSeconds(6), 45.005, 5.0, 200.0, 120.0));
         track.add(point(2, t0.plusSeconds(12), 45.0002, 5.0, 200.0, 5.0));
         double d = GpsComputations.compute(track, 25.0).distanceM();
-        assertTrue(d < 50, "le point imprécis doit être écarté, distance=" + d);
+        assertTrue(d < 50, "the inaccurate point must be dropped, distance=" + d);
     }
 
     @Test
@@ -59,11 +59,11 @@ class GpsComputationsTest {
         Instant t0 = Instant.now();
         List<TrackPointEntity> track = new ArrayList<>();
         track.add(point(0, t0, 45.0, 5.0, 200.0, 5.0));
-        // 1 km en 6 s = 600 km/h : impossible en courant
+        // 1 km in 6 s = 600 km/h: impossible on foot
         track.add(point(1, t0.plusSeconds(6), 45.009, 5.0, 200.0, 5.0));
         track.add(point(2, t0.plusSeconds(12), 45.0001, 5.0, 200.0, 5.0));
         double d = GpsComputations.compute(track, 25.0).distanceM();
-        assertTrue(d < 50, "le segment implausible doit être écarté, distance=" + d);
+        assertTrue(d < 50, "the implausible segment must be dropped, distance=" + d);
     }
 
     @Test
@@ -71,7 +71,7 @@ class GpsComputationsTest {
         Instant t0 = Instant.now();
         List<TrackPointEntity> noisy = new ArrayList<>();
         for (int i = 0; i < 60; i++) {
-            // Oscillation ±0,8 m autour de 200 m : que du bruit, D+ attendu ≈ 0
+            // ±0.8 m oscillation around 200 m: pure noise, expected gain ≈ 0
             double alt = 200.0 + (i % 2 == 0 ? 0.8 : -0.8);
             noisy.add(point(i, t0.plusSeconds(i * 6L), 45.0 + i * 0.0001, 5.0, alt, 5.0));
         }
@@ -79,7 +79,7 @@ class GpsComputationsTest {
 
         List<TrackPointEntity> climb = new ArrayList<>();
         for (int i = 0; i < 60; i++) {
-            // Vraie montée régulière de 30 m
+            // Real steady 30 m climb
             climb.add(point(i, t0.plusSeconds(i * 6L), 45.0 + i * 0.0001, 5.0, 200.0 + i * 0.5, 5.0));
         }
         double gain = GpsComputations.compute(climb, 25.0).elevationGainM();
@@ -87,9 +87,9 @@ class GpsComputationsTest {
     }
 
     /**
-     * Miroir exact du test client `signal-loss.test.ts` (#19). Le filtre de plausibilité
-     * ne suffit pas : 1,1 km franchis en 5 minutes de tunnel donnent 13 km/h, plausible
-     * pour un coureur. Sans la règle de trou, cette corde jamais parcourue serait comptée.
+     * Exact mirror of the client test `signal-loss.test.ts` (#19). The plausibility filter
+     * isn't enough: 1.1 km covered in 5 minutes of tunnel gives 13 km/h, plausible for a
+     * runner. Without the gap rule, this never-travelled chord would be counted.
      */
     @Test
     void segment_spanning_a_signal_gap_is_not_counted() {
@@ -106,13 +106,13 @@ class GpsComputationsTest {
         Instant t0 = Instant.now();
         List<TrackPointEntity> track = new ArrayList<>();
         track.add(point(0, t0, 45.0, 5.0, 200.0, 5.0));
-        // 14 s : sous le seuil de 15 s, et ~55 m donnent 14 km/h — plausible.
+        // 14 s: under the 15 s threshold, and ~55 m give 14 km/h, plausible.
         track.add(point(1, t0.plusSeconds(14), 45.0005, 5.0, 200.0, 5.0));
 
         assertTrue(GpsComputations.compute(track, 25.0).distanceM() > 50);
     }
 
-    /** Le trou n'empoisonne pas la suite : on recompte normalement après la reprise. */
+    /** The gap doesn't poison what follows: counting resumes normally afterwards. */
     @Test
     void counting_resumes_after_the_gap() {
         Instant t0 = Instant.now();

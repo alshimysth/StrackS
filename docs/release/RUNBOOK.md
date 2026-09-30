@@ -91,7 +91,7 @@ docker compose -f docker-compose.prod.yml up -d backup                          
 docker logs stracks-backup --tail 20
 ```
 
-Attendu : `[backup] OK : stracks-<date>.dump.gpg (… octets chiffrés)`. **Le pas de
+Attendu : `[backup] OK: stracks-<date>.dump.gpg (… encrypted bytes)`. **Le pas de
 surveillance est conseillé** : une sauvegarde qui échoue en silence est le vrai risque.
 healthchecks.io propose une offre gratuite qui alerte par email si le ping n'arrive pas.
 
@@ -172,7 +172,7 @@ performance. Choisir la **région UE** à la création de l'organisation.
 1. Créer deux projets, `stracks-mobile` (React Native) et `stracks-backend` (Java).
 2. Backend : ajouter `SENTRY_DSN=<dsn backend>` au `.env` du VPS, puis
    `docker compose -f docker-compose.prod.yml up -d backend`. Le journal doit afficher
-   « Monitoring Sentry actif ».
+   « Sentry monitoring active ».
 3. Mobile : `eas env:create --name EXPO_PUBLIC_SENTRY_DSN --value <dsn mobile> --environment production --visibility plaintext`.
    Le DSN n'est pas un secret : il ne permet que d'envoyer des événements.
 4. **Traces lisibles (source maps)** — facultatif mais utile, et à faire seulement une fois

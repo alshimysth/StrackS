@@ -1,12 +1,12 @@
 /**
- * Zones de confidentialité (#37).
+ * Privacy zones (#37).
  *
- * Masquage **à l'affichage** seulement — voir `core/map/privacy.ts` pour le pourquoi.
- * L'écran le dit en toutes lettres : « masqué » n'est pas « supprimé », et un utilisateur
- * qui croirait ses données effacées se tromperait sur ce que contient son export.
+ * Masking **at display time** only; see `core/map/privacy.ts` for why. The screen says it
+ * plainly: "masked" isn't "deleted", and a user who believed their data erased would be
+ * wrong about what their export contains.
  *
- * Une zone se déclare là où l'on se trouve : pas de saisie d'adresse, donc pas de
- * géocodage, donc aucun service tiers à qui confier l'adresse du domicile.
+ * A zone is declared where the user stands: no address input, hence no geocoding, hence
+ * no third-party service to hand the home address to.
  */
 import { useQueryClient } from '@tanstack/react-query';
 import React from 'react';
@@ -45,11 +45,11 @@ export function PrivacyZones() {
   const queryClient = useQueryClient();
 
   /**
-   * Chaque action part de l'état le plus récent, pas de celui du dernier rendu (revue
-   * PR #80). Le serveur remplace la liste d'un bloc et les PATCH sont sérialisés : deux
-   * retraits rapides calculés depuis le même rendu enverraient la même liste, et le second
-   * annulerait le premier. D'où la mise à jour optimiste du cache, que l'action suivante
-   * relit ; en cas d'échec, on relit le serveur plutôt que de garder un état inventé.
+   * Each action starts from the most recent state, not the last render's (PR #80 review).
+   * The server replaces the list as a whole and PATCHes are serialized: two quick removals
+   * computed from the same render would send the same list, and the second would cancel
+   * the first. Hence the optimistic cache update, which the next action reads back; on
+   * failure, the server is read again rather than keeping a made-up state.
    */
   const latest = (): Preferences =>
     queryClient.getQueryData<Preferences>(QUERY_KEY) ?? DEFAULT_PREFERENCES;
@@ -68,11 +68,11 @@ export function PrivacyZones() {
     try {
       const here = await getCurrentPosition();
       const radius = Number(radiusM);
-      // Centre décalé au hasard : la position réelle ne quitte jamais le téléphone.
+      // Randomly offset centre: the real position never leaves the phone.
       const center = jitteredCenter(here.lat, here.lng, radius);
       const current = latest().privacyZones;
       const zone: PrivacyZone = {
-        // 5 décimales ≈ 1 m : rien de plus précis que nécessaire n'est stocké.
+        // 5 decimals ≈ 1 m: nothing more precise than needed is stored.
         lat: Math.round(center.lat * 1e5) / 1e5,
         lng: Math.round(center.lng * 1e5) / 1e5,
         radiusM: radius,
@@ -86,7 +86,7 @@ export function PrivacyZones() {
     }
   };
 
-  /** Retire CETTE zone (par valeur) de la liste la plus récente, pas un index périmé. */
+  /** Removes THIS zone (by value) from the most recent list, not a stale index. */
   const remove = (target: PrivacyZone) => {
     applyZones(
       latest().privacyZones.filter(
@@ -96,8 +96,8 @@ export function PrivacyZones() {
   };
 
   const error = locateError ?? accountErrorMessage(update.error);
-  // Les retraits restent possibles pendant un enregistrement : ils sont mis en file et
-  // calculés depuis l'état le plus récent.
+  // Removals stay possible during a save: they're queued and computed from the most
+  // recent state.
   const busy = locating;
 
   return (

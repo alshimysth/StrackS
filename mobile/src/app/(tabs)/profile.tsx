@@ -1,7 +1,7 @@
 /**
- * Profil — identité et totaux (#7), sécurité (#73, #75), export (#76), profil physique
- * (#32), préférences dont le mode GPS (#36), zones de confidentialité (#37), déconnexion,
- * suppression (droit à l'effacement).
+ * Profile: identity and totals (#7), security (#73, #75), export (#76), athlete profile
+ * (#32), preferences including GPS mode (#36), privacy zones (#37), logout, deletion
+ * (right to erasure).
  */
 import { router } from 'expo-router';
 import React from 'react';
@@ -30,7 +30,7 @@ import { spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
 import { SafeScreen } from '../../design-system/components/SafeScreen';
 
-/** « septembre 2026 » : le jour n'apporte rien à une ancienneté. */
+/** "septembre 2026": the day adds nothing to a membership date. */
 function memberSince(createdAt: string): string {
   return new Date(createdAt).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 }
@@ -58,8 +58,8 @@ export default function ProfileScreen() {
     );
   };
 
-  // L'écran défile depuis #7 : avec les réglages, le contenu dépasse la hauteur
-  // disponible et les actions de compte sortaient de l'écran.
+  // The screen scrolls since #7: with the settings, the content exceeds the available
+  // height and the account actions went off screen.
   return (
     <SafeScreen edges={['top']}>
       <ScrollView
@@ -74,8 +74,8 @@ export default function ProfileScreen() {
             <DisplayName value={user?.displayName} />
             <Text style={[typography.body, { color: theme.textSecondary }]}>{user?.email ?? '—'}</Text>
             {user != null && (
-              // Le texte porte l'information en `textSecondary` (contraste AA) ; la couleur
-              // d'état passe à l'icône, qui ne fait que la souligner (#42).
+              // The text carries the information in `textSecondary` (AA contrast); the
+              // state colour moves to the icon, which only underlines it (#42).
               <View style={styles.status}>
                 <Icon
                   name={user.emailVerified === true ? 'state-privacy' : 'state-warning'}
@@ -125,8 +125,8 @@ export default function ProfileScreen() {
 }
 
 /**
- * Section Compte (#73, #75, #76). Les écrans de saisie vivent sous `app/account/` : un
- * formulaire à plusieurs champs n'a pas sa place dans un écran de réglages qui défile.
+ * Account section (#73, #75, #76). The input screens live under `app/account/`: a
+ * multi-field form has no place in a scrolling settings screen.
  */
 function AccountSecurity({ verified }: { verified: boolean }) {
   const theme = useTheme();
@@ -177,17 +177,17 @@ function AccountSecurity({ verified }: { verified: boolean }) {
 const GPS_MODE_HELP: Record<'max' | 'balanced' | 'saver', string> = {
   max: 'Un point à chaque mesure : le tracé le plus fidèle, la batterie la plus sollicitée. S’applique à la prochaine séance.',
   balanced: 'Le réglage de référence : un point tous les 2 m environ. S’applique à la prochaine séance.',
-  // iOS ignore l'intervalle de temps d'expo-location et ne suit que la distance (revue
-  // PR #80) : on ne promet donc pas de cadence fixe.
+  // iOS ignores expo-location's time interval and only follows distance (PR #80
+  // review): so no fixed cadence is promised.
   saver: 'Moins de points (tous les 5 m environ, et au plus un toutes les 3 s sur Android) : devrait économiser la batterie, au prix d’un tracé moins fin dans les virages. S’applique à la prochaine séance.',
 };
 
 /**
- * Section Préférences (#7, #30, #4, #31).
+ * Preferences section (#7, #30, #4, #31).
  *
- * Chaque changement part immédiatement en PATCH partiel : le socle (lot C) accepte un
- * patch par clé, il n'y a donc rien à recomposer côté écran. Pas de bouton
- * « Enregistrer » — un réglage d'affichage se juge en le voyant s'appliquer.
+ * Each change goes out immediately as a partial PATCH: the core (lot C) accepts a patch
+ * per key, so there's nothing to recompose on the screen. No "Enregistrer" button: a
+ * display setting is judged by seeing it apply.
  */
 function Preferences() {
   const theme = useTheme();
@@ -210,11 +210,11 @@ function Preferences() {
     <View style={styles.section} testID="preferences-section">
       <Text style={[typography.h3, { color: theme.textPrimary }]}>Préférences</Text>
 
-      {/* Un PATCH échoué ferait sinon revenir la puce à sa valeur précédente sans un
-          mot : l'utilisateur croit que son choix n'a pas été pris, et recommence.
-          Le bandeau ne peut décrire qu'UNE mutation — d'où le blocage des puces
-          pendant l'enregistrement, qui garantit qu'il n'y en a jamais deux en vol et
-          donc qu'aucune erreur n'est masquée par le succès de la suivante. */}
+      {/* Otherwise a failed PATCH would bring the chip back to its previous value without
+          a word: the user thinks their choice wasn't taken, and tries again. The banner
+          can only describe ONE mutation, hence the chips being disabled during the save,
+          which guarantees there are never two in flight and so no error is hidden by
+          the next one's success. */}
       {update.isError && (
         <ErrorState
           testID="preferences-update-error"
@@ -250,8 +250,8 @@ function Preferences() {
         onChange={(next) => update.mutate({ theme: next })}
       />
 
-      {/* #36. `balanced` reproduit les réglages historiques ; l'impact batterie des deux
-          autres n'est pas encore mesuré sur device (#18) — d'où le conditionnel. */}
+      {/* #36. `balanced` reproduces the historical settings; the battery impact of the
+          two others isn't measured on a device yet (#18), hence the tentative wording. */}
       <SettingRow
         testID="setting-gps-mode"
         label="Précision GPS"
@@ -266,16 +266,16 @@ function Preferences() {
         onChange={(gpsMode) => update.mutate({ gpsMode })}
       />
 
-      {/* Objectifs proposés par paliers plutôt qu'en saisie libre : un objectif
-          hebdomadaire est un nombre rond, et une saisie numérique ouvrirait la porte
-          aux valeurs que le socle rejette (bornes 100 m – 1 000 km, 1 – 50 séances). */}
+      {/* Goals offered as steps rather than free input: a weekly goal is a round number,
+          and numeric input would open the door to values the core rejects (bounds
+          100 m – 1,000 km, 1 – 50 sessions). */}
       <SettingRow
         testID="setting-goal-distance"
         label="Objectif hebdomadaire — distance"
         options={[
           { value: '', label: 'Aucun' },
-          // Le palier est stocké en mètres (SI) : le libellé doit passer par le
-          // formateur, sinon « 10 mi » enregistrerait en réalité 6,2 mi.
+          // The step is stored in metres (SI): the label must go through the formatter,
+          // otherwise "10 mi" would actually save 6.2 mi.
           { value: '10000', label: `${format.distance(10000)} ${format.distanceUnit}` },
           { value: '20000', label: `${format.distance(20000)} ${format.distanceUnit}` },
           { value: '40000', label: `${format.distance(40000)} ${format.distanceUnit}` },
@@ -307,16 +307,16 @@ function Preferences() {
         }
       />
 
-      {/* « Aucun » est une valeur légitime, pas une absence de réglage : elle rend
-          l'ordre serveur et ne présélectionne rien. Le socle accepte `null`. */}
+      {/* "Aucun" is a legitimate value, not a missing setting: it restores the server
+          order and preselects nothing. The core accepts `null`. */}
       <SettingRow
         testID="setting-default-sport"
         label="Sport par défaut"
         helper="Présélectionné sur l'accueil et affiché en premier."
         options={[
           { value: '', label: 'Aucun' },
-          // Mêmes sports que l'accueil : proposer un sport sans module mobile
-          // permettrait d'en faire un défaut qu'on ne peut pas démarrer.
+          // Same sports as the home screen: offering a sport without a mobile module would
+          // allow making it a default that can't be started.
           ...(sportTypes.data ?? [])
             .filter((s) => sportRegistry[s.code] != null)
             .map((s) => ({ value: s.code, label: s.label })),
@@ -326,8 +326,8 @@ function Preferences() {
         onChange={(code) => update.mutate({ defaultSport: code === '' ? null : code })}
       />
 
-      {/* Réglé PAR SPORT : un coureur lit une allure, un marcheur une vitesse. Un
-          réglage global forcerait l'un des deux à lire dans l'autre modèle mental. */}
+      {/* Set PER SPORT: a runner reads a pace, a walker a speed. A global setting would
+          force one of them to read in the other's mental model. */}
       {(sportTypes.data ?? []).map((sport) => (
         <SettingRow
           key={sport.code}
@@ -339,10 +339,9 @@ function Preferences() {
           ]}
           disabled={saving}
           value={speedDisplayFor(current, sport.code)}
-          // On n'envoie QUE l'entrée modifiée : le serveur fusionne en profondeur.
-          // Reconstruire la table depuis `current` propagerait un instantané périmé —
-          // les puces restent actionnables pendant qu'un enregistrement est en vol, et
-          // un second choix repartirait d'un état d'avant le premier.
+          // Only the changed entry is sent: the server deep-merges. Rebuilding the table
+          // from `current` would send a snapshot that may be stale, and bring back another
+          // sport's earlier choice (#66 review).
           onChange={(display) => update.mutate({ sportDisplay: { [sport.code]: display } })}
         />
       ))}

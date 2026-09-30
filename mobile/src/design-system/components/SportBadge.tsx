@@ -1,7 +1,7 @@
 /**
- * SportBadge — transposition RN de components/badges/SportBadge.jsx (Claude Design).
- * Extensible : un nouveau sport ajoute son entrée dans sportColors (theme.ts),
- * aucun autre composant ne change.
+ * SportBadge: RN port of components/badges/SportBadge.jsx (Claude Design).
+ * Extensible: a new sport adds its entry to sportColors (theme.ts), no other component
+ * changes.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';

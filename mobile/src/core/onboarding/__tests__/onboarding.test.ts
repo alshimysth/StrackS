@@ -1,4 +1,4 @@
-/** #82 : l'onboarding s'affiche une fois par appareil, et jamais à qui a déjà autorisé. */
+/** #82: onboarding shows once per device, and never to someone who already allowed. */
 type Storage = typeof import('@react-native-async-storage/async-storage').default;
 
 const mockGranted = jest.fn();
@@ -9,7 +9,7 @@ jest.mock('../../gps/position', () => ({
 
 let useOnboarding: typeof import('../onboarding').useOnboarding;
 let KEY: string;
-/** Relu après chaque `resetModules` : le module testé et le test partagent la même instance. */
+/** Read again after each `resetModules`: the tested module and the test share the same instance. */
 let AsyncStorage: Storage;
 
 beforeEach(async () => {
@@ -21,41 +21,41 @@ beforeEach(async () => {
   ({ useOnboarding, ONBOARDING_KEY: KEY } = require('../onboarding'));
 });
 
-it('est à faire au tout premier lancement', async () => {
+it('is pending on the very first launch', async () => {
   await useOnboarding.getState().load();
   expect(useOnboarding.getState().status).toBe('pending');
 });
 
-it('ne revient pas une fois terminé, même après redémarrage', async () => {
+it('does not come back once completed, even after a restart', async () => {
   await useOnboarding.getState().load();
   await useOnboarding.getState().complete();
   expect(await AsyncStorage.getItem(KEY)).not.toBeNull();
 
-  // Redémarrage : l'état en mémoire est perdu, le stockage de l'appareil, lui, reste.
+  // Restart: the in-memory state is lost, the device storage stays.
   useOnboarding.setState({ status: 'unknown' });
   await useOnboarding.getState().load();
   expect(useOnboarding.getState().status).toBe('done');
 });
 
-/** Mise à jour de l'app : la permission est déjà accordée, il n'y a plus rien à expliquer. */
-it('s’efface pour qui a déjà accordé la localisation', async () => {
+/** App update: the permission is already granted, there's nothing left to explain. */
+it('steps aside for someone who already granted location', async () => {
   mockGranted.mockResolvedValue(true);
   await useOnboarding.getState().load();
   expect(useOnboarding.getState().status).toBe('done');
   expect(await AsyncStorage.getItem(KEY)).not.toBeNull();
 });
 
-it('reste à faire si la permission ne peut pas être lue', async () => {
+it('stays pending if the permission cannot be read', async () => {
   mockGranted.mockRejectedValue(new Error('module natif absent'));
   await useOnboarding.getState().load();
   expect(useOnboarding.getState().status).toBe('pending');
 });
 
 /**
- * Revue PR #85 : deux lectures lancées avant et après la connexion. Si l'utilisateur
- * termine l'onboarding pendant que la plus lente attend, elle ne doit pas le rouvrir.
+ * PR #85 review: two reads started before and after login. If the user completes
+ * onboarding while the slower one waits, it must not reopen it.
  */
-it('ne rouvre pas un onboarding terminé pendant une lecture en cours', async () => {
+it('does not reopen an onboarding completed during an in-flight read', async () => {
   let releasePermission: (granted: boolean) => void = () => undefined;
   mockGranted.mockImplementation(
     () => new Promise<boolean>((resolve) => (releasePermission = resolve)),
@@ -63,12 +63,12 @@ it('ne rouvre pas un onboarding terminé pendant une lecture en cours', async ()
   const getItem = jest.spyOn(AsyncStorage, 'getItem');
 
   const first = useOnboarding.getState().load();
-  const second = useOnboarding.getState().load(); // partage la lecture en vol
+  const second = useOnboarding.getState().load(); // shares the in-flight read
   await Promise.resolve();
   await Promise.resolve();
 
-  await useOnboarding.getState().complete(); // l'utilisateur a terminé entre-temps
-  releasePermission(false); // la lecture lente revient avec « à faire »
+  await useOnboarding.getState().complete(); // the user completed in the meantime
+  releasePermission(false); // the slow read comes back with "to do"
   await Promise.all([first, second]);
 
   expect(useOnboarding.getState().status).toBe('done');

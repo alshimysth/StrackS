@@ -14,12 +14,12 @@ import org.junit.jupiter.api.Test;
 import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/** #49 : le JWT d'accès émis par la configuration réelle vit 15 minutes, pas 7 jours. */
+/** #49: the access JWT issued by the real configuration lives 15 minutes, not 7 days. */
 @QuarkusTest
 class AccessTokenLifetimeTest {
 
     @Test
-    void le_jwt_d_acces_expire_en_15_minutes() throws Exception {
+    void the_access_jwt_expires_in_15_minutes() throws Exception {
         String token = given().contentType("application/json")
                 .body(Map.of("email", "ttl-" + UUID.randomUUID() + "@example.com",
                         "password", "motdepasse8"))

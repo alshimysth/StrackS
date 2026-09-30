@@ -1,12 +1,11 @@
 /**
- * Client HTTP du socle : base URL + Bearer automatique + erreurs RFC 7807.
- * Les modules de sport ne parlent JAMAIS directement à l'API : ils passent
- * par les hooks de core/.
+ * Core HTTP client: base URL + automatic Bearer + RFC 7807 errors.
+ * Sport modules NEVER talk to the API directly: they go through core/ hooks.
  *
- * Renouvellement de session (Story #44) : sur un 401, le client renouvelle la session
- * et rejoue la requête. L'appelant ne voit rien — ni erreur, ni écran de connexion.
- * C'est ce qui garantit qu'un JWT expiré en pleine séance ne coûte aucun point de tracé :
- * `uploadTrackPoints` aboutit au lieu d'échouer, et l'uploader marque le lot comme envoyé.
+ * Session refresh (story #44): on a 401, the client refreshes the session and replays the
+ * request. The caller sees nothing, neither an error nor a login screen. That's what
+ * guarantees a JWT expiring mid-session costs no track point: `uploadTrackPoints`
+ * succeeds instead of failing, and the uploader marks the batch as sent.
  */
 import { useAuthStore } from '../auth/use-auth-store';
 import { API_BASE_URL } from './config';
@@ -23,21 +22,20 @@ export class ApiError extends Error {
   }
 }
 
-/** Réponse des endpoints qui ouvrent ou prolongent une session. */
+/** Response of the endpoints that open or extend a session. */
 interface SessionPayload {
   token: string;
   refreshToken: string;
   user?: User;
 }
 
-/** Endpoints dont la réponse porte un couple de jetons à ranger dans le store. */
+/** Endpoints whose response carries a token pair to store. */
 const SESSION_PATHS = [
   '/api/v1/auth/login',
   '/api/v1/auth/register',
-  // Changement de mot de passe (#73) : le serveur révoque toutes les sessions et en rend
-  // une neuve pour cet appareil. Sans la capter, le prochain renouvellement présenterait
-  // un refresh token révoqué — et déconnecterait l'utilisateur qui vient de sécuriser
-  // son compte.
+  // Password change (#73): the server revokes every session and returns a fresh one for
+  // this device. Without capturing it, the next refresh would present a revoked refresh
+  // token, and log out the user who just secured their account.
   '/api/v1/users/me/password',
 ];
 
@@ -49,11 +47,11 @@ function isSessionPayload(value: unknown): value is SessionPayload {
 }
 
 /**
- * Capte les jetons d'une réponse de connexion/inscription.
+ * Captures the tokens of a login/registration response.
  *
- * Le store est alimenté ici plutôt que dans `use-auth.ts` pour que le cycle de vie des
- * jetons reste entièrement dans le client HTTP : un futur point d'entrée d'authentification
- * en hérite sans rien câbler.
+ * The store is fed here rather than in `use-auth.ts` so that the token lifecycle stays
+ * entirely within the HTTP client: a future authentication entry point inherits it
+ * without any wiring.
  */
 function captureSession(path: string, payload: unknown): void {
   if (SESSION_PATHS.includes(path) && isSessionPayload(payload)) {
@@ -62,18 +60,18 @@ function captureSession(path: string, payload: unknown): void {
 }
 
 /**
- * `unavailable` — le serveur n'a pas répondu. La session n'est PAS condamnée : c'est
- * le réseau qui manque. Déconnecter ici éjecterait un coureur dans un tunnel.
+ * `unavailable`: the server didn't answer. The session is NOT doomed: the network is what's
+ * missing. Logging out here would kick out a runner in a tunnel.
  */
 type RefreshOutcome = 'renewed' | 'rejected' | 'unavailable';
 
 let inFlightRefresh: Promise<RefreshOutcome> | null = null;
 
 /**
- * Renouvelle la session côté serveur. Mutualisé : plusieurs requêtes qui se prennent un
- * 401 en même temps (le cas normal quand l'app reprend la main) déclenchent UN seul appel.
- * Deux rotations concurrentes du même jeton feraient tomber la famille côté serveur —
- * la détection de rejeu prendrait la course pour un vol.
+ * Refreshes the session on the server. Shared: several requests hitting a 401 at the same
+ * time (the normal case when the app comes back to the foreground) trigger ONE call. Two
+ * concurrent rotations of the same token would bring the family down on the server side:
+ * replay detection would take the race for a theft.
  */
 function refreshSession(): Promise<RefreshOutcome> {
   inFlightRefresh ??= performRefresh().finally(() => {
@@ -85,7 +83,7 @@ function refreshSession(): Promise<RefreshOutcome> {
 async function performRefresh(): Promise<RefreshOutcome> {
   const refreshToken = useAuthStore.getState().refreshToken;
   if (!refreshToken) {
-    return 'rejected'; // rien à renouveler : la session est bel et bien terminée
+    return 'rejected'; // nothing to refresh: the session is really over
   }
 
   let response: Response;
@@ -105,7 +103,7 @@ async function performRefresh(): Promise<RefreshOutcome> {
 
   const payload: unknown = await response.json().catch(() => null);
   if (!isSessionPayload(payload)) {
-    return 'unavailable'; // réponse inattendue : anomalie serveur, pas fin de session
+    return 'unavailable'; // unexpected response: a server anomaly, not the end of the session
   }
 
   const store = useAuthStore.getState();
@@ -122,14 +120,14 @@ export async function api<T>(
     method?: string;
     body?: unknown;
     auth?: boolean;
-    /** `text` : corps rendu tel quel, sans parsing (export RGPD #76, écrit tel quel sur disque). */
+    /** `text`: body returned as is, without parsing (GDPR export #76, written as is to disk). */
     parse?: 'json' | 'text';
   } = {},
 ): Promise<T> {
   const { method = 'GET', body, auth = true, parse = 'json' } = options;
 
-  // Les en-têtes sont reconstruits à chaque tentative : après un renouvellement, le
-  // rejeu doit partir avec le NOUVEAU jeton, pas celui qui vient d'être refusé.
+  // Headers are rebuilt on each attempt: after a refresh, the replay must go out with the
+  // NEW token, not the one that was just rejected.
   const send = () => {
     const headers: Record<string, string> = {};
     if (body !== undefined) {
@@ -153,10 +151,10 @@ export async function api<T>(
   if (response.status === 401 && auth) {
     const outcome = await refreshSession();
     if (outcome === 'renewed') {
-      response = await send(); // une seule reprise : pas de boucle sur un 401 persistant
+      response = await send(); // a single retry: no loop on a persistent 401
     }
     if (response.status === 401 && outcome !== 'unavailable') {
-      // Le serveur a bien refusé de renouveler : la session est finie, pas juste injoignable.
+      // The server did refuse to refresh: the session is over, not just unreachable.
       useAuthStore.getState().logout();
     }
   }

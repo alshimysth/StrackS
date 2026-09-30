@@ -1,4 +1,4 @@
-/** Inscription — mêmes conventions que login.tsx. */
+/** Registration, same conventions as login.tsx. */
 import { router } from 'expo-router';
 import React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';

@@ -50,7 +50,7 @@ public class ActivityEntity extends PanacheEntityBase {
 
     public Integer calories;
 
-    /** Titre libre saisi par l'utilisateur (#25). Null = titre dérivé à l'affichage. */
+    /** Free-form title entered by the user (#25). Null = title derived at display time. */
     public String title;
 
     public String notes;

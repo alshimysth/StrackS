@@ -1,18 +1,18 @@
 /**
- * Tâche de localisation en arrière-plan (#16).
+ * Background location task (#16).
  *
- * ⚠️ Ce module s'exécute dans un CONTEXTE JS SÉPARÉ. Sur iOS, le système réveille l'app
- * en « headless » : ni React, ni le store Zustand, ni le moteur de séance n'existent
- * alors. La tâche ne peut donc écrire que dans le buffer SQLite — c'est précisément la
- * raison pour laquelle le buffer a été posé en Epic 3, indépendant du store.
+ * ⚠️ This module runs in a SEPARATE JS CONTEXT. On iOS, the system wakes the app up
+ * "headless": neither React, nor the Zustand store, nor the session engine exist then.
+ * The task can therefore only write to the SQLite buffer, which is precisely why the
+ * buffer was laid down in Epic 3, independent from the store.
  *
- * Le rapprochement avec l'affichage live se fait au retour au premier plan
- * (`resyncFromBuffer` dans use-session-store) : le store rejoue ce que la tâche a écrit.
- * Il n'y a donc jamais deux écrivains concurrents sur la même séquence.
+ * Known limitation (#70): nothing reconciles these points with the live display when the
+ * app returns to the foreground, and the foreground watch keeps writing to the same
+ * buffer. Two writers can therefore compete for the same sequence numbers.
  *
- * La définition de la tâche doit être évaluée AVANT que le système ne la réveille, donc
- * au chargement du module — pas dans un composant. D'où l'import de ce fichier depuis
- * `core/gps/index.ts`, lui-même importé par le moteur de séance.
+ * The task definition must be evaluated BEFORE the system wakes it up, hence at module
+ * load time, not in a component. That's why this file is imported from
+ * `core/gps/index.ts`, itself imported by the session engine.
  */
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
@@ -28,22 +28,22 @@ interface LocationTaskData {
 
 TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
   if (error != null) {
-    return; // rien à faire : le système réessaiera au prochain fix
+    return; // nothing to do: the system will retry on the next fix
   }
   const locations = (data as LocationTaskData | undefined)?.locations ?? [];
   if (locations.length === 0) {
     return;
   }
 
-  // Pas de séance en cours : la tâche a survécu à un stop mal terminé. On ne
-  // rattache pas des points orphelins à une séance qui n'existe plus.
+  // No session in progress: the task outlived a badly finished stop. Orphan points aren't
+  // attached to a session that no longer exists.
   const session = await loadSession().catch(() => null);
   if (session == null) {
     return;
   }
 
-  // La numérotation repart du buffer, jamais d'un compteur en mémoire : ce contexte
-  // peut être créé et détruit plusieurs fois pendant une même séance.
+  // Numbering restarts from the buffer, never from an in-memory counter: this context can
+  // be created and destroyed several times during a single session.
   let seq = await nextSeqAfterBuffer();
   for (const location of locations) {
     const fix: GpsFix = {

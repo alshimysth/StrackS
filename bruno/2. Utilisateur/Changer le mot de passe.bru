@@ -22,7 +22,7 @@ body:json {
 }
 
 tests {
-  test("200 + session neuve pour cet appareil", function () {
+  test("200 + fresh session for this device", function () {
     expect(res.getStatus()).to.equal(200);
     const body = res.getBody();
     bru.setVar("token", body.token);

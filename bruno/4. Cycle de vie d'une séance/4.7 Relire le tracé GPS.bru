@@ -11,7 +11,7 @@ get {
 }
 
 tests {
-  test("200 OK + points ordonnés par seq", function () {
+  test("200 OK + points ordered by seq", function () {
     expect(res.getStatus()).to.equal(200);
     const points = res.getBody();
     expect(points.length).to.be.at.least(1);

@@ -1,13 +1,13 @@
 /**
- * Ordre d'affichage des sports sur l'accueil (#34).
+ * Display order of sports on the home screen (#34).
  *
- * Le PRD exige de démarrer une séance en **≤ 2 interactions**. Sans préférence, un
- * utilisateur qui ne fait que courir doit d'abord chercher son sport dans une liste
- * ordonnée par le serveur, puis le choisir, puis démarrer — trois gestes.
+ * The PRD requires starting a session in **≤ 2 interactions**. Without a preference, a
+ * user who only runs first has to find their sport in a list ordered by the server, then
+ * pick it, then start: three gestures.
  *
- * Fonction pure et isolée du rendu : c'est la règle métier de #34, elle se teste sans
- * monter un écran. Le socle ne connaît toujours aucun sport — le code de sport n'est
- * ici qu'une clé opaque, aucun `switch` n'est possible.
+ * A pure function isolated from rendering: it's #34's business rule, testable without
+ * mounting a screen. The core still knows no sport: the sport code is only an opaque key
+ * here, no `switch` is possible.
  */
 
 export interface OrderedSport {
@@ -15,11 +15,11 @@ export interface OrderedSport {
 }
 
 /**
- * Remonte le sport préféré en tête, en préservant l'ordre serveur pour le reste.
+ * Moves the preferred sport to the top, keeping the server order for the rest.
  *
- * Tolérant par construction (DoD #34) : un `defaultSport` qui ne figure plus dans le
- * registre — sport retiré du backend, ou renommé — laisse simplement la liste
- * inchangée plutôt que de la vider ou de lever.
+ * Tolerant by design (DoD #34): a `defaultSport` no longer in the registry (sport removed
+ * from the backend, or renamed) simply leaves the list unchanged rather than emptying it
+ * or throwing.
  */
 export function orderSports<T extends OrderedSport>(sports: T[], defaultSport: string | null): T[] {
   if (defaultSport == null) {
@@ -33,11 +33,10 @@ export function orderSports<T extends OrderedSport>(sports: T[], defaultSport: s
 }
 
 /**
- * Sport présélectionné à l'ouverture de l'accueil.
+ * Sport preselected when the home screen opens.
  *
- * C'est la moitié qui fait vraiment gagner une interaction : afficher le sport en
- * premier ne suffit pas, encore faut-il qu'il soit déjà choisi pour que « Démarrer »
- * soit le geste suivant.
+ * That's the half that really saves an interaction: showing the sport first isn't enough,
+ * it also has to be already selected so that "Démarrer" is the next gesture.
  */
 export function initialSelection<T extends OrderedSport>(
   sports: T[],

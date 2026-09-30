@@ -1,8 +1,8 @@
 /**
- * Connexion — UI 100 % design system (Volt Performance), français, ton coach.
- * NOTE design : l'écran auth n'est pas encore spécifié dans le projet Claude
- * Design (manque connu, PLAN §1.3) — composition minimale avec les composants
- * existants, à revalider quand la spec écran existera.
+ * Login, UI 100 % design system (Volt Performance), French, coach tone.
+ * Design NOTE: the auth screen isn't specified in the Claude Design project yet (known
+ * gap): minimal composition with the existing components, to be checked again once the
+ * screen spec exists.
  */
 import { router } from 'expo-router';
 import React from 'react';
@@ -39,7 +39,7 @@ export default function LoginScreen() {
     login.error instanceof ApiError
       ? login.error.status === 401
         ? 'Email ou mot de passe incorrect.'
-        : login.error.message // 429 (#72) : le serveur dit combien de temps attendre
+        : login.error.message // 429 (#72): the server says how long to wait
       : login.error
         ? 'Serveur injoignable. Réessaie.'
         : null;
@@ -82,7 +82,7 @@ export default function LoginScreen() {
             <Button size="lg" fullWidth onPress={submit} disabled={login.isPending}>
               {login.isPending ? 'Connexion…' : 'Se connecter'}
             </Button>
-            {/* #74. L'adresse déjà saisie suit : l'utilisateur ne la retape pas. */}
+            {/* #74. The address already typed carries over: the user doesn't retype it. */}
             <Button
               variant="text"
               fullWidth
@@ -94,8 +94,8 @@ export default function LoginScreen() {
             </Button>
           </View>
 
-          {/* Bouton « texte » du design system plutôt qu'un lien à la couleur codée en dur :
-              aucun jeton de couleur de lien n'existe, et le bouton suit le thème. */}
+          {/* Design system "text" button rather than a link with a hard-coded colour: no
+              link colour token exists, and the button follows the theme. */}
           <View style={styles.footer}>
             <Text style={[typography.body, { color: theme.textSecondary }]}>
               Pas encore de compte ?

@@ -1,10 +1,9 @@
 /**
- * Racine d'écran qui respecte les bords sûrs (#5) : encoche, Dynamic Island, barre de
- * statut, barre de gestes.
+ * Screen root respecting the safe edges (#5): notch, Dynamic Island, status bar, gesture
+ * bar.
  *
- * Tous les écrans en ont besoin, et chacun le faisait (ou l'oubliait) à sa façon — d'où ce
- * composant unique. Les écrans à onglets ne protègent que le haut : la barre d'onglets
- * gère déjà le bas.
+ * Every screen needs it, and each did it (or forgot it) its own way, hence this single
+ * component. Tab screens only protect the top: the tab bar already handles the bottom.
  */
 import React, { type ReactNode } from 'react';
 import { StyleSheet } from 'react-native';

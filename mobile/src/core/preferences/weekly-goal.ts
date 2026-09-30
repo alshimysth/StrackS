@@ -1,11 +1,11 @@
 /**
- * Progression sur les objectifs hebdomadaires (#35).
+ * Progress on weekly goals (#35).
  *
- * Le design system réserve l'accent lime « volt » aux célébrations. Jusqu'ici aucun
- * objectif n'existait, donc la couleur signature du produit n'avait **aucun
- * déclencheur** — c'est le constat qui ouvre le ticket.
+ * The design system reserves the lime "volt" accent for celebrations. Until now no goal
+ * existed, so the product's signature colour had **no trigger**: that's the finding that
+ * opened the ticket.
  *
- * Fonctions pures : la règle se teste sans monter d'écran ni appeler l'API.
+ * Pure functions: the rule is testable without mounting a screen or calling the API.
  */
 
 export interface WeeklyGoal {
@@ -19,9 +19,9 @@ export interface WeekTotals {
 }
 
 export interface GoalProgress {
-  /** Part accomplie, bornée à 1 pour l'affichage (la barre ne dépasse pas). */
+  /** Completed share, capped at 1 for display (the bar doesn't overflow). */
   ratio: number;
-  /** Part réelle, non bornée — utile pour dire « 120 % » sans mentir. */
+  /** Real share, uncapped: useful to say "120 %" without lying. */
   rawRatio: number;
   reached: boolean;
   current: number;
@@ -29,8 +29,8 @@ export interface GoalProgress {
 }
 
 function progress(current: number, target: number | null): GoalProgress | null {
-  // Objectif absent OU nul : pas d'objectif. La DoD exige « aucun objectif défini =
-  // aucune UI parasite », donc on renvoie null plutôt qu'une progression à 0 %.
+  // Missing OR zero goal: no goal. The DoD requires "no goal set = no stray UI", so we
+  // return null rather than a 0 % progress.
   if (target == null || target <= 0) {
     return null;
   }
@@ -52,17 +52,17 @@ export function sessionsProgress(totals: WeekTotals, goal: WeeklyGoal): GoalProg
   return progress(totals.sessions, goal.sessions);
 }
 
-/** Un objectif est-il défini, quel qu'il soit ? Pilote l'affichage sur l'accueil. */
+/** Is any goal set at all? Drives the display on the home screen. */
 export function hasGoal(goal: WeeklyGoal): boolean {
   return (goal.distanceM != null && goal.distanceM > 0) || (goal.sessions != null && goal.sessions > 0);
 }
 
 /**
- * Un objectif vient-il d'être atteint par CETTE séance ?
+ * Did THIS session just reach a goal?
  *
- * La nuance est tout le sujet : célébrer dès que le total dépasse l'objectif ferait
- * rejouer la célébration à chaque séance jusqu'à la fin de la semaine. On compare donc
- * l'état avant et après — la séance doit être celle qui fait franchir la ligne.
+ * The nuance is the whole point: celebrating as soon as the total exceeds the goal would
+ * replay the celebration on every session until the end of the week. So we compare the
+ * state before and after: the session must be the one that crosses the line.
  */
 export function goalJustReached(
   before: WeekTotals,

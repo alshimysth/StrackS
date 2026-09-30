@@ -1,12 +1,13 @@
 /**
- * Mot de passe oublié (#74) — deux étapes sur un seul écran : demander un code, puis le
- * saisir avec le nouveau mot de passe.
+ * Forgotten password (#74), two steps on a single screen: request a code, then enter it
+ * with the new password.
  *
- * Un code plutôt qu'un lien : il se recopie depuis n'importe quel appareil, là où un lien
- * profond échoue dès que l'email est ouvert sur un ordinateur.
+ * A code rather than a link: it can be copied from any device, whereas a deep link fails
+ * as soon as the email is opened on a computer.
  *
- * L'écran ne dit jamais si l'adresse a un compte — le serveur non plus (202 dans tous les
- * cas). Le message de la seconde étape est donc conditionnel : « si un compte existe ».
+ * The screen never says whether the address has an account, and neither does the server
+ * (202 in every case). The second step's message is therefore conditional: "if an account
+ * exists".
  */
 import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
@@ -47,7 +48,7 @@ export default function ForgotPasswordScreen() {
       return;
     }
     setErrors({});
-    confirmReset.reset(); // l'erreur affichée doit être celle de la dernière action
+    confirmReset.reset(); // the displayed error must be the last action's
     requestReset.mutate(parsed.data, { onSuccess: () => setStep('confirm') });
   };
 
@@ -69,8 +70,8 @@ export default function ForgotPasswordScreen() {
     );
   };
 
-  // À l'étape du code, « Renvoyer un code » relance la demande : son refus (un 429, le
-  // plus souvent, avec son délai) doit s'afficher aussi (revue CodeRabbit, PR #78).
+  // At the code step, "Renvoyer un code" requests again: its refusal (a 429 most of the
+  // time, with its delay) must show too (CodeRabbit review, PR #78).
   const apiError = accountErrorMessage(
     step === 'request' ? requestReset.error : (confirmReset.error ?? requestReset.error),
   );

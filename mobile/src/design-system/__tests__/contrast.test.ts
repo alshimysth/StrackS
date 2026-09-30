@@ -1,18 +1,16 @@
 /**
- * Contrastes WCAG des jetons (#42), calculés sur les valeurs réelles de `theme.ts`.
+ * WCAG contrast of the tokens (#42), computed on the actual `theme.ts` values.
  *
- * Deux listes :
- *  - les couples **effectivement utilisés pour porter de l'information**, qui doivent
- *    passer AA (4,5:1 pour un texte courant) — un changement de jeton qui les ferait
- *    tomber casse ce test ;
- *  - les couples qui échouent **à cause des valeurs des jetons elles-mêmes**, consignés en
- *    `it.failing`. `theme.ts` ne s'édite pas à la main : ces valeurs descendent de Claude
- *    Design. Le jour où le design les corrige, ces tests passent au vert et jest exige de
- *    les repasser en `it` normal — impossible de corriger un jeton sans que ce fichier le
- *    sache.
+ * Two lists:
+ *  - the pairs **actually used to carry information**, which must pass AA (4.5:1 for body
+ *    text); a token change that would make them fail breaks this test;
+ *  - the pairs failing **because of the token values themselves**, recorded as
+ *    `it.failing`. `theme.ts` isn't edited by hand: these values come down from Claude
+ *    Design. The day the design fixes them, these tests turn green and jest requires
+ *    turning them back into plain `it`: a token can't be fixed without this file knowing.
  *
- * Hors périmètre, délibérément : les icônes décoratives (le texte voisin porte
- * l'information) et le texte indicatif des champs vides (placeholder).
+ * Deliberately out of scope: decorative icons (the neighbouring text carries the
+ * information) and the hint text of empty fields (placeholder).
  */
 import { colors, darkTheme, lightTheme, type Theme } from '../theme';
 
@@ -31,7 +29,7 @@ export function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** Texte courant (< 18,66 px gras) : 4,5:1. */
+/** Body text (< 18.66 px bold): 4.5:1. */
 const AA = 4.5;
 
 const THEMES: [string, Theme][] = [
@@ -39,7 +37,7 @@ const THEMES: [string, Theme][] = [
   ['sombre', darkTheme],
 ];
 
-describe('couples utilisés pour du texte — AA exigé', () => {
+describe('pairs used for text: AA required', () => {
   for (const [name, theme] of THEMES) {
     it.each([
       ['textPrimary', 'surfaceApp'],
@@ -48,57 +46,57 @@ describe('couples utilisés pour du texte — AA exigé', () => {
       ['textSecondary', 'surfaceApp'],
       ['textSecondary', 'surfaceCard'],
       ['textError', 'surfaceApp'],
-    ] as const)(`thème ${name} : %s sur %s`, (fg, bg) => {
+    ] as const)(`${name} theme: %s on %s`, (fg, bg) => {
       expect(contrast(theme[fg], theme[bg])).toBeGreaterThanOrEqual(AA);
     });
   }
 
-  it('texte sur le bandeau hors ligne (neutral900 sur warning100)', () => {
+  it('text on the offline banner (neutral900 on warning100)', () => {
     expect(contrast(colors.neutral900, colors.warning100)).toBeGreaterThanOrEqual(AA);
   });
 
-  it('texte sur un bouton ou un bandeau volt', () => {
+  it('text on a volt button or banner', () => {
     expect(contrast(lightTheme.textOnVolt, colors.volt500)).toBeGreaterThanOrEqual(AA);
     expect(contrast(colors.neutral900, colors.volt500)).toBeGreaterThanOrEqual(AA);
   });
 
-  it('suivi de séance, toujours en sombre : secondaire et erreur sur le fond', () => {
+  it('session tracking, always dark: secondary and error on the background', () => {
     expect(contrast(darkTheme.textSecondary, darkTheme.surfaceApp)).toBeGreaterThanOrEqual(AA);
     expect(contrast(darkTheme.textError, darkTheme.surfaceApp)).toBeGreaterThanOrEqual(AA);
   });
 });
 
 /**
- * Échecs dus aux valeurs des jetons — à corriger dans Claude Design, pas ici.
- * Mesures au 2026-09-29 entre parenthèses.
+ * Failures caused by the token values: to fix in Claude Design, not here.
+ * Measurements as of 2026-09-29 in brackets.
  */
-describe('jetons à corriger côté design (échecs connus)', () => {
-  it.failing('texte blanc sur primary500 — boutons principaux (4,18:1)', () => {
+describe('tokens to fix on the design side (known failures)', () => {
+  it.failing('white text on primary500: primary buttons (4.18:1)', () => {
     expect(contrast(colors.neutral0, colors.primary500)).toBeGreaterThanOrEqual(AA);
   });
 
-  it.failing('primary500 comme texte sur fond clair — liens, boutons secondaires (3,96:1)', () => {
+  it.failing('primary500 as text on a light background: links, secondary buttons (3.96:1)', () => {
     expect(contrast(colors.primary500, lightTheme.surfaceApp)).toBeGreaterThanOrEqual(AA);
   });
 
-  it.failing('primary500 comme texte sur carte sombre (4,32:1)', () => {
+  it.failing('primary500 as text on a dark card (4.32:1)', () => {
     expect(contrast(colors.primary500, darkTheme.surfaceCard)).toBeGreaterThanOrEqual(AA);
   });
 
-  it.failing('textSecondary sur surfaceSunken, thème clair — panneaux de sport (4,19:1)', () => {
+  it.failing('textSecondary on surfaceSunken, light theme: sport panels (4.19:1)', () => {
     expect(contrast(lightTheme.textSecondary, lightTheme.surfaceSunken)).toBeGreaterThanOrEqual(AA);
   });
 
-  it.failing('textError sur carte sombre (4,43:1)', () => {
+  it.failing('textError on a dark card (4.43:1)', () => {
     expect(contrast(darkTheme.textError, darkTheme.surfaceCard)).toBeGreaterThanOrEqual(AA);
   });
 
-  it.failing('textSuccess sur fond clair (4,15:1)', () => {
+  it.failing('textSuccess on a light background (4.15:1)', () => {
     expect(contrast(lightTheme.textSuccess, lightTheme.surfaceApp)).toBeGreaterThanOrEqual(AA);
   });
 });
 
-it('calcule le contraste comme WCAG : blanc sur noir = 21:1, identique = 1:1', () => {
+it('computes contrast like WCAG: white on black = 21:1, identical = 1:1', () => {
   expect(contrast('#ffffff', '#000000')).toBeCloseTo(21, 5);
   expect(contrast('#3d78e6', '#3d78e6')).toBeCloseTo(1, 5);
 });

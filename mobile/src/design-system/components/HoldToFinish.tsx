@@ -1,8 +1,8 @@
 /**
- * HoldToFinish — bouton « Terminer » à appui maintenu (spec de
- * screens/tracking-running.html, Claude Design) : anneau SVG 56 px qui se
- * remplit en 1,5 s (dashoffset C → 0, ease standard) avec haptique croissante ;
- * relâcher avant la fin réinitialise. Protège de l'arrêt accidentel.
+ * HoldToFinish: press-and-hold "Terminer" button (spec from
+ * screens/tracking-running.html, Claude Design): a 56 px SVG ring filling in 1.5 s
+ * (dashoffset C → 0, standard ease) with increasing haptics; releasing before the end
+ * resets. Protects against an accidental stop.
  */
 import * as Haptics from 'expo-haptics';
 import React from 'react';
@@ -16,7 +16,7 @@ import { colors, motion } from '../theme';
 const SIZE = 56;
 const RADIUS = 26;
 const STROKE = 2;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS; // ≈ 163.36, comme la spec
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS; // ≈ 163.36, as in the spec
 const HOLD_MS = 1500;
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -81,9 +81,9 @@ export function HoldToFinish({ onFinish, disabled = false }: Props) {
       accessibilityLabel="Terminer la séance"
       accessibilityHint="Maintiens 1,5 seconde, ou utilise l’action « Terminer »."
       accessibilityState={{ disabled }}
-      // Un lecteur d'écran ne permet pas de maintenir un appui de façon fiable (#42).
-      // L'action accessible demande une confirmation : c'est l'équivalent, pour lui, de
-      // la protection contre l'arrêt accidentel que l'appui maintenu offre au doigt.
+      // A screen reader can't reliably hold a press (#42). The accessible action asks for
+      // a confirmation: for its user, that's the equivalent of the protection against an
+      // accidental stop that press-and-hold gives a finger.
       accessibilityActions={disabled ? [] : [{ name: 'activate', label: 'Terminer' }]}
       onAccessibilityAction={(event) => {
         if (event.nativeEvent.actionName === 'activate') {
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   },
 });
 
-/** Confirmation de l'arrêt pour le lecteur d'écran (#42) : même garde-fou que l'appui maintenu. */
+/** Stop confirmation for the screen reader (#42): the same safeguard as press-and-hold. */
 export function confirmFinish(onFinish: () => void): void {
   Alert.alert('Terminer la séance ?', 'La séance sera enregistrée et envoyée.', [
     { text: 'Continuer', style: 'cancel' },

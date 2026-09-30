@@ -1,19 +1,19 @@
 /**
- * Moteur GPS — enveloppe expo-location.
+ * GPS engine, wrapping expo-location.
  *
- * Deux modes complémentaires :
- *  - premier plan (`startGpsWatch`) : alimente l'affichage live via le store ;
- *  - arrière-plan (`startBackgroundUpdates`, #16) : écrit directement dans le buffer
- *    SQLite depuis un contexte JS séparé, écran verrouillé.
+ * Two complementary modes:
+ *  - foreground (`startGpsWatch`): feeds the live display through the store;
+ *  - background (`startBackgroundUpdates`, #16): writes straight to the SQLite buffer from
+ *    a separate JS context, screen locked.
  *
- * L'arrière-plan exige un dev build EAS — il ne fonctionne PAS dans Expo Go (#15).
+ * Background mode requires an EAS dev build; it does NOT work in Expo Go (#15).
  */
 import * as Location from 'expo-location';
 
 import { BACKGROUND_LOCATION_TASK } from './background-task';
 import { colors } from '../../design-system/theme';
 
-/** Relevé brut, tel que persisté dans le buffer puis envoyé au serveur. */
+/** Raw fix, as persisted in the buffer then sent to the server. */
 export interface GpsFix {
   recordedAtMs: number;
   lat: number;
@@ -27,31 +27,31 @@ export type GpsSubscription = { remove(): void };
 export type GpsMode = 'max' | 'balanced' | 'saver';
 
 /**
- * Réglages GPS par mode (#36). **`balanced` reproduit exactement les réglages d'avant le
- * choix du mode** — ceux avec lesquels le filtrage (#17) et la parité client/serveur (#40)
- * ont été établis. Un utilisateur qui ne touche à rien ne voit donc aucun changement.
+ * GPS settings per mode (#36). **`balanced` reproduces exactly the settings from before the
+ * mode choice existed**, the ones filtering (#17) and client/server parity (#40) were
+ * established with. A user who touches nothing therefore sees no change.
  *
- * L'impact batterie de `max` et `saver` n'est **pas mesuré** : il dépend de la sortie
- * terrain (#18). Les libellés de l'écran restent au conditionnel en attendant.
+ * The battery impact of `max` and `saver` is **not measured**: it depends on the field
+ * test (#18). The screen's labels stay tentative until then.
  *
- * ⚠️ `timeInterval` n'est honoré que sur **Android** : iOS ne suit que `distanceInterval`.
- * Sur iPhone, `saver` se distingue donc par sa précision et ses 5 m, pas par ses 3 s.
+ * ⚠️ `timeInterval` is only honoured on **Android**: iOS only follows `distanceInterval`.
+ * On iPhone, `saver` therefore differs by its accuracy and its 5 m, not by its 3 s.
  */
 export const GPS_MODE_SETTINGS: Record<
   GpsMode,
   { accuracy: Location.Accuracy; timeInterval: number; distanceInterval: number }
 > = {
-  // Chaque fix, sans seuil de déplacement : le plus fidèle en virage, le plus coûteux.
+  // Every fix, with no movement threshold: the most faithful in turns, the most costly.
   max: { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 0 },
   balanced: { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 2 },
-  // Un fix toutes les 3 s ou 5 m, précision « haute » plutôt que « navigation » : reste
-  // sous le seuil de perte de signal (15 s, #19), donc la distance est toujours comptée.
+  // One fix every 3 s or 5 m, "high" accuracy rather than "navigation": stays under the
+  // signal loss threshold (15 s, #19), so the distance is always counted.
   saver: { accuracy: Location.Accuracy.High, timeInterval: 3000, distanceInterval: 5 },
 };
 
 /**
- * Demande la permission foreground puis démarre le watch selon le mode (#36).
- * Rejette avec un message utilisateur si la permission est refusée.
+ * Requests the foreground permission then starts the watch in the given mode (#36).
+ * Rejects with a user-facing message if the permission is denied.
  */
 export async function startGpsWatch(
   onFix: (fix: GpsFix) => void,
@@ -76,15 +76,15 @@ export async function startGpsWatch(
 }
 
 /**
- * Démarre le suivi en arrière-plan (#16).
+ * Starts background tracking (#16).
  *
- * @returns true si l'arrière-plan est actif ; false si la permission « toujours » a été
- * refusée — l'appelant reste alors en premier plan, ce qui est une dégradation acceptable
- * (la séance continue tant que l'écran est allumé) et non un échec.
+ * @returns true if background mode is active; false if the "always" permission was
+ * denied. The caller then stays in the foreground, which is an acceptable degradation
+ * (the session goes on while the screen is on), not a failure.
  *
- * La permission « toujours » est demandée APRÈS le démarrage de la séance, jamais au
- * lancement de l'app : iOS refuse en bloc une demande hors contexte, et l'utilisateur qui
- * vient de lancer une course comprend pourquoi on la demande à ce moment-là.
+ * The "always" permission is requested AFTER the session starts, never at app launch: iOS
+ * flatly refuses an out-of-context request, and a user who just started a run understands
+ * why it's asked at that moment.
  */
 export async function startBackgroundUpdates(mode: GpsMode = 'balanced'): Promise<boolean> {
   const permission = await Location.requestBackgroundPermissionsAsync();
@@ -92,24 +92,24 @@ export async function startBackgroundUpdates(mode: GpsMode = 'balanced'): Promis
     return false;
   }
   if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
-    return true; // déjà en cours : ne pas empiler deux souscriptions
+    return true; // already running: don't stack two subscriptions
   }
   await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
     ...GPS_MODE_SETTINGS[mode],
-    // Android impose une notification persistante : sans elle le système tue la tâche
-    // au bout de quelques minutes.
+    // Android requires a persistent notification: without it the system kills the task
+    // after a few minutes.
     foregroundService: {
       notificationTitle: 'Séance en cours',
       notificationBody: 'StrackS enregistre ton parcours.',
       notificationColor: colors.primary500, // couleur de marque, plus le bleu du gabarit Expo
     },
-    pausesUpdatesAutomatically: false, // iOS couperait de lui-même à l'arrêt : c'est notre rôle
+    pausesUpdatesAutomatically: false, // iOS would cut it off on its own when stopped: that's our job
     showsBackgroundLocationIndicator: true,
   });
   return true;
 }
 
-/** Arrête le suivi en arrière-plan. Sans erreur si la tâche n'est pas démarrée. */
+/** Stops background tracking. No error if the task isn't running. */
 export async function stopBackgroundUpdates(): Promise<void> {
   if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK).catch(() => false)) {
     await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK).catch(() => {});

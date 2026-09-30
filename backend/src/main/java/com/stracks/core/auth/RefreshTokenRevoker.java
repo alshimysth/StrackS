@@ -7,15 +7,15 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 
 /**
- * Révocation de famille en transaction indépendante.
+ * Family revocation in an independent transaction.
  *
- * <p>Raison d'être : la détection de rejeu révoque la famille <em>puis</em> refuse la
- * requête. Comme le refus voyage en exception, la transaction de la requête est annulée —
- * et emporterait la révocation avec elle, laissant le jeton volé parfaitement utilisable.
- * {@code REQUIRES_NEW} détache l'écriture de sécurité du sort de la requête.
+ * <p>Rationale: replay detection revokes the family <em>then</em> rejects the request.
+ * Since the rejection travels as an exception, the request's transaction is rolled back,
+ * and would take the revocation with it, leaving the stolen token perfectly usable.
+ * {@code REQUIRES_NEW} detaches the security write from the fate of the request.
  *
- * <p>Bean distinct et non méthode privée : un appel interne à {@code this} court-circuiterait
- * l'intercepteur CDI, et l'annotation n'aurait aucun effet.
+ * <p>A separate bean rather than a private method: an internal call on {@code this} would
+ * bypass the CDI interceptor, and the annotation would have no effect.
  */
 @ApplicationScoped
 public class RefreshTokenRevoker {

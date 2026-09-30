@@ -23,8 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Préférences utilisateur : défauts, fusion partielle, validation, anti-IDOR,
- * et effet du profil physique sur l'estimation calorique.
+ * User preferences: defaults, partial merge, validation, anti-IDOR, and the effect of the
+ * athlete profile on the calorie estimate.
  */
 @QuarkusTest
 class PreferencesResourceTest {
@@ -49,7 +49,7 @@ class PreferencesResourceTest {
                 .body("theme", equalTo("auto"))
                 .body("gpsMode", equalTo("balanced"))
                 .body("countdownEnabled", equalTo(true))
-                // Hors PRD v2.0 tant que la décision produit n'est pas prise (#20)
+                // Outside PRD v2.0 until the product decision is made (#20)
                 .body("autoPauseEnabled", equalTo(false))
                 .body("defaultSport", nullValue())
                 .body("physical.weightKg", nullValue())
@@ -57,12 +57,12 @@ class PreferencesResourceTest {
     }
 
     /**
-     * Fusion ÉPARSE de `sportDisplay` (#66, revue).
+     * SPARSE merge of `sportDisplay` (#66, review).
      *
-     * Le mobile n'envoie que l'entrée modifiée, jamais la table reconstruite : les puces
-     * restent actionnables pendant qu'un enregistrement est en vol, et repartir d'un
-     * instantané local ferait ressusciter le choix précédent d'un autre sport. Ce
-     * comportement serveur est donc désormais un contrat, pas un détail d'implémentation.
+     * The mobile app only sends the changed entry, never the rebuilt table: the chips stay
+     * actionable while a save is in flight, and starting from a local snapshot would bring
+     * back another sport's previous choice. This server behaviour is therefore now a
+     * contract, not an implementation detail.
      */
     @Test
     void sparse_sport_display_patch_preserves_other_sports() {
@@ -73,7 +73,7 @@ class PreferencesResourceTest {
                 .then().statusCode(200)
                 .body("sportDisplay.running", equalTo("pace"));
 
-        // Un patch ne portant QUE walking ne doit pas effacer running.
+        // A patch carrying ONLY walking must not erase running.
         as(token).body(Map.of("sportDisplay", Map.of("walking", "speed")))
                 .when().patch("/api/v1/users/me/preferences")
                 .then().statusCode(200)
@@ -108,9 +108,9 @@ class PreferencesResourceTest {
                 .then().statusCode(200)
                 .body("units", equalTo("imperial"))
                 .body("theme", equalTo("dark"))
-                .body("gpsMode", equalTo("balanced")); // intact
+                .body("gpsMode", equalTo("balanced")); // untouched
 
-        // Un second patch ne doit pas effacer le premier
+        // A second patch must not erase the first one
         as(token).body(Map.of("gpsMode", "saver"))
                 .when().patch("/api/v1/users/me/preferences")
                 .then().statusCode(200)
@@ -132,7 +132,7 @@ class PreferencesResourceTest {
                 .when().patch("/api/v1/users/me/preferences")
                 .then().statusCode(200);
 
-        // Ne toucher qu'au poids ne doit pas effacer la taille
+        // Touching only the weight must not erase the height
         as(token).body(Map.of("physical", Map.of("weightKg", 74)))
                 .when().patch("/api/v1/users/me/preferences")
                 .then().statusCode(200)
@@ -176,7 +176,7 @@ class PreferencesResourceTest {
                 .when().patch("/api/v1/users/me/preferences")
                 .then().statusCode(422);
 
-        // Poids en livres saisi comme des kilos : hors bornes de plausibilité
+        // Weight in pounds entered as kilos: outside the plausibility bounds
         as(token).body(Map.of("physical", Map.of("weightKg", 400)))
                 .when().patch("/api/v1/users/me/preferences")
                 .then().statusCode(422);
@@ -216,7 +216,7 @@ class PreferencesResourceTest {
 
         as(bob).when().get("/api/v1/users/me/preferences")
                 .then().statusCode(200)
-                .body("theme", equalTo("auto")); // Bob garde ses défauts
+                .body("theme", equalTo("auto")); // Bob keeps his defaults
 
         given().when().get("/api/v1/users/me/preferences").then().statusCode(401);
     }
@@ -256,14 +256,14 @@ class PreferencesResourceTest {
     void calories_are_estimated_only_when_weight_is_known() {
         Instant start = Instant.now().minusSeconds(1200);
 
-        // Sans poids : aucune valeur inventée
+        // Without weight: no made-up value
         String noWeight = freshToken();
         String plain = completeRun(noWeight, start);
         as(noWeight).when().get("/api/v1/activities/" + plain)
                 .then().statusCode(200)
                 .body("calories", nullValue());
 
-        // Avec poids : estimation plausible
+        // With weight: plausible estimate
         String withWeight = freshToken();
         as(withWeight).body(Map.of("physical", Map.of("weightKg", 70)))
                 .when().patch("/api/v1/users/me/preferences")
@@ -275,15 +275,15 @@ class PreferencesResourceTest {
                 .body("calories", notNullValue())
                 .extract().path("calories");
 
-        // 10 min de course pour 70 kg : quelques dizaines à ~200 kcal
-        assertTrue(kcal > 20 && kcal < 400, "estimation implausible : " + kcal + " kcal");
+        // 10 min of running at 70 kg: a few dozen up to ~200 kcal
+        assertTrue(kcal > 20 && kcal < 400, "implausible estimate: " + kcal + " kcal");
     }
 
     /**
-     * Lecture tolérante : le socle ne détruit jamais une clé qu'il ne comprend
-     * pas — un client plus récent peut avoir écrit une préférence que ce backend
-     * ignore. Vérifié au niveau du service, l'API refusant volontairement d'en
-     * écrire une inconnue (asymétrie lecture/écriture assumée).
+     * Tolerant read: the core never destroys a key it doesn't understand, since a more
+     * recent client may have written a preference this backend ignores. Checked at the
+     * service level, as the API deliberately refuses to write an unknown one (accepted
+     * read/write asymmetry).
      */
     @Test
     void unknown_stored_preferences_survive_a_patch() {
@@ -301,6 +301,6 @@ class PreferencesResourceTest {
 
         ObjectNode full = preferences.withDefaults(merged);
         assertEquals("valeur d'un client plus récent", full.get("futurePreference").asText());
-        assertEquals("balanced", full.get("gpsMode").asText()); // défaut appliqué au passage
+        assertEquals("balanced", full.get("gpsMode").asText()); // default applied on the way
     }
 }

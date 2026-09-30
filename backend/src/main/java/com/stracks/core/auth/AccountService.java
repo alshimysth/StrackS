@@ -19,18 +19,18 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 /**
- * Cycle de vie des secrets du compte : mot de passe (#73, #74) et adresse email (#75).
+ * Lifecycle of the account's secrets: password (#73, #74) and email address (#75).
  *
- * <p>Deux règles traversent toute la classe :
+ * <p>Two rules run through the whole class:
  * <ul>
- *   <li><b>Un mauvais mot de passe actuel répond 403, jamais 401.</b> Le client mobile lit
- *       un 401 comme « jeton expiré » : il tenterait un renouvellement, puis déconnecterait
- *       l'utilisateur pour une simple faute de frappe.</li>
- *   <li><b>Changer de secret coupe toutes les autres sessions.</b> Un JWT d'accès reste
- *       valable jusqu'à son expiration (15 min, #49) — c'est la limite assumée d'un jeton
- *       non révocable ; les refresh tokens, eux, tombent immédiatement, et avec eux tous
- *       les codes encore ouverts. Sans ça, un JWT encore vivant suffirait à confirmer un
- *       changement d'email lancé avant la reprise en main, puis à reprendre le compte.</li>
+ *   <li><b>A wrong current password answers 403, never 401.</b> The mobile client reads a
+ *       401 as "token expired": it would try a refresh, then log the user out over a
+ *       simple typo.</li>
+ *   <li><b>Changing a secret cuts all other sessions.</b> An access JWT stays valid until
+ *       it expires (15 min, #49), the accepted limit of a non-revocable token; refresh
+ *       tokens, however, are dropped immediately, and with them every code still open.
+ *       Otherwise a still-alive JWT would be enough to confirm an email change started
+ *       before the account was taken back, and then to take the account over.</li>
  * </ul>
  */
 @ApplicationScoped
@@ -51,9 +51,9 @@ public class AccountService {
     @Inject
     EmailSender mail;
 
-    // --- Mot de passe ------------------------------------------------------------
+    // --- Password ------------------------------------------------------------------
 
-    /** #73. Rend une session neuve pour l'appareil courant : les autres sont révoquées. */
+    /** #73. Returns a fresh session for the current device: the others are revoked. */
     @Transactional
     public AuthService.AuthResult changePassword(UUID userId, String currentPassword, String newPassword) {
         UserEntity user = requireUser(userId);
@@ -72,8 +72,8 @@ public class AccountService {
     }
 
     /**
-     * #74. Réponse identique que l'adresse ait un compte ou non — y compris en temps :
-     * sans compte, on paie quand même le coût BCrypt d'une émission.
+     * #74. Same response whether or not the address has an account, timing included:
+     * without an account, we still pay the BCrypt cost of issuing a code.
      */
     @Transactional
     public void requestPasswordReset(String email) {
@@ -96,27 +96,27 @@ public class AccountService {
     }
 
     /**
-     * #74. Le code a été reçu sur l'adresse du compte : c'est aussi une preuve de contrôle
-     * de cette adresse, qui devient vérifiée.
+     * #74. The code was received at the account's address: that also proves control of
+     * the address, which becomes verified.
      */
     @Transactional(dontRollbackOn = ApiException.class)
     public void confirmPasswordReset(String email, String code, String newPassword) {
         UserEntity user = UserEntity.findByEmail(normalizeEmail(email))
-                .orElseThrow(AccountCodeService::invalidCode); // même message qu'un code faux
+                .orElseThrow(AccountCodeService::invalidCode); // same message as a wrong code
         codes.consume(user.id, Purpose.PASSWORD_RESET, code);
         user.passwordHash = BcryptUtil.bcryptHash(newPassword);
         if (user.emailVerifiedAt == null) {
             user.emailVerifiedAt = Instant.now();
         }
         RefreshTokenEntity.revokeAllForUser(user.id, Instant.now(), REASON_PASSWORD_RESET);
-        // Le code de réinitialisation est déjà consommé ; les autres (changement d'email en
-        // attente, ouvert par quelqu'un qui connaissait l'ancien mot de passe) tombent aussi.
+        // The reset code is already consumed; the others (a pending email change, opened
+        // by someone who knew the old password) are dropped too.
         AccountCodeEntity.closeAllActive(user.id, Instant.now());
     }
 
-    // --- Adresse email -----------------------------------------------------------
+    // --- Email address ------------------------------------------------------------
 
-    /** #75. Envoie un code à l'adresse actuelle du compte. Sans effet si elle est déjà vérifiée. */
+    /** #75. Sends a code to the account's current address. No effect if already verified. */
     @Transactional
     public void requestEmailVerification(UUID userId) {
         UserEntity user = requireUser(userId);
@@ -126,7 +126,7 @@ public class AccountService {
         sendVerificationCode(user);
     }
 
-    /** Appelé à l'inscription. Un échec d'envoi ne fait pas échouer l'inscription. */
+    /** Called at registration. A sending failure doesn't make registration fail. */
     void sendVerificationCode(UserEntity user) {
         AccountCodeService.Issued issued = codes.issue(user.id, Purpose.EMAIL_VERIFICATION, null);
         mail.send(new EmailMessage(user.email, "Confirme ton adresse StrackS",
@@ -149,9 +149,9 @@ public class AccountService {
     }
 
     /**
-     * #75. Le code part vers la <b>nouvelle</b> adresse : c'est elle dont il faut prouver le
-     * contrôle. L'adresse du compte ne change qu'à la confirmation — d'ici là, la connexion
-     * se fait toujours avec l'ancienne.
+     * #75. The code goes to the <b>new</b> address: that's the one whose control must be
+     * proven. The account's address only changes on confirmation; until then, login still
+     * uses the old one.
      */
     @Transactional
     public void requestEmailChange(UUID userId, String newEmail, String currentPassword) {
@@ -177,9 +177,9 @@ public class AccountService {
     }
 
     /**
-     * #75. L'unicité est revérifiée ici : un autre compte a pu prendre l'adresse entre la
-     * demande et la confirmation. L'ancienne adresse est prévenue — c'est le seul signal
-     * qu'aurait la victime d'un détournement de compte.
+     * #75. Uniqueness is checked again here: another account may have taken the address
+     * between the request and the confirmation. The old address is notified: it's the only
+     * signal the victim of an account takeover would get.
      */
     @Transactional(dontRollbackOn = ApiException.class)
     public UserEntity confirmEmailChange(UUID userId, String code) {
@@ -192,8 +192,8 @@ public class AccountService {
         String previous = user.email;
         user.email = target;
         user.emailVerifiedAt = Instant.now();
-        // Un code de réinitialisation déjà envoyé à l'ancienne adresse ne doit plus ouvrir
-        // le compte désormais rattaché à la nouvelle.
+        // A reset code already sent to the old address must no longer open the account
+        // now attached to the new one.
         AccountCodeEntity.closeAllActive(user.id, Instant.now());
         mail.send(new EmailMessage(previous, "L'adresse de ton compte StrackS a changé",
                 """

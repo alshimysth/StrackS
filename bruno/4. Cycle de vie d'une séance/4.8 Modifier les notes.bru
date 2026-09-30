@@ -21,7 +21,7 @@ body:json {
 }
 
 tests {
-  test("200 OK + notes modifiées", function () {
+  test("200 OK + notes changed", function () {
     expect(res.getStatus()).to.equal(200);
     expect(res.getBody().notes).to.include("négatif");
   });

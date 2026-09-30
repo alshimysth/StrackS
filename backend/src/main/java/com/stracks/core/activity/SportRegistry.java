@@ -14,8 +14,8 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 
 /**
- * SEUL endroit du backend qui connaît la liste des sports — et encore : il la
- * découvre par CDI. Brancher un sport = déclarer un bean SportPlugin.
+ * The ONLY place in the backend that knows the list of sports, and even then it
+ * discovers it through CDI. Plugging in a sport = declaring a SportPlugin bean.
  */
 @ApplicationScoped
 public class SportRegistry {

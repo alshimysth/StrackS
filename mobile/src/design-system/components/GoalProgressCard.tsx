@@ -1,9 +1,8 @@
 /**
- * Progression sur l'objectif hebdomadaire, affichée sur l'accueil (#35).
+ * Progress on the weekly goal, shown on the home screen (#35).
  *
- * Ne rend RIEN quand aucun objectif n'est défini — la DoD l'exige explicitement :
- * « aucun objectif défini = aucune UI parasite ». C'est l'appelant qui décide, mais
- * le composant se protège aussi lui-même.
+ * Renders NOTHING when no goal is set, as the DoD explicitly requires: "no goal set = no
+ * stray UI". The caller decides, but the component also protects itself.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -14,7 +13,7 @@ import { useTheme } from '../use-theme';
 
 interface Props {
   label: string;
-  /** Valeur déjà formatée par l'appelant (unités, pluriels). */
+  /** Value already formatted by the caller (units, plurals). */
   valueLabel: string;
   progress: GoalProgress;
   testID?: string;
@@ -41,8 +40,8 @@ export function GoalProgressCard({ label, valueLabel, progress, testID }: Props)
             styles.bar,
             {
               width: `${progress.ratio * 100}%`,
-              // Le volt est réservé aux célébrations : il n'apparaît qu'une fois
-              // l'objectif atteint, jamais pendant la progression.
+              // Volt is reserved for celebrations: it only appears once the goal is
+              // reached, never during progress.
               backgroundColor: progress.reached ? colors.volt900 : colors.primary500,
             },
           ]}

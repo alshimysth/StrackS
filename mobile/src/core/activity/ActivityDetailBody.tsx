@@ -1,13 +1,13 @@
 /**
- * Corps commun au résumé de fin de séance (#22) et au détail d'une activité (#6).
+ * Body shared by the end-of-session summary (#22) and the activity detail (#6).
  *
- * #6 demandait d'arbitrer entre réutiliser `summary/[id].tsx` et dupliquer. Les deux
- * écrans montrent exactement la même chose — carte, métriques, splits, panneau du
- * module, notes ; ils ne diffèrent que par ce qui les entoure (titre d'écran,
- * célébration, boutons). Ce composant porte donc le fond, chaque écran son cadre.
+ * #6 asked to choose between reusing `summary/[id].tsx` and duplicating. Both screens show
+ * exactly the same thing (map, metrics, splits, module panel, notes); they only differ by
+ * what surrounds them (screen title, celebration, buttons). This component therefore
+ * carries the content, each screen its frame.
  *
- * Le socle ne connaît aucun sport : les métriques propres à la discipline passent
- * exclusivement par `module.SummaryPanel`, jamais par un `if (sportType === …)`.
+ * The core knows no sport: discipline-specific metrics go exclusively through
+ * `module.SummaryPanel`, never through an `if (sportType === …)`.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -36,7 +36,7 @@ export function ActivityDetailBody({ activity }: Props) {
   const trackPoints = useTrackPoints(activity.id);
   const { preferences, data: loadedPreferences } = usePreferences();
   const path = React.useMemo(() => toPath(trackPoints.data ?? []), [trackPoints.data]);
-  // #37 : masquage à l'affichage seulement — le tracé stocké et exporté reste complet.
+  // #37: masking at display time only; the stored and exported track stays complete.
   const route = React.useMemo(
     () => maskRoute(path, preferences.privacyZones),
     [path, preferences.privacyZones],
@@ -48,11 +48,11 @@ export function ActivityDetailBody({ activity }: Props) {
 
   return (
     <>
-      {/* Le tracé n'apparaît que s'il existe : une séance sans GPS (ou dont le tracé
-          n'a pas encore été téléversé) ne doit pas laisser un cadre vide. */}
-      {/* Pas de carte tant que les zones de confidentialité ne sont pas connues (revue
-          PR #80) : pendant le chargement, ou en cas d'échec, `usePreferences` sert des
-          défauts sans zone — le tracé complet s'afficherait, départ au domicile compris. */}
+      {/* The track only appears if it exists: a session without GPS (or whose track
+          hasn't been uploaded yet) must not leave an empty frame. */}
+      {/* No map until the privacy zones are known (PR #80 review): while loading, or on
+          failure, `usePreferences` serves defaults without any zone, so the full track
+          would show, start at home included. */}
       {loadedPreferences != null && route.segments.length > 0 && (
         <View style={[styles.mapFrame, { borderColor: theme.borderSubtle }]}>
           <RouteMap segments={route.segments} />
@@ -63,8 +63,8 @@ export function ActivityDetailBody({ activity }: Props) {
           La carte s’affichera une fois tes réglages de confidentialité chargés.
         </Text>
       )}
-      {/* Dit explicitement ce qui manque : un trou sans explication passerait pour une
-          perte de signal, et « masqué » n'est pas « supprimé » (DoD #37). */}
+      {/* Says explicitly what's missing: an unexplained gap would pass for a signal loss,
+          and "masked" isn't "deleted" (DoD #37). */}
       {loadedPreferences != null && route.hiddenPoints > 0 && (
         <Text testID="privacy-masked" style={[typography.caption, { color: theme.textSecondary }]}>
           {route.segments.length === 0
@@ -96,8 +96,8 @@ export function ActivityDetailBody({ activity }: Props) {
             style={styles.gridCell}
           />
         )}
-        {/* #33 : sans poids, le serveur n'invente rien — l'écran dit pourquoi et comment
-            y remédier, comme le prévoit la maquette (« — » + « Renseigne ton poids »). */}
+        {/* #33: without a weight, the server invents nothing; the screen says why and how
+            to fix it, as the mockup plans ("—" + "Renseigne ton poids"). */}
         {activity.calories == null && !hasWeight(preferences) && (
           <View testID="calories-missing" style={styles.gridCell}>
             <StatCard label="Calories" value="—" style={styles.fill} />

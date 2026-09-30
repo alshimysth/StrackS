@@ -1,13 +1,13 @@
 /**
- * Profil physique (#32) — le poids, et seulement lui pour l'instant.
+ * Athlete profile (#32): the weight, and only the weight for now.
  *
- * Le socle accepte aussi taille, date de naissance et sexe, mais **aucune fonction ne
- * s'en sert aujourd'hui** : les calories (#33) ne dépendent que du poids. Les demander
- * sans usage irait contre la minimisation que le ticket exige lui-même (« collecte
- * minimale, finalité expliquée ») et contre le RGPD. Ils arriveront avec la fonction qui
- * les utilise (zones d'effort, métabolisme de base) — question posée dans #32.
+ * The core also accepts height, birth date and sex, but **no feature uses them today**:
+ * calories (#33) only depend on the weight. Asking for them without a use would go
+ * against the minimisation the ticket itself requires ("minimal collection, explained
+ * purpose") and against the GDPR. They will come with the feature that uses them (effort
+ * zones, basal metabolism), as decided in #32.
  *
- * Le poids se saisit dans l'unité de l'utilisateur et se stocke en kg.
+ * The weight is entered in the user's unit and stored in kg.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -21,7 +21,7 @@ import { Input } from '../../design-system/components/Input';
 import { spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
 
-/** Accepte « 72 », « 72,5 » et « 72.5 ». Rend null pour une saisie illisible. */
+/** Accepts "72", "72,5" and "72.5". Returns null for unreadable input. */
 export function parseDecimal(raw: string): number | null {
   const normalized = raw.trim().replace(',', '.');
   if (!/^\d+(\.\d+)?$/.test(normalized)) {
@@ -41,7 +41,7 @@ export function PhysicalProfile() {
   const [draft, setDraft] = React.useState('');
   const [error, setError] = React.useState<string | undefined>();
 
-  // Le champ suit la valeur enregistrée (et l'unité) tant qu'on ne le modifie pas.
+  // The field follows the saved value (and the unit) as long as it isn't being edited.
   React.useEffect(() => {
     setDraft(storedKg != null ? String(toDisplayWeight(storedKg, units)).replace('.', ',') : '');
   }, [storedKg, units]);
@@ -55,9 +55,9 @@ export function PhysicalProfile() {
       return;
     }
     setError(undefined);
-    // Patch épars : le serveur fusionne `physical` clé par clé. On n'envoie QUE le poids —
-    // recopier les autres champs depuis un état pas encore chargé enverrait des `null`,
-    // que le serveur lit comme « effacer » (revue PR #80).
+    // Sparse patch: the server merges `physical` key by key. We send ONLY the weight:
+    // copying the other fields from a state not yet loaded would send `null`s, which the
+    // server reads as "clear" (PR #80 review).
     update.mutate({ physical: { weightKg: kg } });
   };
 

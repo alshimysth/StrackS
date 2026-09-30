@@ -18,22 +18,22 @@ params:query {
 }
 
 tests {
-  test("200 OK + intervalles", function () {
+  test("200 OK + intervals", function () {
     expect(res.getStatus()).to.equal(200);
     const body = res.getBody();
     expect(body.bucket).to.equal("week");
     expect(body.buckets.length).to.be.at.least(4);
   });
 
-  test("les intervalles vides sont présents, pas omis", function () {
-    // Un mois compte 4 à 6 semaines calendaires, qu'elles portent des séances ou non :
-    // au client, un trou dans la liste se lirait « données manquantes », et le
-    // graphique tasserait ses barres en mentant sur l'espacement du temps.
+  test("empty intervals are present, not omitted", function () {
+    // A month spans 4 to 6 calendar weeks, whether or not they hold sessions:
+    // on the client, a hole in the list would read as "missing data", and the
+    // chart would squeeze its bars and misrepresent the spacing of time.
     const body = res.getBody();
     expect(body.buckets.every((b) => Array.isArray(b.bySport))).to.equal(true);
   });
 
-  test("le découpage n'expose que des colonnes du socle", function () {
+  test("the bucketing only exposes core columns", function () {
     const values = res.getBody().buckets.flatMap((b) => b.bySport);
     values.forEach((v) => {
       expect(v).to.have.all.keys("sportType", "sessions", "durationS", "distanceM");

@@ -1,7 +1,7 @@
 /**
- * Écrans de sécurité du compte (#73, #74, #75) : ce que voit l'utilisateur à chaque
- * étape, et surtout ce qu'il ne doit pas voir — une déconnexion sur une faute de frappe,
- * un indice sur l'existence d'un compte.
+ * Account security screens (#73, #74, #75): what the user sees at each step, and above
+ * all what they must not see: a logout over a typo, a hint about whether an account
+ * exists.
  */
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
@@ -55,15 +55,15 @@ afterEach(() => {
   client.clear();
 });
 
-describe('Mot de passe oublié (#74)', () => {
-  it('reprend l’adresse saisie sur l’écran de connexion', async () => {
+describe('Forgotten password (#74)', () => {
+  it('reuses the address typed on the login screen', async () => {
     mockParams = { email: 'coureur@example.com' };
     await render(<ForgotPasswordScreen />, { wrapper: Wrapper });
     expect(screen.getByTestId('reset-email').props.value).toBe('coureur@example.com');
   });
 
-  /** Le serveur répond 202 que le compte existe ou non ; l'écran reste au conditionnel. */
-  it('passe à la saisie du code sans affirmer que le compte existe', async () => {
+  /** The server answers 202 whether the account exists or not; the screen stays conditional. */
+  it('moves on to entering the code without asserting the account exists', async () => {
     mockApi.mockResolvedValue(undefined);
     await render(<ForgotPasswordScreen />, { wrapper: Wrapper });
 
@@ -79,7 +79,7 @@ describe('Mot de passe oublié (#74)', () => {
     });
   });
 
-  it('refuse deux saisies différentes du nouveau mot de passe avant tout appel', async () => {
+  it('rejects two different entries of the new password before any call', async () => {
     mockApi.mockResolvedValue(undefined);
     await render(<ForgotPasswordScreen />, { wrapper: Wrapper });
     await fireEvent.changeText(screen.getByTestId('reset-email'), 'coureur@example.com');
@@ -99,8 +99,8 @@ describe('Mot de passe oublié (#74)', () => {
     );
   });
 
-  it('affiche le refus du serveur pour un code invalide, puis réussit', async () => {
-    mockApi.mockResolvedValueOnce(undefined); // demande du code
+  it('shows the server refusal for an invalid code, then succeeds', async () => {
+    mockApi.mockResolvedValueOnce(undefined); // code request
     await render(<ForgotPasswordScreen />, { wrapper: Wrapper });
     await fireEvent.changeText(screen.getByTestId('reset-email'), 'coureur@example.com');
     await fireEvent.press(screen.getByText('Recevoir un code'));
@@ -126,8 +126,8 @@ describe('Mot de passe oublié (#74)', () => {
     });
   });
 
-  /** #72 : le délai précis vient du serveur ; l'écran ne le remplace pas par un flou. */
-  it('affiche le délai d’attente d’un 429 tel que le serveur le formule', async () => {
+  /** #72: the exact delay comes from the server; the screen doesn't replace it with something vague. */
+  it('shows the waiting time of a 429 as the server words it', async () => {
     mockApi.mockRejectedValue(
       problem(429, 'Trop de tentatives', 'Trop de tentatives rapprochées. Réessaie dans 12 min.'),
     );
@@ -138,8 +138,8 @@ describe('Mot de passe oublié (#74)', () => {
   });
 });
 
-/** Revue CodeRabbit (PR #78) : « Renvoyer un code » qui échoue ne doit pas rester muet. */
-it('affiche le refus d’un renvoi de code à l’étape du code', async () => {
+/** CodeRabbit review (PR #78): a failing "Renvoyer un code" must not stay silent. */
+it('shows the refusal of a code resend at the code step', async () => {
   mockApi.mockResolvedValueOnce(undefined);
   await render(<ForgotPasswordScreen />, { wrapper: Wrapper });
   await fireEvent.changeText(screen.getByTestId('reset-email'), 'coureur@example.com');
@@ -154,15 +154,15 @@ it('affiche le refus d’un renvoi de code à l’étape du code', async () => {
   expect(await screen.findByText(/Réessaie dans 40 min/)).toBeOnTheScreen();
 });
 
-describe('Changement de mot de passe (#73)', () => {
+describe('Password change (#73)', () => {
   const fill = async () => {
     await fireEvent.changeText(screen.getByTestId('password-current'), 'ancien-mdp');
     await fireEvent.changeText(screen.getByTestId('password-new'), 'nouveau-mdp');
     await fireEvent.changeText(screen.getByTestId('password-confirmation'), 'nouveau-mdp');
   };
 
-  /** 403 côté serveur : une faute de frappe s'affiche, elle ne déconnecte pas. */
-  it('affiche un mauvais mot de passe actuel sans quitter la session', async () => {
+  /** 403 on the server: a typo is shown, it doesn't log the user out. */
+  it('shows a wrong current password without leaving the session', async () => {
     mockApi.mockRejectedValue(
       problem(403, 'Mot de passe incorrect', 'Le mot de passe actuel ne correspond pas.'),
     );
@@ -176,7 +176,7 @@ describe('Changement de mot de passe (#73)', () => {
     expect(useAuthStore.getState().token).toBe('jwt');
   });
 
-  it('confirme le changement et prévient que les autres appareils sont déconnectés', async () => {
+  it('confirms the change and warns that the other devices are logged out', async () => {
     mockApi.mockResolvedValue({ token: 't', refreshToken: 'r', user: {} });
     await render(<ChangePasswordScreen />, { wrapper: Wrapper });
     await fill();
@@ -189,7 +189,7 @@ describe('Changement de mot de passe (#73)', () => {
     });
   });
 
-  it('refuse un nouveau mot de passe trop court avant tout appel', async () => {
+  it('rejects a too short new password before any call', async () => {
     await render(<ChangePasswordScreen />, { wrapper: Wrapper });
     await fireEvent.changeText(screen.getByTestId('password-current'), 'ancien-mdp');
     await fireEvent.changeText(screen.getByTestId('password-new'), 'court');
@@ -197,13 +197,13 @@ describe('Changement de mot de passe (#73)', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Changer le mot de passe' }));
 
     expect(await screen.findByText('Au moins 8 caractères')).toBeOnTheScreen();
-    // Le thème lit les préférences : seul l'appel de changement compte ici.
+    // The theme reads the preferences: only the change call matters here.
     expect(mockApi).not.toHaveBeenCalledWith('/api/v1/users/me/password', expect.anything());
   });
 });
 
-describe('Changement d’email (#75)', () => {
-  it('demande le code pour la nouvelle adresse, puis met à jour l’utilisateur affiché', async () => {
+describe('Email change (#75)', () => {
+  it('requests the code for the new address, then updates the displayed user', async () => {
     await render(<ChangeEmailScreen />, { wrapper: Wrapper });
     await fireEvent.changeText(screen.getByTestId('email-new'), 'nouvelle@example.com');
     await fireEvent.changeText(screen.getByTestId('email-password'), 'motdepasse8');
@@ -232,7 +232,7 @@ describe('Changement d’email (#75)', () => {
     expect(client.getQueryData(['me'])).toEqual(updated);
   });
 
-  it('affiche une adresse déjà prise', async () => {
+  it('shows an address already taken', async () => {
     mockApi.mockRejectedValue(problem(409, 'Email déjà utilisé', 'Un compte existe déjà avec cet email.'));
     await render(<ChangeEmailScreen />, { wrapper: Wrapper });
     await fireEvent.changeText(screen.getByTestId('email-new'), 'prise@example.com');
@@ -243,8 +243,8 @@ describe('Changement d’email (#75)', () => {
   });
 });
 
-describe('Vérification d’adresse (#75)', () => {
-  it('vérifie l’adresse avec le code reçu', async () => {
+describe('Address verification (#75)', () => {
+  it('verifies the address with the received code', async () => {
     mockApi.mockResolvedValue({ id: 'u1', email: 'a@example.com', emailVerified: true });
     await render(<VerifyEmailScreen />, { wrapper: Wrapper });
     await fireEvent.changeText(screen.getByTestId('verify-code'), 'ABCD-EFGH');
@@ -254,7 +254,7 @@ describe('Vérification d’adresse (#75)', () => {
     expect(useAuthStore.getState().user).toMatchObject({ emailVerified: true });
   });
 
-  it('renvoie un code et prévient que le précédent ne vaut plus', async () => {
+  it('resends a code and warns that the previous one is no longer valid', async () => {
     mockApi.mockResolvedValue(undefined);
     await render(<VerifyEmailScreen />, { wrapper: Wrapper });
     await fireEvent.press(screen.getByText('Renvoyer un code'));

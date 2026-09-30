@@ -1,6 +1,6 @@
 /**
- * Changement de mot de passe (#73). Les autres appareils sont déconnectés ; celui-ci
- * reçoit une session neuve, captée par le client HTTP.
+ * Password change (#73). The other devices are logged out; this one gets a fresh
+ * session, captured by the HTTP client.
  */
 import { router } from 'expo-router';
 import React from 'react';

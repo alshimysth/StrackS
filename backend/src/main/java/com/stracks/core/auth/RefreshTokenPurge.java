@@ -10,16 +10,16 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
- * Purge des refresh tokens (#50). Chaque rotation ajoute une ligne ; à un renouvellement
- * toutes les 15 min (#49), un utilisateur actif en produit une centaine par jour.
+ * Refresh token purge (#50). Each rotation adds a row; with a refresh every 15 min (#49),
+ * an active user produces about a hundred a day.
  *
- * <p>Ne sont supprimés que les jetons <b>expirés depuis plus de</b>
- * {@code retention-days}. Un jeton encore valide n'est jamais touché, révoqué ou non :
- * la chaîne {@code replaced_by} d'une famille vivante sert la détection de rejeu. Au-delà
- * de l'expiration, la rétention garde de quoi analyser un incident.
+ * <p>Only tokens <b>expired for more than</b> {@code retention-days} are deleted. A token
+ * still valid is never touched, revoked or not: the {@code replaced_by} chain of a live
+ * family serves replay detection. Past expiry, the retention keeps enough to investigate
+ * an incident.
  *
- * <p>Porté par le backend plutôt que par une tâche de déploiement : c'est une règle métier
- * de {@code core/auth}, elle doit tourner partout où le backend tourne, tests compris.
+ * <p>Run by the backend rather than by a deployment job: it's a business rule of
+ * {@code core/auth}, it must run wherever the backend runs, tests included.
  */
 @ApplicationScoped
 public class RefreshTokenPurge {
@@ -34,12 +34,12 @@ public class RefreshTokenPurge {
         purge(Instant.now());
     }
 
-    /** @return le nombre de jetons supprimés */
+    /** @return the number of deleted tokens */
     @Transactional
     public long purge(Instant now) {
         Instant before = now.minus(Duration.ofDays(retentionDays));
         long deleted = RefreshTokenEntity.deleteExpiredBefore(before);
-        LOG.infof("Purge des refresh tokens : %d supprimé(s), expirés avant %s", deleted, before);
+        LOG.infof("Refresh token purge: %d deleted, expired before %s", deleted, before);
         return deleted;
     }
 }

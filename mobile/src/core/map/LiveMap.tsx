@@ -1,7 +1,7 @@
 /**
- * Carte live (Epic 3) — react-native-maps. Tracé des points GPS acceptés
- * (Polyline primaire) + suivi caméra sur le dernier point. Le conteneur
- * (SessionTrackingScreen) gère bordure et rayon.
+ * Live map (Epic 3), react-native-maps. Draws the accepted GPS points (primary Polyline)
+ * and follows the camera on the last point. The container (SessionTrackingScreen)
+ * handles border and radius.
  */
 import React from 'react';
 import { StyleSheet } from 'react-native';

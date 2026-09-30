@@ -1,10 +1,10 @@
 /**
- * Accès aux préférences utilisateur. Point d'entrée unique : aucun écran ne
- * doit appeler `/users/me/preferences` directement.
+ * Access to user preferences. The single entry point: no screen may call
+ * `/users/me/preferences` directly.
  *
- * La lecture ne échoue jamais côté UI — si le réseau ou le parsing tombe, on
- * sert les défauts. Une préférence est un confort ; refuser d'afficher un écran
- * parce qu'on ignore le thème choisi serait disproportionné.
+ * Reading never fails on the UI side: if the network or parsing breaks, the defaults are
+ * served. A preference is a comfort; refusing to show a screen because the chosen theme is
+ * unknown would be disproportionate.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -16,22 +16,22 @@ import {
   type PreferencesPatch,
 } from './schema';
 
-/** Exportée pour que les tests puissent préremplir le cache sans appel réseau. */
+/** Exported so tests can prefill the cache without a network call. */
 export const QUERY_KEY = ['preferences'] as const;
 
 async function fetchPreferences(): Promise<Preferences> {
   const raw = await api<unknown>('/api/v1/users/me/preferences');
   const parsed = preferencesSchema.safeParse(raw);
   if (!parsed.success) {
-    // Le backend a renvoyé quelque chose d'inattendu : on n'empêche pas
-    // l'utilisateur d'utiliser l'app pour autant.
-    console.warn('[preferences] réponse inattendue, défauts appliqués', parsed.error.issues);
+    // The backend returned something unexpected: that doesn't stop the user from using
+    // the app.
+    console.warn('[preferences] unexpected response, defaults applied', parsed.error.issues);
     return DEFAULT_PREFERENCES;
   }
   return parsed.data;
 }
 
-/** Préférences courantes, avec défauts pendant le chargement. */
+/** Current preferences, with defaults while loading. */
 export function usePreferences() {
   const query = useQuery({
     queryKey: QUERY_KEY,
@@ -45,8 +45,8 @@ export function usePreferences() {
 }
 
 /**
- * Mise à jour partielle. Envoie uniquement les clés modifiées — le serveur
- * fusionne. Passer `null` sur une clé la remet à son défaut.
+ * Partial update. Only sends the changed keys; the server merges. Passing `null` on a key
+ * resets it to its default.
  */
 export function useUpdatePreferences() {
   const queryClient = useQueryClient();
@@ -54,12 +54,12 @@ export function useUpdatePreferences() {
     mutationFn: (patch: PreferencesPatch) =>
       api<unknown>('/api/v1/users/me/preferences', { method: 'PATCH', body: patch }),
     /**
-     * PATCH sérialisés (#66, revue). Deux garde-fous distincts, pas redondants :
-     *  - les appelants envoient des patchs ÉPARS, donc leur intention seule et jamais
-     *    un instantané reconstruit — c'est ce qui protège la donnée stockée ;
-     *  - cette file garantit qu'une seule requête est en vol, donc que le cache finit
-     *    sur le dernier état serveur : chaque réponse est un objet COMPLET, et deux
-     *    réponses désordonnées replaceraient sinon le cache dans un état antérieur.
+     * Serialized PATCHes (#66, review). Two distinct safeguards, not redundant:
+     *  - callers send SPARSE patches, so only their intent and never a rebuilt snapshot:
+     *    that's what protects the stored data;
+     *  - this queue guarantees a single request in flight, so the cache ends on the latest
+     *    server state: each response is a FULL object, and two out-of-order responses
+     *    would otherwise put the cache back into an earlier state.
      */
     scope: { id: 'preferences' },
     onSuccess: (raw) => {

@@ -1,15 +1,15 @@
 /**
- * État réseau du socle — source unique pour react-query ET pour l'interface.
+ * Core network state: the single source for react-query AND for the UI.
  *
- * react-query embarque son propre `onlineManager`, mais son détecteur par défaut est
- * celui du navigateur : sous React Native il considère l'app **toujours en ligne**.
- * Sans le câblage ci-dessous, les requêtes partent dans le vide en avion et les
- * `retry` s'épuisent au lieu d'attendre le retour du réseau.
+ * react-query ships its own `onlineManager`, but its default detector is the browser's:
+ * under React Native it considers the app **always online**. Without the wiring below,
+ * requests go nowhere in airplane mode and `retry` attempts run out instead of waiting for
+ * the network to return.
  *
- * `isInternetReachable` est distingué de `isConnected` à dessein : un Wi-Fi d'hôtel
- * avec portail captif est « connecté » sans router quoi que ce soit. Tant que la
- * valeur est `null`, NetInfo n'a pas encore tranché — on reste optimiste plutôt que
- * d'afficher un bandeau hors ligne au démarrage à chaque lancement.
+ * `isInternetReachable` is told apart from `isConnected` on purpose: a hotel Wi-Fi with a
+ * captive portal is "connected" without routing anything. While the value is `null`,
+ * NetInfo hasn't decided yet; we stay optimistic rather than showing an offline banner at
+ * every launch.
  */
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
 import { onlineManager } from '@tanstack/react-query';
@@ -20,11 +20,11 @@ export function isOnlineFrom(state: NetInfoState): boolean {
 }
 
 /**
- * À appeler une fois au démarrage.
+ * Call once at startup.
  *
- * `setEventListener` ne renvoie rien : c'est `onlineManager` qui garde la fonction de
- * désabonnement rendue par le setup et l'appelle lui-même quand on lui substitue un
- * autre listener. Il n'y a donc pas de nettoyage à remonter à l'appelant.
+ * `setEventListener` returns nothing: `onlineManager` keeps the unsubscribe function
+ * returned by the setup and calls it itself when another listener replaces it. There is
+ * therefore no cleanup to hand back to the caller.
  */
 export function setupOnlineManager(): void {
   onlineManager.setEventListener((setOnline) =>
@@ -34,7 +34,7 @@ export function setupOnlineManager(): void {
   );
 }
 
-/** Lecture réactive de l'état réseau, adossée au même manager que les requêtes. */
+/** Reactive read of the network state, backed by the same manager as the queries. */
 export function useIsOnline(): boolean {
   return useSyncExternalStore(
     (onChange) => onlineManager.subscribe(onChange),

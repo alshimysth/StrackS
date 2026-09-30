@@ -35,16 +35,15 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-flyway</artifactId>
         </dependency>
-        <!-- Tâches périodiques en processus (#50 purge des refresh tokens, #72 ménage du
-             limiteur de débit). Un seul backend en prod : pas besoin d'un ordonnanceur
-             distribué. -->
+        <!-- In-process periodic jobs (#50 refresh token purge, #72 rate limiter
+             housekeeping). A single backend in prod: no need for a distributed scheduler. -->
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-scheduler</artifactId>
         </dependency>
-        <!-- Monitoring des erreurs (lot 5 de finition). SDK Java nu plutôt que l'extension
-             Quarkiverse, dont la dernière version (2.1.2, février 2025) n'est pas garantie
-             compatible avec Quarkus 3.37. Inactif tant que SENTRY_DSN n'est pas fourni. -->
+        <!-- Error monitoring (finishing lot 5). Plain Java SDK rather than the Quarkiverse
+             extension, whose latest version (2.1.2, February 2025) isn't guaranteed to be
+             compatible with Quarkus 3.37. Inactive as long as SENTRY_DSN isn't provided. -->
         <dependency>
             <groupId>io.sentry</groupId>
             <artifactId>sentry-jul</artifactId>

@@ -1,9 +1,9 @@
 /**
- * Écran Statistiques — les comportements que la DoD de #24 rend obligatoires.
+ * Statistics screen: the behaviours #24's DoD makes mandatory.
  *
- * Deux exigences y sont vérifiées littéralement :
- *  - « les chiffres affichés correspondent exactement à la réponse de /stats/summary » ;
- *  - « l'écran reste correct quand un sport n'a aucune séance sur la période ».
+ * Two requirements are checked literally:
+ *  - "the displayed figures match the /stats/summary response exactly";
+ *  - "the screen stays correct when a sport has no session in the period".
  */
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
@@ -21,7 +21,7 @@ jest.mock('../../core/api/client', () => ({
   api: (...args: unknown[]) => mockApi(...args),
 }));
 
-/** Minuit local — c'est ce que le serveur renvoie, ayant reçu le fuseau du client. */
+/** Local midnight: what the server returns, having received the client's time zone. */
 const localMidnight = (year: number, month: number, day: number) =>
   new Date(year, month, day).toISOString();
 
@@ -67,7 +67,7 @@ function timeline(overrides: Partial<StatsTimeline> = {}): StatsTimeline {
           { sportType: 'walking', sessions: 1, durationS: 1800, distanceM: 6_300 },
         ],
       },
-      // Semaine sans séance : elle existe et vaut zéro.
+      // Week without sessions: it exists and is zero.
       { start: localMidnight(2026, 6, 6), end: localMidnight(2026, 6, 13), bySport: [] },
       {
         start: localMidnight(2026, 6, 13),
@@ -84,7 +84,7 @@ const SPORTS: SportTypeDescriptor[] = [
   { code: 'walking', label: 'Marche', usesGps: true, schemaVersion: 1 },
 ];
 
-/** Route par URL : l'écran émet trois appels — sports, résumé et découpage. */
+/** Routes by URL: the screen makes three calls (sports, summary and bucketing). */
 function respond(handler: (path: string) => unknown) {
   mockApi.mockImplementation((path: string) => {
     if (path.startsWith('/api/v1/sport-types')) return Promise.resolve(SPORTS);
@@ -115,39 +115,39 @@ afterEach(() => {
   client.clear();
 });
 
-describe('Statistiques — DoD #24', () => {
+describe('Statistics: DoD #24', () => {
   /**
-   * Le cœur de la DoD : aucun chiffre n'est recalculé côté client. La distance
-   * affichée est celle de `totals.distanceM`, pas la somme des barres du graphique.
+   * The heart of the DoD: no figure is recomputed on the client. The displayed distance
+   * is `totals.distanceM`, not the sum of the chart bars.
    */
-  it('affiche exactement les chiffres de /stats/summary', async () => {
+  it('shows exactly the figures of /stats/summary', async () => {
     respondOk();
     await renderScreen();
 
     await waitFor(() => expect(screen.getByTestId('stats-screen')).toBeOnTheScreen());
     expect(screen.getByText('137,80')).toBeOnTheScreen(); // 137 800 m
-    expect(screen.getByText('26')).toBeOnTheScreen(); // séances
+    expect(screen.getByText('26')).toBeOnTheScreen(); // sessions
     expect(screen.getByText('13:44:00')).toBeOnTheScreen(); // 49 440 s
     expect(screen.getByText('1284')).toBeOnTheScreen(); // D+
   });
 
-  it('compare à la période précédente sans recalculer l’évolution ailleurs', async () => {
+  it('compares with the previous period without recomputing the trend elsewhere', async () => {
     respondOk();
     await renderScreen();
 
-    // Chaque carte porte SA comparaison, pas une évolution globale recopiée :
-    // distance 137 800 vs 123 000 → + 12 % ; durée 49 440 s vs 41 200 → + 20 % ;
-    // séances 26 vs 23 → + 3, en écart brut car un pourcentage y parle moins.
+    // Each card carries ITS own comparison, not a copied global trend:
+    // distance 137,800 vs 123,000 → + 12 %; duration 49,440 s vs 41,200 → + 20 %;
+    // sessions 26 vs 23 → + 3, as a raw difference since a percentage says less there.
     await waitFor(() => expect(screen.getByText('+ 12 %')).toBeOnTheScreen());
     expect(screen.getByText('+ 20 %')).toBeOnTheScreen();
     expect(screen.getByText('+ 3')).toBeOnTheScreen();
   });
 
   /**
-   * Une période précédente vide ne donne pas « +100 % » : le taux n'est pas
-   * défini, et le PRD interdit d'afficher un chiffre inventé.
+   * An empty previous period doesn't give "+100 %": the rate is undefined, and the PRD
+   * forbids showing a made-up number.
    */
-  it('n’affiche aucune évolution quand la période précédente est vide', async () => {
+  it('shows no trend when the previous period is empty', async () => {
     respondOk(summary({ previous: { sessions: 0, durationS: 0, totals: {} } }));
     await renderScreen();
 
@@ -157,10 +157,10 @@ describe('Statistiques — DoD #24', () => {
   });
 
   // ------------------------------------------------------------------
-  // « L'écran reste correct quand un sport n'a aucune séance sur la période »
+  // "The screen stays correct when a sport has no session in the period"
   // ------------------------------------------------------------------
 
-  it('affiche un vide explicite quand la période n’a aucune séance', async () => {
+  it('shows an explicit empty state when the period has no session', async () => {
     respondOk(
       summary({ bySport: [], totalSessions: 0, totalDurationS: 0, totals: {} }),
       timeline({ buckets: [] }),
@@ -172,11 +172,11 @@ describe('Statistiques — DoD #24', () => {
   });
 
   /**
-   * Le socle backend ne nomme que séances et durée ; distance et dénivelé sont
-   * déclarés par les plugins. Un sport sans distance ne fait donc pas apparaître
-   * de carte « Distance » vide, ni un « 0 km » qui serait faux (#46).
+   * The backend core only names sessions and duration; distance and elevation are
+   * declared by the plugins. A sport without distance therefore brings up neither an
+   * empty "Distance" card nor a "0 km" that would be wrong (#46).
    */
-  it('n’affiche que les métriques réellement déclarées par les sports', async () => {
+  it('only shows the metrics actually declared by the sports', async () => {
     respondOk(
       summary({
         bySport: [
@@ -204,7 +204,7 @@ describe('Statistiques — DoD #24', () => {
     expect(screen.queryByText('Dénivelé +')).toBeNull();
   });
 
-  it('marque d’un tiret un sport sans distance dans le détail par sport', async () => {
+  it('marks a sport without distance with a dash in the per-sport detail', async () => {
     respondOk(
       summary({
         bySport: [
@@ -229,15 +229,15 @@ describe('Statistiques — DoD #24', () => {
   });
 
   // ------------------------------------------------------------------
-  // Agrégation serveur
+  // Server aggregation
   // ------------------------------------------------------------------
 
   /**
-   * Décision du 2026-08-10 : le découpage hebdomadaire est calculé par le serveur.
-   * L'écran ne doit jamais rapatrier l'historique pour l'agréger lui-même — ce qui
-   * annulerait la pagination et ferait exploser le budget de #28.
+   * Decision of 2026-08-10: the weekly bucketing is computed by the server. The screen
+   * must never pull the history to aggregate it itself, which would defeat pagination and
+   * blow #28's budget.
    */
-  it('n’appelle jamais /activities', async () => {
+  it('never calls /activities', async () => {
     respondOk();
     await renderScreen();
 
@@ -248,7 +248,7 @@ describe('Statistiques — DoD #24', () => {
     expect(paths.some((p) => p.includes('/api/v1/activities'))).toBe(false);
   });
 
-  it('envoie la période choisie au serveur plutôt que de filtrer sur place', async () => {
+  it('sends the chosen period to the server rather than filtering locally', async () => {
     respondOk();
     await renderScreen();
     await waitFor(() => expect(screen.getByTestId('stats-screen')).toBeOnTheScreen());
@@ -261,7 +261,7 @@ describe('Statistiques — DoD #24', () => {
     });
   });
 
-  it('envoie le fuseau de l’appareil, pour que les semaines soient les siennes', async () => {
+  it('sends the device time zone, so the weeks match the user calendar', async () => {
     respondOk();
     await renderScreen();
 
@@ -274,14 +274,14 @@ describe('Statistiques — DoD #24', () => {
   });
 
   /**
-   * Le filtre sport part au serveur comme la période. L'appliquer sur place
-   * supposerait d'avoir rapatrié les séances — exactement ce que cet écran évite.
+   * The sport filter goes to the server like the period. Applying it locally would
+   * require having pulled the sessions, exactly what this screen avoids.
    */
-  it('envoie le filtre sport au serveur', async () => {
+  it('sends the sport filter to the server', async () => {
     respondOk();
     await renderScreen();
-    // Les puces sport viennent du registre : elles n'existent qu'une fois
-    // /sport-types résolu, après le premier rendu de l'écran.
+    // The sport chips come from the registry: they only exist once /sport-types has
+    // resolved, after the screen's first render.
     await waitFor(() => expect(screen.getByTestId('chip-walking')).toBeOnTheScreen());
 
     await fireEvent.press(screen.getByTestId('chip-walking'));
@@ -294,10 +294,10 @@ describe('Statistiques — DoD #24', () => {
   });
 
   // ------------------------------------------------------------------
-  // Navigation de période
+  // Period navigation
   // ------------------------------------------------------------------
 
-  it('recule d’une période et redemande au serveur', async () => {
+  it('goes back one period and asks the server again', async () => {
     respondOk();
     await renderScreen();
     await waitFor(() => expect(screen.getByTestId('stats-screen')).toBeOnTheScreen());
@@ -311,8 +311,8 @@ describe('Statistiques — DoD #24', () => {
     });
   });
 
-  /** Avancer au-delà de la période courante mènerait à un écran vide inexplicable. */
-  it('désactive l’avance tant que la période suivante n’a pas commencé', async () => {
+  /** Moving past the current period would lead to an unexplained empty screen. */
+  it('disables moving forward until the next period has started', async () => {
     respondOk();
     await renderScreen();
 
@@ -321,17 +321,17 @@ describe('Statistiques — DoD #24', () => {
   });
 
   // ------------------------------------------------------------------
-  // États système (#41)
+  // System states (#41)
   // ------------------------------------------------------------------
 
-  it('affiche l’erreur serveur quand il n’y a rien à montrer', async () => {
+  it('shows the server error when there is nothing to show', async () => {
     respond(() => new ApiError({ title: 'Panne', status: 503, detail: 'indisponible' }));
     await renderScreen();
 
     await waitFor(() => expect(screen.getByTestId('error-state-server')).toBeOnTheScreen());
   });
 
-  it('parle de connexion, pas de panne, quand la requête n’aboutit pas', async () => {
+  it('talks about connection, not failure, when the request does not go through', async () => {
     respond(() => new TypeError('Network request failed'));
     await renderScreen();
 
@@ -339,11 +339,10 @@ describe('Statistiques — DoD #24', () => {
   });
 
   /**
-   * Le graphique est secondaire : s'il échoue seul, les totaux restent lisibles.
-   * Remplacer tout l'écran par une erreur priverait l'utilisateur de chiffres
-   * parfaitement valides.
+   * The chart is secondary: if it fails alone, the totals stay readable. Replacing the
+   * whole screen with an error would deprive the user of perfectly valid figures.
    */
-  it('garde les totaux quand seul le découpage échoue', async () => {
+  it('keeps the totals when only the bucketing fails', async () => {
     respond((path) =>
       path.includes('/timeline')
         ? new ApiError({ title: 'Panne', status: 503, detail: 'indisponible' })

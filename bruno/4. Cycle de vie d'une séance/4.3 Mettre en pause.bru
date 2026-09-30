@@ -11,7 +11,7 @@ post {
 }
 
 tests {
-  test("200 OK + statut paused", function () {
+  test("200 OK + paused status", function () {
     expect(res.getStatus()).to.equal(200);
     expect(res.getBody().status).to.equal("paused");
   });

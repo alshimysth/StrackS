@@ -1,19 +1,17 @@
 /**
- * Mock d'`expo-sqlite` adossé à un VRAI moteur SQLite (better-sqlite3, en
- * mémoire) — #40.
+ * `expo-sqlite` mock backed by a REAL SQLite engine (better-sqlite3, in memory), #40.
  *
- * Un faux buffer écrit à la main ne testerait que le faux : ce qui compte dans
- * `buffer.ts`, c'est la sémantique SQL elle-même (INSERT OR IGNORE pour le
- * rejeu, INSERT OR REPLACE + CHECK(id = 1) pour la séance unique, l'ordre par
- * seq, la liste IN (…) construite dynamiquement). Le mock ne fait donc que
- * traduire l'API asynchrone d'expo-sqlite vers l'API synchrone de
- * better-sqlite3, sans réimplémenter aucune logique.
+ * A hand-written fake buffer would only test the fake: what matters in `buffer.ts` is the
+ * SQL semantics itself (INSERT OR IGNORE for replay, INSERT OR REPLACE + CHECK(id = 1)
+ * for the single session, ordering by seq, the dynamically built IN (…) list). The mock
+ * therefore only translates expo-sqlite's asynchronous API to better-sqlite3's synchronous
+ * API, without reimplementing any logic.
  */
 import Database from 'better-sqlite3';
 
 type Params = readonly unknown[];
 
-/** Sous-ensemble de SQLiteDatabase réellement utilisé par buffer.ts. */
+/** Subset of SQLiteDatabase actually used by buffer.ts. */
 export interface FakeDatabase {
   execAsync(sql: string): Promise<void>;
   runAsync(sql: string, ...params: Params): Promise<{ changes: number; lastInsertRowId: number }>;
@@ -45,7 +43,7 @@ function wrap(db: Database.Database): FakeDatabase {
 
 export interface ExpoSqliteMock {
   openDatabaseAsync(name: string): Promise<FakeDatabase>;
-  /** Ferme et oublie toutes les bases ouvertes (isolation entre fichiers). */
+  /** Closes and forgets every open database (isolation between files). */
   __closeAll(): void;
 }
 

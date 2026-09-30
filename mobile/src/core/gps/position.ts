@@ -1,9 +1,9 @@
 /**
- * Position ponctuelle, pour déclarer une zone de confidentialité « ici » (#37). Même
- * permission que le suivi de séance (premier plan) : rien de plus n'est demandé.
+ * One-off position, to declare a privacy zone "here" (#37). Same permission as session
+ * tracking (foreground): nothing more is requested.
  *
- * Module séparé de `core/gps/index.ts` à dessein : celui-ci charge la tâche d'arrière-plan
- * (#16), donc le buffer SQLite. Un écran de réglages n'a pas à tirer le moteur de séance.
+ * A module separate from `core/gps/index.ts` on purpose: that one loads the background
+ * task (#16), hence the SQLite buffer. A settings screen shouldn't pull in the session engine.
  */
 import * as Location from 'expo-location';
 
@@ -21,8 +21,8 @@ export async function getCurrentPosition(): Promise<{ lat: number; lng: number; 
 }
 
 /**
- * État de la permission de premier plan, **sans la demander** (#82) : l'onboarding s'efface
- * pour qui l'a déjà accordée — un utilisateur existant qui met l'app à jour, par exemple.
+ * Foreground permission state, **without requesting it** (#82): onboarding steps aside for
+ * whoever already granted it, an existing user updating the app, for instance.
  */
 export async function hasForegroundPermission(): Promise<boolean> {
   const permission = await Location.getForegroundPermissionsAsync();
@@ -30,8 +30,8 @@ export async function hasForegroundPermission(): Promise<boolean> {
 }
 
 /**
- * Demande la permission de premier plan depuis l'onboarding (#82), après l'explication.
- * Jamais « Toujours » ici : hors séance, iOS la refuse en bloc (voir `core/gps`, #16).
+ * Requests the foreground permission from onboarding (#82), after the explanation. Never
+ * "Always" here: outside a session, iOS flatly refuses it (see `core/gps`, #16).
  */
 export async function requestForegroundPermission(): Promise<boolean> {
   const permission = await Location.requestForegroundPermissionsAsync();

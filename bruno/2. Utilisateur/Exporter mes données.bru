@@ -11,7 +11,7 @@ get {
 }
 
 tests {
-  test("200 + document JSON en pièce jointe", function () {
+  test("200 + JSON document as attachment", function () {
     expect(res.getStatus()).to.equal(200);
     expect(res.getHeader("content-disposition")).to.contain("attachment");
     const body = res.getBody();
@@ -19,7 +19,7 @@ tests {
     expect(body.user.email).to.equal(bru.getVar("userEmail"));
     expect(body.activities).to.be.an("array");
   });
-  test("aucun secret d'authentification", function () {
+  test("no authentication secret", function () {
     expect(JSON.stringify(res.getBody()).toLowerCase()).to.not.contain("password");
   });
 }

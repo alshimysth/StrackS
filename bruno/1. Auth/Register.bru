@@ -23,12 +23,12 @@ body:json {
 }
 
 script:pre-request {
-  // Email jetable unique : Register est rejouable à volonté
+  // Unique throwaway email: Register can be replayed at will
   bru.setVar("userEmail", `runner+${Date.now()}@stracks.test`);
 }
 
 tests {
-  test("201 Created + token JWT", function () {
+  test("201 Created + JWT token", function () {
     expect(res.getStatus()).to.equal(201);
   });
   const body = res.getBody();

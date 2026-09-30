@@ -18,8 +18,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 
 /**
- * #72 de bout en bout : seuils bas, vraies routes HTTP. Toutes les requêtes des tests
- * viennent de 127.0.0.1 ; l'isolation entre IP est prouvée par {@code RateLimiterTest}.
+ * #72 end to end: low thresholds, real HTTP routes. Every test request comes from
+ * 127.0.0.1; isolation between IPs is proven by {@code RateLimiterTest}.
  */
 @QuarkusTest
 @TestProfile(AuthRateLimitTest.LowLimits.class)
@@ -61,11 +61,11 @@ class AuthRateLimitTest {
     }
 
     /**
-     * Le 429 tombe même avec le bon mot de passe : le contrôle passe avant BCrypt, donc le
-     * limiteur ne sait pas — et ne doit pas savoir — si l'essai aurait réussi.
+     * The 429 hits even with the right password: the check runs before BCrypt, so the
+     * limiter doesn't know (and must not know) whether the attempt would have succeeded.
      */
     @Test
-    void au_dela_du_seuil_login_repond_429_meme_avec_le_bon_mot_de_passe() {
+    void beyond_the_threshold_login_answers_429_even_with_the_right_password() {
         String email = register();
         for (int i = 0; i < 3; i++) {
             login(email, "mauvais-mdp").statusCode(401);
@@ -79,7 +79,7 @@ class AuthRateLimitTest {
     }
 
     @Test
-    void le_seuil_par_compte_ne_bloque_pas_un_autre_compte() {
+    void the_per_account_threshold_does_not_block_another_account() {
         String victim = register();
         String other = register();
         for (int i = 0; i < 3; i++) {
@@ -89,9 +89,9 @@ class AuthRateLimitTest {
         login(other, "motdepasse8").statusCode(200);
     }
 
-    /** Une adresse sans compte est limitée comme les autres : sinon le 429 trahirait l'existence. */
+    /** An address without an account is limited like the others: otherwise the 429 would reveal existence. */
     @Test
-    void les_demandes_de_code_sont_plafonnees_par_adresse_existante_ou_non() {
+    void code_requests_are_capped_per_address_existing_or_not() {
         String ghost = "absent-" + UUID.randomUUID() + "@example.com";
         for (int i = 0; i < 2; i++) {
             given().contentType("application/json").body(Map.of("email", ghost))
@@ -101,9 +101,9 @@ class AuthRateLimitTest {
                 .when().post("/api/v1/auth/password-resets").then().statusCode(429);
     }
 
-    /** Le renouvellement a son propre seuil, large : une session légitime n'est jamais coupée. */
+    /** Refresh has its own, wide threshold: a legitimate session is never cut. */
     @Test
-    void le_blocage_du_login_ne_touche_pas_le_renouvellement() {
+    void the_login_block_does_not_affect_refresh() {
         String email = register();
         String refresh = login(email, "motdepasse8").statusCode(200).extract().path("refreshToken");
         for (int i = 0; i < 3; i++) {

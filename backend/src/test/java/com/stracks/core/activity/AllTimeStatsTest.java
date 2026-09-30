@@ -13,14 +13,14 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 
 /**
- * #7 : statistiques « depuis toujours » pour le profil. Aucune fenêtre de calendrier ne
- * les couvrait — il fallait additionner des années côté client, ou se contenter d'une.
+ * #7: "all time" statistics for the profile. No calendar window covered them: the client
+ * had to add up years, or settle for one.
  */
 @QuarkusTest
 class AllTimeStatsTest {
 
     @Test
-    void period_all_additionne_toutes_les_annees_et_n_a_pas_de_periode_precedente() {
+    void period_all_sums_every_year_and_has_no_previous_period() {
         String token = AuthResourceTest.register("alltime-" + UUID.randomUUID() + "@example.com", "motdepasse8");
         PersonalRecordsTest.session(token, "running", Instant.parse("2023-05-10T08:00:00Z"), 10);
         PersonalRecordsTest.session(token, "running", Instant.parse("2024-05-10T08:00:00Z"), 10);
@@ -34,7 +34,7 @@ class AllTimeStatsTest {
                 .body("totalDurationS", equalTo(180))
                 .body("previous.sessions", equalTo(0));
 
-        // Une fenêtre de calendrier ne voit, elle, que l'année en cours.
+        // A calendar window, on the other hand, only sees the current year.
         given().header("Authorization", "Bearer " + token)
                 .queryParam("period", "year").queryParam("tz", "Europe/Paris")
                 .when().get("/api/v1/stats/summary")
@@ -43,7 +43,7 @@ class AllTimeStatsTest {
     }
 
     @Test
-    void le_graphique_n_accepte_pas_period_all() {
+    void the_chart_does_not_accept_period_all() {
         String token = AuthResourceTest.register("alltime-" + UUID.randomUUID() + "@example.com", "motdepasse8");
         given().header("Authorization", "Bearer " + token).queryParam("period", "all")
                 .when().get("/api/v1/stats/timeline")
@@ -51,7 +51,7 @@ class AllTimeStatsTest {
     }
 
     @Test
-    void une_periode_inconnue_mentionne_all_dans_son_message() {
+    void an_unknown_period_mentions_all_in_its_message() {
         String token = AuthResourceTest.register("alltime-" + UUID.randomUUID() + "@example.com", "motdepasse8");
         given().header("Authorization", "Bearer " + token).queryParam("period", "decade")
                 .when().get("/api/v1/stats/summary")

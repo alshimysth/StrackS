@@ -12,7 +12,7 @@ import jakarta.persistence.LockModeType;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
-/** Code à usage unique envoyé par email (migration V7). Ne porte que l'empreinte BCrypt. */
+/** One-time code sent by email (migration V7). Only stores the BCrypt hash. */
 @Entity
 @Table(name = "account_codes")
 public class AccountCodeEntity extends PanacheEntityBase {
@@ -54,7 +54,7 @@ public class AccountCodeEntity extends PanacheEntityBase {
         }
     }
 
-    /** Le code encore ouvert pour ce motif, verrouillé : deux essais simultanés se sérialisent. */
+    /** The code still open for this purpose, locked: two simultaneous attempts are serialized. */
     static Optional<AccountCodeEntity> findActiveForUpdate(UUID userId, String purpose) {
         return find("userId = ?1 and purpose = ?2 and consumedAt is null order by createdAt desc",
                 userId, purpose)
@@ -63,22 +63,21 @@ public class AccountCodeEntity extends PanacheEntityBase {
     }
 
     /**
-     * Clôt tous les codes ouverts d'un utilisateur, tous motifs confondus. Appelé quand un
-     * secret change (revue CodeRabbit, PR #78) : une action lancée depuis l'ancienne
-     * session — un changement d'email en attente, typiquement — ne doit pas survivre à
-     * la reprise en main du compte.
+     * Closes all of a user's open codes, whatever the purpose. Called when a secret changes
+     * (CodeRabbit review, PR #78): an action started from the old session, typically a
+     * pending email change, must not survive the account being taken back.
      */
     static long closeAllActive(UUID userId, Instant when) {
         return update("consumedAt = ?1 where userId = ?2 and consumedAt is null", when, userId);
     }
 
-    /** Un seul code ouvert par motif : en émettre un nouveau clôt les précédents. */
+    /** A single open code per purpose: issuing a new one closes the previous ones. */
     static long closeActive(UUID userId, String purpose, Instant when) {
         return update("consumedAt = ?1 where userId = ?2 and purpose = ?3 and consumedAt is null",
                 when, userId, purpose);
     }
 
-    /** Purge (#87) : ne touche qu'aux codes expirés depuis avant {@code before}. */
+    /** Purge (#87): only touches codes that expired before {@code before}. */
     static long deleteExpiredBefore(Instant before) {
         return delete("expiresAt < ?1", before);
     }

@@ -1,6 +1,6 @@
 /**
- * StatCard — transposition RN de components/data/StatCard.jsx (Claude Design).
- * emphasis="xl" : métrique héro de l'écran ; "lg" : grille de stats secondaires.
+ * StatCard: RN port of components/data/StatCard.jsx (Claude Design).
+ * emphasis="xl": the screen's hero metric; "lg": grid of secondary stats.
  */
 import React from 'react';
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
@@ -14,12 +14,12 @@ interface Props {
   unit?: string;
   emphasis?: 'xl' | 'lg';
   /**
-   * Évolution par rapport à la période précédente (#24), déjà formatée et signée.
-   * Absente quand la comparaison n'a pas de sens — repartir de zéro n'est pas
-   * « +100 % » — auquel cas la carte n'affiche rien plutôt qu'un chiffre inventé.
+   * Change from the previous period (#24), already formatted and signed. Absent when the
+   * comparison is meaningless (starting from zero isn't "+100 %"), in which case the card
+   * shows nothing rather than a made-up number.
    */
   delta?: string | null;
-  /** Une hausse est-elle une bonne nouvelle ? Faux pour un temps de récupération. */
+  /** Is an increase good news? False for a recovery time. */
   deltaIsGood?: boolean;
   style?: ViewStyle;
   testID?: string;
@@ -39,8 +39,8 @@ export function StatCard({
   return (
     <View
       testID={testID}
-      // Lu d'un seul tenant (#42) : « Distance, 5,20 km » plutôt que trois fragments que
-      // le lecteur d'écran annoncerait séparément.
+      // Read as one (#42): "Distance, 5,20 km" rather than three fragments the screen
+      // reader would announce separately.
       accessible
       accessibilityLabel={[label, value, unit, delta].filter(Boolean).join(', ')}
       style={[
@@ -53,8 +53,8 @@ export function StatCard({
       <Text style={[typography.label, { color: theme.textSecondary }]}>{label}</Text>
       <View style={styles.valueRow}>
         <Text
-          // Suit la taille de texte du système (#42), plafonnée : un chiffre de 40 px
-          // agrandi trois fois sortirait de sa carte et deviendrait illisible.
+          // Follows the system text size (#42), capped: a 40 px number enlarged three
+          // times would overflow its card and become unreadable.
           maxFontSizeMultiplier={1.4}
           style={[
             emphasis === 'xl' ? typography.statXl : typography.statLg,
@@ -77,9 +77,9 @@ export function StatCard({
 }
 
 /**
- * La couleur dit la direction croisée avec ce qui est souhaitable — pas le signe
- * seul. Une évolution nulle reste neutre : la teindre en vert ou en rouge
- * suggérerait un jugement là où il n'y a rien à signaler.
+ * The colour states the direction crossed with what's desirable, not the sign alone. A
+ * zero change stays neutral: tinting it green or red would suggest a judgement where
+ * there's nothing to report.
  */
 function deltaColor(
   delta: string,

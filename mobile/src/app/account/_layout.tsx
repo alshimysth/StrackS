@@ -1,6 +1,6 @@
 /**
- * Écrans de sécurité du compte (#73, #75). Réservés à une session ouverte : une
- * déconnexion (ou un renouvellement refusé) pendant qu'on y est renvoie à la connexion.
+ * Account security screens (#73, #75). Reserved for an open session: a logout (or a
+ * refused refresh) while on them sends back to login.
  */
 import { Redirect, Stack } from 'expo-router';
 import React from 'react';

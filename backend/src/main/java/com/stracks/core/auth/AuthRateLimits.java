@@ -11,15 +11,15 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
- * Seuils de débit des endpoints d'authentification et de compte (#72).
+ * Rate thresholds of the authentication and account endpoints (#72).
  *
- * <p>Chaque contrôle est appelé <b>avant</b> tout travail coûteux : un 429 ne doit pas
- * avoir évalué BCrypt, sinon le limiteur ne protège pas le processeur.
+ * <p>Each check is called <b>before</b> any expensive work: a 429 must not have evaluated
+ * BCrypt, otherwise the limiter doesn't protect the CPU.
  *
- * <p>Deux clés sur les points sensibles : l'IP (un script qui balaie des comptes) et le
- * compte visé (un réseau d'IP qui s'acharne sur une seule adresse). La clé « compte » vise
- * l'email présenté, qu'il existe ou non — la limiter seulement pour les comptes existants
- * révélerait lesquels existent.
+ * <p>Two keys on sensitive endpoints: the IP (a script sweeping accounts) and the target
+ * account (a network of IPs hammering a single address). The "account" key targets the
+ * presented email, whether it exists or not: limiting only existing accounts would reveal
+ * which ones exist.
  */
 @ApplicationScoped
 public class AuthRateLimits {
@@ -56,7 +56,7 @@ public class AuthRateLimits {
     private Limit codeRequestPerAccount;
     private Limit codeConfirmPerIp;
 
-    /** Une configuration illisible fait échouer le démarrage, pas la première connexion. */
+    /** An unreadable configuration fails startup, not the first login. */
     @PostConstruct
     void parse() {
         loginPerIp = Limit.parse(loginPerIpSpec);
@@ -78,14 +78,14 @@ public class AuthRateLimits {
     }
 
     /**
-     * Seuil large : un renouvellement concerne une session déjà ouverte, et bloquer un
-     * utilisateur légitime ici le déconnecterait. Il ne vise que les rafales anormales.
+     * Wide threshold: a refresh concerns an already open session, and blocking a legitimate
+     * user here would log them out. It only targets abnormal bursts.
      */
     public void refresh(String ip) {
         limiter.acquire("refresh:ip:" + ip, refreshPerIp);
     }
 
-    /** Toute demande qui envoie un email : réinitialisation, changement, vérification. */
+    /** Any request that sends an email: reset, change, verification. */
     public void codeRequest(String ip, String accountKey) {
         limiter.acquire("code-request:ip:" + ip, codeRequestPerIp);
         limiter.acquire("code-request:account:" + account(accountKey), codeRequestPerAccount);

@@ -1,10 +1,10 @@
 /**
- * Onboarding de premier lancement (#82) : expliquer la localisation avant de la demander.
+ * First-launch onboarding (#82): explain location before asking for it.
  *
- * Deux étapes courtes. La seconde est le cœur : ce qui est collecté, quand, pourquoi, et
- * les moyens de garder la main (zones de confidentialité, export, suppression). La demande
- * de permission de premier plan part d'ici, après l'explication ; « Toujours » reste
- * demandée au démarrage d'une séance, le seul moment où iOS l'accepte (#16).
+ * Two short steps. The second is the heart: what is collected, when, why, and the means
+ * to stay in control (privacy zones, export, deletion). The foreground permission request
+ * starts here, after the explanation; "Always" is still requested when a session starts,
+ * the only moment iOS accepts it (#16).
  */
 import { router } from 'expo-router';
 import React from 'react';
@@ -58,8 +58,8 @@ export default function OnboardingScreen() {
     try {
       const granted = await requestForegroundPermission();
       if (!granted) {
-        // Pas de nouvelle demande en boucle : le PRD veut un consentement explicite, pas
-        // insistant. On dit où le changer, et on laisse passer.
+        // No request loop: the PRD wants explicit consent, not insistent consent. We say
+        // where to change it, and let the user through.
         setDenied(true);
         return;
       }

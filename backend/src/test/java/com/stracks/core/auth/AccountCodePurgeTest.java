@@ -16,8 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
- * #87 : les codes expirés disparaissent, les codes utilisables jamais. Purge à l'horloge
- * réelle, comme {@link RefreshTokenPurgeTest} : la base est partagée entre les suites.
+ * #87: expired codes disappear, usable codes never do. Purge at the real clock, like
+ * {@link RefreshTokenPurgeTest}: the database is shared between suites.
  */
 @QuarkusTest
 class AccountCodePurgeTest {
@@ -52,7 +52,7 @@ class AccountCodePurgeTest {
     }
 
     @Test
-    void ne_supprime_que_les_codes_expires_depuis_plus_de_sept_jours() {
+    void only_deletes_codes_expired_for_more_than_seven_days() {
         Instant now = Instant.now();
         UUID user = newUser();
         UUID old = code(user, now.minus(Duration.ofDays(7)).minusSeconds(60));
@@ -61,8 +61,8 @@ class AccountCodePurgeTest {
 
         purge.purge(now);
 
-        assertNull(find(old), "expiré depuis plus de 7 j : purgé, adresse demandée comprise");
-        assertNotNull(find(recent), "juste sous la limite : conservé pour l'analyse d'incident");
-        assertNotNull(find(usable), "encore utilisable : jamais touché");
+        assertNull(find(old), "expired for more than 7 days: purged, requested address included");
+        assertNotNull(find(recent), "just under the limit: kept for incident analysis");
+        assertNotNull(find(usable), "still usable: never touched");
     }
 }

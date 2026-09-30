@@ -3,14 +3,14 @@ package com.stracks.core.auth;
 import com.stracks.core.common.ApiException;
 
 /**
- * Erreurs propres au renouvellement de session, rendues en RFC 7807 par le mapper commun.
+ * Session refresh errors, rendered as RFC 7807 by the common mapper.
  *
- * <p>Ces fabriques vivent ici plutôt que dans {@link ApiException} pour garder
- * {@code core/common} neutre — et parce que le vocabulaire « jeton révoqué / famille
- * compromise » n'a de sens que dans {@code core/auth}.
+ * <p>These factories live here rather than in {@link ApiException} to keep
+ * {@code core/common} neutral, and because the "revoked token / compromised family"
+ * vocabulary only makes sense in {@code core/auth}.
  *
- * <p>Volontairement, un seul et même message couvre « inconnu », « expiré » et « révoqué » :
- * distinguer les cas donnerait à un attaquant un oracle pour tester des jetons.
+ * <p>On purpose, one and the same message covers "unknown", "expired" and "revoked":
+ * telling the cases apart would give an attacker an oracle to test tokens.
  */
 final class AuthErrors {
 

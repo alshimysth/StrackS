@@ -1,5 +1,5 @@
--- Données de test pour l'essai de sauvegarde / restauration (#45). Schéma réduit aux
--- tables que backup.sh exige de trouver dans le dump, volume représentatif d'un usage réel.
+-- Test data for the backup / restore run (#45). Schema reduced to the tables backup.sh
+-- requires in the dump, with a volume representative of real usage.
 CREATE TABLE flyway_schema_history (installed_rank int PRIMARY KEY, version varchar(50), success boolean NOT NULL);
 INSERT INTO flyway_schema_history VALUES (1,'1',true),(2,'2',true),(3,'3',true),(4,'4',true),(5,'5',true),(6,'6',true),(7,'7',true);
 CREATE TABLE users (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), email text UNIQUE NOT NULL);

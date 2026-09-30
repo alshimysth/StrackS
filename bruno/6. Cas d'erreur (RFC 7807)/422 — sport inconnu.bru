@@ -22,7 +22,7 @@ body:json {
 }
 
 tests {
-  test("422 + Sport inconnu", function () {
+  test("422 + unknown sport", function () {
     expect(res.getStatus()).to.equal(422);
     expect(res.getBody().title).to.equal("Sport inconnu");
   });

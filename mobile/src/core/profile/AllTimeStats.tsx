@@ -1,8 +1,8 @@
 /**
- * Statistiques « depuis toujours » du profil (#7). Agrégées par le serveur
- * (`/stats/summary?period=all`) : le profil ne rapatrie jamais l'historique pour
- * l'additionner. La distance n'apparaît que si un sport pratiqué en déclare une — le
- * socle ne sait pas qu'un sport « a » une distance.
+ * "All time" profile statistics (#7). Aggregated by the server
+ * (`/stats/summary?period=all`): the profile never pulls the history to add it up. The
+ * distance only appears if a practised sport declares one; the core doesn't know that a
+ * sport "has" a distance.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';

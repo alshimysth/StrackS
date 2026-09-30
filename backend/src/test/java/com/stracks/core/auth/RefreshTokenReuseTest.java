@@ -13,12 +13,12 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 
 /**
- * Détection de rejeu : un jeton de renouvellement déjà tourné qui ressort plus tard est
- * la signature d'un vol, et fait tomber toute la famille.
+ * Replay detection: an already rotated refresh token that shows up later is the signature
+ * of a theft, and brings down the whole family.
  *
- * <p>La fenêtre de tolérance au réessai réseau est ramenée à zéro par le profil ci-dessous —
- * sinon le rejeu immédiat que fait ce test serait (à juste titre) pris pour un réessai
- * légitime. Ce comportement-là est couvert par {@code RefreshTokenResourceTest}.
+ * <p>The network retry grace window is brought down to zero by the profile below;
+ * otherwise the immediate replay this test does would (rightly) be taken for a legitimate
+ * retry. That behaviour is covered by {@code RefreshTokenResourceTest}.
  */
 @QuarkusTest
 @TestProfile(RefreshTokenReuseTest.NoGraceProfile.class)
@@ -49,11 +49,11 @@ class RefreshTokenReuseTest {
     }
 
     @Test
-    void rejeu_d_un_jeton_deja_tourne_est_refuse_et_revoque_toute_la_famille() {
+    void replaying_an_already_rotated_token_is_rejected_and_revokes_the_whole_family() {
         String original = registerSession().getString("refreshToken");
         String rotated = refresh(original, 200).getString("refreshToken");
 
-        // Le jeton consommé ressort : hors fenêtre de tolérance, c'est un vol.
+        // The consumed token shows up again: outside the grace window, it's a theft.
         given().contentType("application/json")
                 .body(Map.of("refreshToken", original))
                 .when().post("/api/v1/auth/refresh")
@@ -61,13 +61,13 @@ class RefreshTokenReuseTest {
                 .contentType("application/problem+json")
                 .body("status", equalTo(401));
 
-        // Sanction : le jeton légitime tombe aussi. Le voleur ne garde pas la session,
-        // et la victime est forcée de se reconnecter — le compromis assumé du pattern.
+        // Sanction: the legitimate token falls too. The thief doesn't keep the session,
+        // and the victim is forced to log in again, the pattern's accepted trade-off.
         refresh(rotated, 401);
     }
 
     @Test
-    void un_jeton_revoque_ne_redevient_jamais_valide() {
+    void a_revoked_token_never_becomes_valid_again() {
         String original = registerSession().getString("refreshToken");
         refresh(original, 200);
         refresh(original, 401);

@@ -7,11 +7,11 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-/** Aucun identifiant de personne ne part chez le tiers de monitoring. */
+/** No personal identifier is sent to the monitoring third party. */
 class SentryMonitoringTest {
 
     @Test
-    void retire_utilisateur_requete_et_nom_de_machine() {
+    void strips_user_request_and_server_name() {
         SentryEvent event = new SentryEvent();
         User user = new User();
         user.setEmail("a@example.com");

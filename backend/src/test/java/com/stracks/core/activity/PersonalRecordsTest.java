@@ -18,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Records personnels (#61) : exacts quel que soit le nombre de séances, calculés sur des
- * valeurs recalculées par le serveur, jamais sur des données partielles.
+ * Personal records (#61): exact whatever the number of sessions, computed on values
+ * recomputed by the server, never on partial data.
  */
 @QuarkusTest
 class PersonalRecordsTest {
@@ -29,9 +29,9 @@ class PersonalRecordsTest {
     }
 
     /**
-     * Séance terminée de {@code points} points plein nord (≈ 11,1 m par pas, 6 s par pas) :
-     * distance et durée croissent avec {@code points}. La distance est recalculée par le
-     * serveur au stop, jamais fournie.
+     * Completed session of {@code points} points due north (≈ 11.1 m per step, 6 s per
+     * step): distance and duration grow with {@code points}. The distance is recomputed by
+     * the server at stop, never provided.
      */
     static String session(String token, String sport, Instant start, int points) {
         String id = given().header("Authorization", "Bearer " + token).contentType("application/json")
@@ -72,12 +72,12 @@ class PersonalRecordsTest {
     }
 
     /**
-     * Le cas qui motivait le ticket : le record est détenu par une séance ancienne, bien
-     * au-delà de la première page d'historique (20 séances). Une lecture partielle se
-     * tromperait ; le serveur, non.
+     * The case that motivated the ticket: the record is held by an old session, well past
+     * the first history page (20 sessions). A partial read would get it wrong; the server
+     * doesn't.
      */
     @Test
-    void le_record_est_exact_au_dela_de_la_premiere_page_d_historique() {
+    void the_record_is_exact_beyond_the_first_history_page() {
         String token = freshToken();
         Instant t0 = Instant.parse("2025-01-01T08:00:00Z");
         String oldRecord = null;
@@ -96,9 +96,9 @@ class PersonalRecordsTest {
         assertEquals("Plus longue distance", record(json, "running", "distanceM").get("label"));
     }
 
-    /** Égaler son record ne le bat pas : la séance du jour ne devient pas détentrice. */
+    /** Equalling your record doesn't beat it: today's session doesn't become the holder. */
     @Test
-    void egaler_un_record_ne_le_bat_pas_et_le_depasser_si() {
+    void equalling_a_record_does_not_beat_it_and_exceeding_it_does() {
         String token = freshToken();
         Instant t0 = Instant.parse("2025-03-01T08:00:00Z");
         String first = session(token, "running", t0, 30);
@@ -111,12 +111,12 @@ class PersonalRecordsTest {
     }
 
     /**
-     * Même `startedAt`, même distance : la première séance enregistrée garde le record,
-     * quel que soit l'ordre de ses UUID. Répété pour que le hasard des UUID ne puisse pas
-     * faire passer le test par chance.
+     * Same `startedAt`, same distance: the first recorded session keeps the record,
+     * whatever the order of their UUIDs. Repeated so that UUID randomness can't make the
+     * test pass by luck.
      */
     @Test
-    void a_depart_identique_la_premiere_seance_enregistree_reste_detentrice() {
+    void with_the_same_start_the_first_recorded_session_keeps_the_record() {
         for (int attempt = 0; attempt < 5; attempt++) {
             String token = freshToken();
             Instant same = Instant.parse("2025-04-01T08:00:00Z");
@@ -127,13 +127,13 @@ class PersonalRecordsTest {
     }
 
     @Test
-    void les_records_sont_tenus_par_sport_et_ne_melangent_pas_les_comptes() {
+    void records_are_kept_per_sport_and_do_not_mix_accounts() {
         String token = freshToken();
         String other = freshToken();
         Instant t0 = Instant.parse("2025-06-01T08:00:00Z");
         String run = session(token, "running", t0, 20);
         String walk = session(token, "walking", t0.plusSeconds(3_600), 25);
-        session(other, "running", t0, 200); // record d'un autre compte : invisible ici
+        session(other, "running", t0, 200); // another account's record: invisible here
 
         JsonPath json = records(token, null);
         assertEquals(run, record(json, "running", "distanceM").get("activityId"));
@@ -145,12 +145,12 @@ class PersonalRecordsTest {
     }
 
     @Test
-    void un_compte_sans_seance_n_a_aucun_record() {
+    void an_account_without_sessions_has_no_record() {
         assertTrue(records(freshToken(), null).getList("bySport").isEmpty());
     }
 
     @Test
-    void un_sport_inconnu_est_refuse() {
+    void an_unknown_sport_is_rejected() {
         given().header("Authorization", "Bearer " + freshToken()).queryParam("sport", "curling")
                 .when().get("/api/v1/stats/records").then().statusCode(422);
     }

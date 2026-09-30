@@ -1,9 +1,9 @@
 /**
- * FilterChips — rangée de puces à sélection unique.
+ * FilterChips: a row of single-selection chips.
  *
- * Toujours une valeur sélectionnée (« Tous » en fait partie) : un état « aucun filtre
- * actif » distinct de « filtre Tous » donnerait deux façons d'exprimer la même chose,
- * et l'écran devrait deviner laquelle affiche quoi.
+ * Always one selected value ("Tous" is one of them): a "no active filter" state distinct
+ * from the "Tous filter" would give two ways of saying the same thing, and the screen
+ * would have to guess which one shows what.
  */
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
@@ -21,7 +21,7 @@ interface Props<T extends string> {
   value: T;
   onChange: (value: T) => void;
   accessibilityLabel: string;
-  /** Bloque la sélection — un enregistrement est en vol, par exemple. */
+  /** Blocks selection, while a save is in flight for instance. */
   disabled?: boolean;
 }
 
@@ -51,8 +51,8 @@ export function FilterChips<T extends string>({
             disabled={disabled}
             accessibilityRole="tab"
             accessibilityState={{ selected, disabled }}
-            // Zone tactile de 44 px (#42) sans changer le dessin : la puce mesure 32 px de
-            // haut, la zone s'étend de 6 px au-dessus et au-dessous.
+            // 44 px touch area (#42) without changing the drawing: the chip is 32 px high,
+            // the area extends 6 px above and below.
             hitSlop={CHIP_HIT_SLOP}
             style={[
               styles.chip,
@@ -87,8 +87,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    // En largeur, la marge tactile chevaucherait la puce voisine : c'est la puce elle-même
-    // qui atteint 44 px (« 2 », « 3 » dans les objectifs).
+    // Horizontally, the touch margin would overlap the neighbouring chip: the chip itself
+    // reaches 44 px ("2", "3" in the goals).
     minWidth: 44,
     alignItems: 'center',
   },

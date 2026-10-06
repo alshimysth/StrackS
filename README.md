@@ -97,7 +97,11 @@ le QR code et les touches `i` / `a` ouvrent l'app StrackS installée par EAS, pa
 | `i` / `a` | Simulateur iOS / émulateur Android | Build de développement installé sur le simulateur (Xcode ou Android Studio) |
 
 Pour un simple aperçu des écrans sans build, `npx expo start --go` bascule vers **Expo Go**
-(version SDK 57 requise). Le suivi GPS en arrière-plan n'y fonctionne pas.
+(version SDK 57 requise). Le suivi GPS en arrière-plan n'y fonctionne pas. Sur un **iPhone
+physique**, Expo Go exige d'être connecté au **même compte Expo** que le CLI : `npx expo login`
+(vérifier avec `npx expo whoami`), puis se connecter dans Expo Go via l'icône de compte. Après
+un changement de compte, relancer le serveur, car le CLI garde en mémoire le compte trouvé au
+démarrage. Ni Android, ni les simulateurs, ni les builds de développement ne sont concernés.
 
 > **Version d'Expo et Expo Go.** Le projet est en **Expo SDK 57** depuis le 2026-10-06 (#90).
 > Expo Go sur iOS n'embarque que le dernier SDK : un projet d'une autre version est refusé, et

@@ -1,5 +1,7 @@
-import { Redirect, Tabs, useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
+import { Tabs } from 'expo-router/js-tabs';
 import React from 'react';
+import type { ColorValue } from 'react-native';
 
 import { useAuthStore } from '../../core/auth/use-auth-store';
 import { useOnboarding } from '../../core/onboarding/onboarding';
@@ -87,8 +89,10 @@ export default function TabsLayout() {
  * Decorative: the tab label already names the destination.
  */
 function tabIcon(name: IconName) {
-  function TabIcon({ color }: { color: string }) {
-    return <Icon name={name} color={color} size="lg" />;
+  // expo-router (SDK 56+) types the tint as `ColorValue`. Both tints above are hex tokens,
+  // so it is always a string here; Lucide only accepts strings.
+  function TabIcon({ color }: { color: ColorValue }) {
+    return <Icon name={name} color={color as string} size="lg" />;
   }
   return TabIcon;
 }

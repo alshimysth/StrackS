@@ -1,5 +1,5 @@
 /**
- * Mobile unit tests (#40). `jest-expo` preset (SDK 55): it transforms react-native and
+ * Mobile unit tests (#40). `jest-expo` preset (SDK 56): it transforms react-native and
  * the expo modules, and provides mocks of the native modules.
  *
  * Config in a dedicated file rather than in package.json's `jest` key: several sessions
@@ -27,7 +27,7 @@ module.exports = {
   },
 
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg)',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|standard-navigation)',
   ],
 
   // mockClear between tests (implementations set in jest.mock factories are kept);

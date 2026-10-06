@@ -12,11 +12,15 @@ const mockRecover = jest.fn();
 const mockReplace = jest.fn();
 const mockRedirects: string[] = [];
 
-jest.mock('expo-router', () => {
+// The tab navigator comes from `expo-router/js-tabs` since SDK 56; only its presence matters
+// here, so both stand-ins render nothing.
+jest.mock('expo-router/js-tabs', () => {
   const Tabs = () => null;
   Tabs.Screen = () => null;
+  return { Tabs };
+});
+jest.mock('expo-router', () => {
   return {
-    Tabs,
     Redirect: ({ href }: { href: string }) => {
       mockRedirects.push(href);
       return null;

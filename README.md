@@ -87,14 +87,17 @@ npm install
 npx expo start
 ```
 
-Le terminal affiche un QR code et un menu interactif :
+`expo-dev-client` étant installé, `npx expo start` démarre en mode **build de développement** :
+le QR code et les touches `i` / `a` ouvrent l'app StrackS installée par EAS, pas Expo Go.
 
 | Touche | Cible | Prérequis |
 |---|---|---|
-| `w` | Navigateur web | Aucun — fonctionne immédiatement |
-| `i` | Simulateur iOS | Xcode installé |
-| `a` | Émulateur Android | Android Studio installé |
-| Scanner le QR code | Téléphone physique via Expo Go | App Expo Go installée, même réseau Wi-Fi que le Mac |
+| `w` | Navigateur web | Aucun, fonctionne immédiatement |
+| Scanner le QR code | Téléphone physique | Build de développement installé (`mobile/DEV-BUILD.md`), même réseau Wi-Fi que le Mac |
+| `i` / `a` | Simulateur iOS / émulateur Android | Build de développement installé sur le simulateur (Xcode ou Android Studio) |
+
+Pour un simple aperçu des écrans sans build, `npx expo start --go` bascule vers **Expo Go**
+(version SDK 57 requise). Le suivi GPS en arrière-plan n'y fonctionne pas.
 
 > **Version d'Expo et Expo Go.** Le projet est en **Expo SDK 57** depuis le 2026-10-06 (#90).
 > Expo Go sur iOS n'embarque que le dernier SDK : un projet d'une autre version est refusé, et

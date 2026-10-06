@@ -22,7 +22,7 @@ export function LiveMap() {
 
 const styles = StyleSheet.create({
   placeholder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,

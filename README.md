@@ -87,22 +87,30 @@ npm install
 npx expo start
 ```
 
-Le terminal affiche un QR code et un menu interactif :
+`expo-dev-client` étant installé, `npx expo start` démarre en mode **build de développement** :
+le QR code et les touches `i` / `a` ouvrent l'app StrackS installée par EAS, pas Expo Go.
 
 | Touche | Cible | Prérequis |
 |---|---|---|
-| `w` | Navigateur web | Aucun — fonctionne immédiatement |
-| `i` | Simulateur iOS | Xcode installé |
-| `a` | Émulateur Android | Android Studio installé |
-| Scanner le QR code | Téléphone physique via Expo Go | App Expo Go installée, même réseau Wi-Fi que le Mac |
+| `w` | Navigateur web | Aucun, fonctionne immédiatement |
+| Scanner le QR code | Téléphone physique | Build de développement installé (`mobile/DEV-BUILD.md`), même réseau Wi-Fi que le Mac |
+| `i` / `a` | Simulateur iOS / émulateur Android | Build de développement installé sur le simulateur (Xcode ou Android Studio) |
 
-> **Pourquoi le projet est sur Expo SDK 54 et non la dernière version (2026-07-17)** : Apple
-> n'avait pas encore validé la build Expo Go SDK 57 au moment du test — Expo Go disponible sur
-> l'App Store restait figé sur SDK 54. Scanner le QR code d'un projet SDK 57 avec cet Expo Go
-> déclenche le message trompeur *« Download the latest version of Expo Go »*, alors que
-> l'app est déjà à jour : c'est le **projet** qui est trop récent pour l'Expo Go du store, pas
-> l'inverse. Rester sur SDK 54 jusqu'à ce qu'Expo Go SDK 57+ soit publié sur l'App Store (sinon,
-> passer par une build de développement EAS, qui n'a pas cette contrainte).
+Pour un simple aperçu des écrans sans build, `npx expo start --go` bascule vers **Expo Go**
+(version SDK 57 requise). Le suivi GPS en arrière-plan n'y fonctionne pas. Sur un **iPhone
+physique**, Expo Go exige d'être connecté au **même compte Expo** que le CLI : `npx expo login`
+(vérifier avec `npx expo whoami`), puis se connecter dans Expo Go via l'icône de compte. Après
+un changement de compte, relancer le serveur, car le CLI garde en mémoire le compte trouvé au
+démarrage. Ni Android, ni les simulateurs, ni les builds de développement ne sont concernés.
+
+> **Version d'Expo et Expo Go.** Le projet est en **Expo SDK 57** depuis le 2026-10-06 (#90).
+> Expo Go sur iOS n'embarque que le dernier SDK : un projet d'une autre version est refusé, et
+> le message *« Download the latest version of Expo Go »* induit en erreur, puisque c'est le
+> **projet** qui ne correspond pas. C'est ce décalage qui avait fait rétrograder le projet de
+> SDK 57 à 54 le 2026-07-17, puis l'avait bloqué le 2026-09-30 quand Expo Go est passé à 57.
+> Expo Go ne gère de toute façon ni la localisation en arrière-plan ni `expo-task-manager`. Pour
+> tester sur un téléphone, passer par une build de développement EAS (`mobile/DEV-BUILD.md`),
+> qui n'a pas cette contrainte.
 
 ### Adresse de l'API selon la cible
 

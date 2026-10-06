@@ -124,7 +124,7 @@ Prérequis : un compte Expo. Le profil `production` d'`eas.json` est prêt : can
 cd mobile
 npm i -g eas-cli
 eas login
-eas init                    # écrit extra.eas.projectId dans app.json → à committer
+eas init                    # déjà fait : extra.eas.projectId est committé (@alshimysth/stracks)
 eas update:configure        # écrit updates.url dans app.json → à committer
 ```
 
@@ -137,8 +137,11 @@ eas update:configure        # écrit updates.url dans app.json → à committer
 Publier une mise à jour, une fois une build de production installée :
 
 ```bash
-eas update --channel production --message "Correctif …"
+eas update --channel production --environment production --message "Correctif …"
 ```
+
+`--environment` est obligatoire depuis le SDK 55 : il désigne les variables d'environnement
+EAS (`production`, `preview`, `development`) injectées dans le bundle publié.
 
 ⚠️ **Bloquant avant la première build de production** : `updates.url` doit être présent
 dans `app.json` (c'est `eas update:configure` qui l'écrit). Sans lui, la build part sans

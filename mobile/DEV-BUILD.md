@@ -9,11 +9,14 @@ les commandes marquées 🔑 demandent un compte Expo et ne peuvent pas être jo
 ```bash
 npm install -g eas-cli
 eas login                 # 🔑 compte Expo
-eas init                  # 🔑 crée le projet EAS et écrit extra.eas.projectId dans app.json
 ```
 
-`eas init` ajoute un identifiant de projet dans `app.json`. **Committer cette modification** :
-sans elle, les builds suivants repartent sur un projet différent.
+Le projet EAS existe déjà (`@alshimysth/stracks`) : `extra.eas.projectId` et `owner` sont
+committés dans `app.json` (#90). **Ne pas relancer `eas init`**, qui pourrait créer un second
+projet. `expo-dev-client`, exigé par le profil `development`, est dans les dépendances.
+
+Pré-requis iOS : l'**Apple Developer Program** (99 $/an). Un Apple ID gratuit ne permet pas à
+EAS de générer le profil de provisionnement ad hoc d'un iPhone physique.
 
 ## Profils
 

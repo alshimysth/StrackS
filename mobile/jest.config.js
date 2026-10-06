@@ -1,5 +1,5 @@
 /**
- * Mobile unit tests (#40). `jest-expo` preset (SDK 54): it transforms react-native and
+ * Mobile unit tests (#40). `jest-expo` preset (SDK 57): it transforms react-native and
  * the expo modules, and provides mocks of the native modules.
  *
  * Config in a dedicated file rather than in package.json's `jest` key: several sessions
@@ -27,8 +27,14 @@ module.exports = {
   },
 
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg)',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|standard-navigation)',
   ],
+
+  // The first test that renders a screen pays for transforming that screen's module graph.
+  // With a cold cache (every CI run) it took ~1.1 s locally on SDK 54 and ~1.6 s on SDK 57,
+  // and several times that on a 2-core runner with parallel workers: the 5 s default made
+  // activity-detail and summary fail in CI only. 15 s keeps a hung test bounded.
+  testTimeout: 15_000,
 
   // mockClear between tests (implementations set in jest.mock factories are kept);
   // jest.spyOn spies are restored.

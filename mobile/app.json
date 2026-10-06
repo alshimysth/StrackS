@@ -47,7 +47,6 @@
         }
       ],
       "expo-secure-store",
-      "expo-web-browser",
       "expo-sqlite",
       [
         "expo-location",
@@ -58,7 +57,9 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ],
-      "expo-task-manager"
+      "expo-task-manager",
+      "expo-font",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -70,6 +71,13 @@
     "updates": {
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a2cf4bc1-d6bd-4c09-8114-fbcfd0ff3403"
+      }
+    },
+    "owner": "alshimysth"
   }
 }

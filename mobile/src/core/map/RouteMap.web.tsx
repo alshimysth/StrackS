@@ -30,7 +30,7 @@ export function RouteMap({ segments, testID = 'route-map' }: Props) {
 
 const styles = StyleSheet.create({
   placeholder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,

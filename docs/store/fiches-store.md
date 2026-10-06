@@ -44,6 +44,10 @@
 
 **Contact support** : [À COMPLÉTER]
 
+**Compatibilité** : iOS **16.4** minimum, imposé par Expo SDK 56 et suivants (#90). Ne sont plus
+pris en charge : iPhone 7 / 7 Plus, 6s / 6s Plus, iPhone SE (1re génération), iPad mini 4,
+iPad Air 2. App Store Connect reprend cette valeur de la build, mais la fiche doit le dire.
+
 ## Captures d'écran à produire
 
 Tailles : iPhone 6,9" et 6,5" ; téléphone Android. À prendre sur un **dev build**, avec des

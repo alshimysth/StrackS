@@ -1,5 +1,5 @@
 /**
- * Mobile unit tests (#40). `jest-expo` preset (SDK 56): it transforms react-native and
+ * Mobile unit tests (#40). `jest-expo` preset (SDK 57): it transforms react-native and
  * the expo modules, and provides mocks of the native modules.
  *
  * Config in a dedicated file rather than in package.json's `jest` key: several sessions

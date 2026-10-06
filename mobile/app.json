@@ -70,6 +70,13 @@
     "updates": {
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a2cf4bc1-d6bd-4c09-8114-fbcfd0ff3403"
+      }
+    },
+    "owner": "alshimysth"
   }
 }

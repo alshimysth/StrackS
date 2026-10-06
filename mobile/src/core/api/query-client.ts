@@ -11,7 +11,7 @@
  */
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { QueryClient, type Query } from '@tanstack/react-query';
+import { isServer, QueryClient, type Query } from '@tanstack/react-query';
 import type { PersistQueryClientOptions } from '@tanstack/react-query-persist-client';
 
 /** Age beyond which a disk cache is dropped rather than shown again. */
@@ -21,11 +21,16 @@ const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
  * `gcTime` must exceed `CACHE_MAX_AGE_MS`: react-query refuses to restore a query already
  * expired in memory, and a default `gcTime` (5 min) would empty the disk cache on the
  * first rehydration, making persistence useless.
+ *
+ * Except on the server: the static web export renders every route in Node, and each query
+ * built there arms a 7-day garbage-collection timer that keeps `expo export` alive once
+ * done (SDK 55+ no longer force-exits on pending timers). `Infinity` arms no timer, which
+ * is react-query's own server default.
  */
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      gcTime: CACHE_MAX_AGE_MS,
+      gcTime: isServer ? Infinity : CACHE_MAX_AGE_MS,
       staleTime: 30_000,
       /**
        * Offline, react-query pauses the query instead of failing (`onlineManager` is wired

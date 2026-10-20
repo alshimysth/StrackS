@@ -1,0 +1,34 @@
+# Place ce fichier à la RACINE du repo Stracks (nom exact : .pr_agent.toml)
+
+[config]
+# Modèle utilisé pour les reviews. Format LiteLLM : "<provider>/<nom_du_modèle>"
+model = "anthropic/claude-sonnet-5"
+# Si Sonnet 5 est indisponible ou en rate limit, PR-Agent retente avec ce modèle
+fallback_models = ["anthropic/claude-haiku-4-5-20251001"]
+
+# Limite la taille du diff envoyé au modèle sur les grosses PR (coupe plutôt que d'échouer)
+large_patch_policy = "clip"
+
+[pr_reviewer]
+# Instructions custom envoyées au modèle avant chaque review — adapte-les à Stracks
+extra_instructions = """
+Priorise : erreurs de logique, failles de sécurité (injection, validation d'entrée),
+mauvaise gestion des transactions/exceptions côté Spring Boot, requêtes N+1 avec JPA,
+fuites de subscriptions RxJS et problèmes de change detection côté Angular.
+Ignore les broutilles de style déjà couvertes par un linter/formatter.
+"""
+require_tests_review = true       # signale si une PR change du code sans ajouter/adapter de tests
+require_security_review = true    # section dédiée aux risques de sécurité détectés
+persistent_comment = true         # met à jour le même commentaire au lieu d'en empiler un nouveau à chaque push
+
+[pr_code_suggestions]
+num_code_suggestions = 4          # nombre de suggestions de code (si auto_improve activé)
+suggestions_score_threshold = 7   # ne montre que les suggestions jugées "score >= 7/10" — réduit le bruit
+
+[pr_description]
+publish_labels = true             # laisse PR-Agent poser des labels (bug/feature/refactor...) sur la PR
+add_original_user_description = true
+
+[ignore]
+# Fichiers/dossiers à ne jamais envoyer au modèle (génère du bruit et consomme des tokens pour rien)
+glob = ["*.lock", "package-lock.json", "**/generated/**", "**/*.min.js"]

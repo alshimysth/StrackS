@@ -6,12 +6,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.stracks.core.activity.SportRegistry;
-import com.stracks.core.activity.SportTypeDescriptor;
+import com.stracks.core.activity.application.SportRegistry;
+import com.stracks.core.activity.domain.SportTypeDescriptor;
 import com.stracks.core.common.ApiException;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -308,6 +309,11 @@ public class PreferencesService {
         if (d < min || d > max) {
             throw ApiException.invalidPreference(path + " doit être compris entre " + min + " et " + max + ".");
         }
+    }
+
+    /** Athlete profile of a user id; empty when the user is unknown. */
+    public AthleteProfile athleteProfileOf(UUID userId) {
+        return athleteProfile(UserEntity.findById(userId));
     }
 
     /** Extracts the athlete profile in the form expected by sport modules. */

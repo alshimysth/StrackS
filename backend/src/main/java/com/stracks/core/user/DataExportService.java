@@ -9,9 +9,11 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.stracks.core.activity.ActivityDtos.ActivityResponse;
-import com.stracks.core.activity.ActivityEntity;
-import com.stracks.core.activity.TrackPointEntity;
+import com.stracks.core.activity.api.ActivityDtos.ActivityResponse;
+import com.stracks.core.activity.application.ActivityRepository;
+import com.stracks.core.activity.application.TrackPointRepository;
+import com.stracks.core.activity.domain.ActivityEntity;
+import com.stracks.core.activity.domain.TrackPointEntity;
 import com.stracks.core.common.ApiException;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -48,6 +50,12 @@ public class DataExportService {
     @Inject
     PreferencesService preferences;
 
+    @Inject
+    ActivityRepository activities;
+
+    @Inject
+    TrackPointRepository trackPoints;
+
     @Transactional
     public byte[] export(UUID userId) {
         UserEntity user = UserEntity.findById(userId);
@@ -66,19 +74,16 @@ public class DataExportService {
             mapper.writeValue(json, preferences.withDefaults(user.preferences));
 
             // Anti-IDOR: the query is bounded to the JWT subject, never to a parameter.
-            List<UUID> activityIds = em.createQuery(
-                    "select a.id from ActivityEntity a where a.userId = ?1 order by a.startedAt", UUID.class)
-                    .setParameter(1, userId)
-                    .getResultList();
+            List<UUID> activityIds = activities.findIdsByUser(userId);
 
             json.writeArrayFieldStart("activities");
             for (UUID id : activityIds) {
-                ActivityEntity activity = ActivityEntity.findById(id);
+                ActivityEntity activity = activities.findOne(id).orElseThrow();
                 json.writeStartObject();
                 json.writeFieldName("activity");
                 mapper.writeValue(json, ActivityResponse.of(activity));
                 json.writeArrayFieldStart("trackPoints");
-                for (TrackPointEntity p : TrackPointEntity.findByActivity(id)) {
+                for (TrackPointEntity p : trackPoints.findByActivity(id)) {
                     json.writeStartObject();
                     json.writeNumberField("seq", p.seq);
                     json.writeStringField("recordedAt", p.recordedAt.toString());

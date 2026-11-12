@@ -3,7 +3,8 @@
  *
  * Two responsibilities, in this order: run the countdown (#3) then render the session's
  * `sportRegistry[sportType].TrackingScreen`. The core still knows no sport: it goes
- * through the registry.
+ * through the registry, and hands the engine the sport's spec (tracking mode, GPS
+ * ceiling, initial draft) without looking inside.
  *
  * The actual `start()` happens here, no longer on the home screen: the countdown must
  * cover the screen transition AND precede the GPS permission request.
@@ -41,9 +42,15 @@ export default function TrackingRoute() {
     }
     setCounting(false);
     try {
-      await useSessionStore
-        .getState()
-        .start(module.code, module.maxGpsSpeedKmh ?? 25, preferences.data?.gpsMode ?? 'balanced');
+      await useSessionStore.getState().start(
+        {
+          sportType: module.code,
+          trackingMode: module.trackingMode,
+          maxGpsSpeedKmh: module.maxGpsSpeedKmh,
+          initialDraft: module.initialDraft?.(),
+        },
+        preferences.data?.gpsMode ?? 'balanced',
+      );
     } catch (error) {
       Alert.alert(
         'Impossible de démarrer',

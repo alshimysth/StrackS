@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { Alert, Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
 
+import { entryOf, sportAppearance } from '../../core/activity/sport-presentation';
 import { activityTitle } from '../../core/activity/title';
 import { useDeleteActivity } from '../../core/api/use-activity';
 import { groupByMonth, useActivities, type PeriodFilter } from '../../core/api/use-activities';
@@ -239,6 +240,18 @@ function Body({
   );
 }
 
+/** "4,21 km · 5'31"/km  ·  21:34", or the module's line, or the duration alone. */
+function headline(activity: Activity, format: ReturnType<typeof useFormat>): string {
+  const sportLine = entryOf(activity.sportType)?.headline?.(activity, format);
+  const duration = activity.durationS != null ? format.duration(activity.durationS) : null;
+  const lead =
+    sportLine ??
+    (activity.distanceM != null
+      ? `${format.distance(Number(activity.distanceM))} ${format.distanceUnit}`
+      : null);
+  return [lead, duration].filter((part) => part != null).join('  ·  ') || '—';
+}
+
 /**
  * History card: tappable (#6) and deletable with a long press (#26).
  *
@@ -275,15 +288,14 @@ function ActivityCard({
         },
       ]}
     >
-      <SportBadge sport={activity.sportType} size="sm" />
+      <SportBadge sport={activity.sportType} appearance={sportAppearance(activity.sportType)} size="sm" />
       <Text style={[typography.bodyLg, { color: theme.textPrimary }]}>
         {activityTitle(activity)}
       </Text>
-      <Text style={[typography.h3, { color: theme.textPrimary }]}>
-        {activity.distanceM != null
-          ? `${format.distance(Number(activity.distanceM))} ${format.distanceUnit}`
-          : '—'}
-        {activity.durationS != null ? `  ·  ${format.duration(activity.durationS)}` : ''}
+      {/* The headline is the sport's: a distance for a run, a score for a match, a count
+          of routes for a climb. The core only knows the duration. */}
+      <Text style={[typography.h3, { color: theme.textPrimary }]} testID={`activity-headline-${activity.id}`}>
+        {headline(activity, format)}
       </Text>
       <Text style={[typography.caption, { color: theme.textSecondary }]}>
         {new Date(activity.startedAt).toLocaleDateString('fr-FR', {

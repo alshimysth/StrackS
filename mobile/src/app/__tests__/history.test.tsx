@@ -23,8 +23,8 @@ jest.mock('../../core/api/client', () => ({
 }));
 
 const SPORTS: SportTypeDescriptor[] = [
-  { code: 'running', label: 'Course', usesGps: true, schemaVersion: 1 },
-  { code: 'walking', label: 'Marche', usesGps: true, schemaVersion: 1 },
+  { code: 'running', label: 'Course', family: { code: 'running', label: 'Course à pied' }, trackingMode: 'GPS', usesGps: true, schemaVersion: 1 },
+  { code: 'walking', label: 'Marche', family: { code: 'walking', label: 'Marche' }, trackingMode: 'GPS', usesGps: true, schemaVersion: 1 },
 ];
 
 function activity(id: string, startedAt = '2026-08-12T08:00:00.000Z'): Activity {

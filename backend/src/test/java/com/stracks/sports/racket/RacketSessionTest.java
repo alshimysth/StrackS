@@ -102,7 +102,7 @@ class RacketSessionTest {
         String tennis = start(token, "tennis", start);
         given().header("Authorization", "Bearer " + token).contentType("application/json")
                 .body(Map.of("endedAt", start.plusSeconds(600).toString(), "metrics", Map.of(
-                        "sets", List.of(Map.of("won", 21, "lost", 15)))))
+                        "sets", List.of(Map.of("won", 21, "lost", 5)))))
                 .when().post("/api/v1/activities/" + tennis + "/stop")
                 .then().statusCode(422)
                 .body("detail", containsString("metrics.sets[0].won"));

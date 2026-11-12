@@ -2,10 +2,15 @@
  * Local crash-proof buffer (Epic 3), SQLite. Each GPS fix is persisted as soon as it
  * arrives: if the app is killed, the session and its track can be recovered on relaunch
  * (Epic 3 DoD). A single active session at a time (row id=1).
+ *
+ * A timed sport has no fixes but a **draft** (routes, sets, machine readings): it's
+ * persisted here with the same guarantee, as JSON, each time the module changes it.
  */
 import * as SQLite from 'expo-sqlite';
 
 import type { GpsFix, GpsMode } from '../gps';
+
+export type BufferedTrackingMode = 'gps' | 'timer';
 
 export interface BufferedSession {
   activityId: string;
@@ -19,6 +24,10 @@ export interface BufferedSession {
    * the same settings. Absent on a session written before it was added → `balanced`.
    */
   gpsMode?: GpsMode;
+  /** Absent on a session written before timed sports existed → `gps`. */
+  trackingMode?: BufferedTrackingMode;
+  /** Sport draft of a timed session (JSON-serialisable). Absent for GPS sports. */
+  draft?: unknown;
 }
 
 export interface BufferedPoint extends GpsFix {
@@ -50,12 +59,19 @@ function db(): Promise<SQLite.SQLiteDatabase> {
         uploaded INTEGER NOT NULL DEFAULT 0
       );
     `);
-    // Local migration (#36, PR #80 review): `CREATE TABLE IF NOT EXISTS` doesn't touch a
-    // table already created by a previous app version. The column is added if missing,
+    // Local migrations (#36, PR #80 review): `CREATE TABLE IF NOT EXISTS` doesn't touch a
+    // table already created by a previous app version. Each column is added if missing,
     // nullable, so a session in progress at update time survives.
     const columns = await database.getAllAsync<{ name: string }>('PRAGMA table_info(session)');
-    if (!columns.some((column) => column.name === 'gps_mode')) {
+    const names = new Set(columns.map((column) => column.name));
+    if (!names.has('gps_mode')) {
       await database.execAsync('ALTER TABLE session ADD COLUMN gps_mode TEXT');
+    }
+    if (!names.has('tracking_mode')) {
+      await database.execAsync('ALTER TABLE session ADD COLUMN tracking_mode TEXT');
+    }
+    if (!names.has('draft_json')) {
+      await database.execAsync('ALTER TABLE session ADD COLUMN draft_json TEXT');
     }
     return database;
   });
@@ -64,8 +80,8 @@ function db(): Promise<SQLite.SQLiteDatabase> {
 
 export async function saveSession(session: BufferedSession): Promise<void> {
   await (await db()).runAsync(
-    `INSERT OR REPLACE INTO session (id, activity_id, sport_type, started_at_ms, max_speed_kmh, paused_total_s, paused_at_ms, gps_mode)
-     VALUES (1, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO session (id, activity_id, sport_type, started_at_ms, max_speed_kmh, paused_total_s, paused_at_ms, gps_mode, tracking_mode, draft_json)
+     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     session.activityId,
     session.sportType,
     session.startedAtMs,
@@ -73,6 +89,8 @@ export async function saveSession(session: BufferedSession): Promise<void> {
     session.pausedTotalS,
     session.pausedAtMs,
     session.gpsMode ?? null,
+    session.trackingMode ?? null,
+    session.draft === undefined ? null : JSON.stringify(session.draft),
   );
 }
 
@@ -85,10 +103,13 @@ export async function loadSession(): Promise<BufferedSession | null> {
     paused_total_s: number;
     paused_at_ms: number | null;
     gps_mode: string | null;
+    tracking_mode: string | null;
+    draft_json: string | null;
   }>('SELECT * FROM session WHERE id = 1');
   if (row == null) {
     return null;
   }
+  const draft = parseDraft(row.draft_json);
   return {
     activityId: row.activity_id,
     sportType: row.sport_type,
@@ -97,6 +118,8 @@ export async function loadSession(): Promise<BufferedSession | null> {
     pausedTotalS: row.paused_total_s,
     pausedAtMs: row.paused_at_ms,
     ...(isGpsMode(row.gps_mode) ? { gpsMode: row.gps_mode } : {}),
+    ...(isTrackingMode(row.tracking_mode) ? { trackingMode: row.tracking_mode } : {}),
+    ...(draft !== undefined ? { draft } : {}),
   };
 }
 
@@ -105,11 +128,35 @@ function isGpsMode(value: string | null): value is GpsMode {
   return value === 'max' || value === 'balanced' || value === 'saver';
 }
 
+function isTrackingMode(value: string | null): value is BufferedTrackingMode {
+  return value === 'gps' || value === 'timer';
+}
+
+/** A draft that can't be parsed is lost, not fatal: the session itself is recovered. */
+function parseDraft(json: string | null): unknown {
+  if (json == null) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(json) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function updatePauseState(pausedTotalS: number, pausedAtMs: number | null): Promise<void> {
   await (await db()).runAsync(
     'UPDATE session SET paused_total_s = ?, paused_at_ms = ? WHERE id = 1',
     pausedTotalS,
     pausedAtMs,
+  );
+}
+
+/** Persists the sport draft of a timed session (routes, sets, readings). */
+export async function updateDraft(draft: unknown): Promise<void> {
+  await (await db()).runAsync(
+    'UPDATE session SET draft_json = ? WHERE id = 1',
+    draft === undefined ? null : JSON.stringify(draft),
   );
 }
 

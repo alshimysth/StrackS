@@ -20,7 +20,7 @@ import { useFormat } from '../../core/format/use-format';
 import { DEFAULT_PREFERENCES, speedDisplayFor } from '../../core/preferences/schema';
 import { usePreferences, useUpdatePreferences } from '../../core/preferences/use-preferences';
 import { useSportTypes } from '../../core/api/use-sport-types';
-import { sportRegistry } from '../../sports/registry';
+import { sportCatalog } from '../../sports/catalog';
 import { ErrorState } from '../../design-system/components/ErrorState';
 import { LoadingState } from '../../design-system/components/LoadingState';
 import { SettingRow } from '../../design-system/components/SettingRow';
@@ -318,7 +318,7 @@ function Preferences() {
           // Same sports as the home screen: offering a sport without a mobile module would
           // allow making it a default that can't be started.
           ...(sportTypes.data ?? [])
-            .filter((s) => sportRegistry[s.code] != null)
+            .filter((s) => sportCatalog[s.code] != null)
             .map((s) => ({ value: s.code, label: s.label })),
         ]}
         disabled={saving}
@@ -327,8 +327,11 @@ function Preferences() {
       />
 
       {/* Set PER SPORT: a runner reads a pace, a walker a speed. A global setting would
-          force one of them to read in the other's mental model. */}
-      {(sportTypes.data ?? []).map((sport) => (
+          force one of them to read in the other's mental model. Only for sports with a
+          distance: pace means nothing for a climbing or a tennis session. */}
+      {(sportTypes.data ?? [])
+        .filter((sport) => sportCatalog[sport.code]?.hasSpeed === true)
+        .map((sport) => (
         <SettingRow
           key={sport.code}
           testID={`setting-display-${sport.code}`}

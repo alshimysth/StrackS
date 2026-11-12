@@ -61,3 +61,36 @@ it('does not replay the migration on a second open', async () => {
   const columns = await db.getAllAsync("SELECT name FROM pragma_table_info('session') WHERE name = 'gps_mode'");
   expect(columns).toHaveLength(1);
 });
+
+/** The session of a GPS sport written before timed sports existed resumes as a GPS one. */
+it('adds the tracking mode and draft columns, absent on a legacy session', async () => {
+  const buffer = require('../buffer');
+  const sqlite = require('expo-sqlite');
+  const db = await sqlite.openDatabaseAsync('stracks-session.db');
+  const columns = await db.getAllAsync(
+    "SELECT name FROM pragma_table_info('session') WHERE name IN ('tracking_mode', 'draft_json')",
+  );
+  expect(columns).toHaveLength(2);
+  const legacy = await buffer.loadSession();
+  expect(legacy.trackingMode).toBeUndefined(); // → the store resumes in GPS mode
+  expect(legacy.draft).toBeUndefined();
+});
+
+it('writes and reads a timed session with its draft', async () => {
+  const buffer = require('../buffer');
+  await buffer.saveSession({
+    activityId: 'act-timer',
+    sportType: 'tennis',
+    startedAtMs: T0,
+    maxSpeedKmh: 25,
+    pausedTotalS: 0,
+    pausedAtMs: null,
+    trackingMode: 'timer',
+    draft: { format: 'singles', sets: [{ won: 6, lost: 4 }] },
+  });
+  expect(await buffer.loadSession()).toMatchObject({
+    activityId: 'act-timer',
+    trackingMode: 'timer',
+    draft: { format: 'singles', sets: [{ won: 6, lost: 4 }] },
+  });
+});

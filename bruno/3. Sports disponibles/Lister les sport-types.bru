@@ -11,15 +11,20 @@ get {
 }
 
 tests {
-  test("200 OK + running and walking registered", function () {
+  test("200 OK + the five families are registered", function () {
     expect(res.getStatus()).to.equal(200);
     const codes = res.getBody().map((s) => s.code);
-    expect(codes).to.include.members(["running", "walking"]);
+    expect(codes).to.include.members(["running", "trail_running", "walking", "cycling", "bouldering", "tennis"]);
+    const bouldering = res.getBody().find((s) => s.code === "bouldering");
+    expect(bouldering.trackingMode).to.equal("TIMER");
+    expect(bouldering.family.code).to.equal("climbing");
   });
 }
 
 docs {
   Sports exposés par le registre de plugins backend — c'est cette liste qui pilote
   l'accueil mobile (jamais de liste en dur). Chaque descripteur :
-  `{ code, label, usesGps, schemaVersion }`.
+  `{ code, label, family: { code, label }, trackingMode: GPS|TIMER, usesGps, schemaVersion }`.
+  Quatorze sports en cinq familles (course, marche, vélo, escalade, raquettes) ; les sports
+  `TIMER` n'ont pas de tracé : le client envoie son rapport dans `metrics` au stop.
 }

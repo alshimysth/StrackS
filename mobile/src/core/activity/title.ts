@@ -6,14 +6,11 @@
  * freeze a French string in the data, which would no longer follow the user's language
  * once #43 is decided, and could no longer be told apart from a title really chosen.
  */
-import { sportColors } from '../../design-system/theme';
+import { sportLabel } from './sport-presentation';
 
-/** Sport label, falling back to the raw code if the theme doesn't know the sport. */
-export function sportLabel(sportType: string): string {
-  return sportColors[sportType]?.label ?? sportType;
-}
+export { sportLabel };
 
-/** "Course du 14 août": fallback shown when the activity has no title. */
+/** "Course à pied du 14 août": fallback shown when the activity has no title. */
 export function derivedTitle(sportType: string, startedAt: string): string {
   const date = new Date(startedAt).toLocaleDateString('fr-FR', {
     day: 'numeric',

@@ -44,6 +44,8 @@ jest.mock('../../gps', () => ({
 
 const T0 = Date.parse('2026-08-11T08:00:00Z');
 const ACTIVITY_ID = '11111111-2222-3333-4444-555555555555';
+/** What the running module hands the engine (mirror of its spec). */
+const RUNNING = { sportType: 'running', trackingMode: 'gps', maxGpsSpeedKmh: 25 } as const;
 
 function activity(overrides: Partial<Activity> = {}): Activity {
   return {
@@ -107,7 +109,7 @@ async function emitFix(fix: GpsFix): Promise<void> {
 
 async function startSession(): Promise<void> {
   api.startActivity.mockResolvedValue(activity());
-  await useSessionStore.getState().start('running', 25);
+  await useSessionStore.getState().start(RUNNING);
 }
 
 beforeEach(() => {
@@ -167,12 +169,13 @@ describe('start', () => {
       pausedTotalS: 0,
       pausedAtMs: null,
       gpsMode: 'balanced',
+      trackingMode: 'gps',
     });
   });
 
   it('refuses to start a second session', async () => {
     await startSession();
-    await expect(useSessionStore.getState().start('walking', 10)).rejects.toThrow(
+    await expect(useSessionStore.getState().start({ sportType: 'walking', trackingMode: 'gps', maxGpsSpeedKmh: 10 })).rejects.toThrow(
       'Une séance est déjà en cours.',
     );
     expect(useSessionStore.getState().sportType).toBe('running');
@@ -183,7 +186,7 @@ describe('start', () => {
     api.startActivity.mockResolvedValue(activity());
     gps.startGpsWatch.mockRejectedValue(new Error('Permission de localisation refusée'));
 
-    await expect(useSessionStore.getState().start('running', 25)).rejects.toThrow(
+    await expect(useSessionStore.getState().start(RUNNING)).rejects.toThrow(
       'Permission de localisation refusée',
     );
     await settle();
@@ -196,7 +199,7 @@ describe('start', () => {
   it('stays idle if the server refuses to create the activity', async () => {
     api.startActivity.mockRejectedValue(new Error('Erreur réseau'));
 
-    await expect(useSessionStore.getState().start('running', 25)).rejects.toThrow('Erreur réseau');
+    await expect(useSessionStore.getState().start(RUNNING)).rejects.toThrow('Erreur réseau');
     expect(useSessionStore.getState().status).toBe('idle');
     expect(api.deleteActivity).not.toHaveBeenCalled();
   });
@@ -732,7 +735,7 @@ describe('GPS mode (#36)', () => {
 
   it('applies the chosen mode at start and keeps it on resume', async () => {
     api.startActivity.mockResolvedValue(activity());
-    await useSessionStore.getState().start('running', 25, 'saver');
+    await useSessionStore.getState().start(RUNNING, 'saver');
     expect(gps.startGpsWatch).toHaveBeenLastCalledWith(expect.any(Function), 'saver');
     expect(gps.startBackgroundUpdates).toHaveBeenCalledWith('saver');
 
@@ -745,7 +748,7 @@ describe('GPS mode (#36)', () => {
 describe('GPS mode after a kill (PR #80 review)', () => {
   it('resumes a recovered session with its own mode, not the default mode', async () => {
     api.startActivity.mockResolvedValue(activity());
-    await useSessionStore.getState().start('running', 25, 'saver');
+    await useSessionStore.getState().start(RUNNING, 'saver');
     const saved = await buffer.loadSession();
 
     // The app is killed: new module, same buffer.

@@ -11,6 +11,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActivityDetailBody } from '../../core/activity/ActivityDetailBody';
+import { sportAppearance } from '../../core/activity/sport-presentation';
 import { activityTitle, derivedTitle } from '../../core/activity/title';
 import { useActivity, useDeleteActivity, useUpdateActivity } from '../../core/api/use-activity';
 import { ActivityEditor } from '../../design-system/components/ActivityEditor';
@@ -79,7 +80,7 @@ export default function ActivityDetailScreen() {
 
         {activity != null && (
           <>
-            <SportBadge sport={activity.sportType} />
+            <SportBadge sport={activity.sportType} appearance={sportAppearance(activity.sportType)} />
             <Text testID="activity-title" style={[typography.h2, { color: theme.textPrimary }]}>
               {activityTitle(activity)}
             </Text>

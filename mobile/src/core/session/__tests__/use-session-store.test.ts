@@ -170,6 +170,7 @@ describe('start', () => {
       pausedAtMs: null,
       gpsMode: 'balanced',
       trackingMode: 'gps',
+      lastActiveMs: T0,
     });
   });
 

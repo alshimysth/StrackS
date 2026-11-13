@@ -56,8 +56,8 @@ describe('ordinal: the formula the server uses (number × 10 + letter × 2 + plu
 });
 
 describe('gradeScale', () => {
-  it('offers 5 and 5+ to boulderers only', () => {
-    expect(gradeScale('bouldering').slice(0, 4)).toEqual(['4', '4+', '5', '5+']);
-    expect(gradeScale('rope_climbing').slice(0, 2)).toEqual(['4a', '4a+']);
+  it('starts at 3, letterless for boulderers only', () => {
+    expect(gradeScale('bouldering').slice(0, 6)).toEqual(['3', '3+', '4', '4+', '5', '5+']);
+    expect(gradeScale('rope_climbing').slice(0, 2)).toEqual(['3a', '3a+']);
   });
 });

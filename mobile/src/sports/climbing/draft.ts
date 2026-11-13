@@ -43,7 +43,13 @@ export function initialClimbingDraft(discipline: Discipline): ClimbingDraft {
   return { location: 'indoor', climbs: [], nextGrade: discipline === 'bouldering' ? '5' : '5c' };
 }
 
+/** Mirror of ClimbingPlugin.MAX_CLIMBS: the server refuses a longer report as a whole. */
+export const MAX_CLIMBS = 200;
+
 export function addClimb(draft: ClimbingDraft, climb: Climb): ClimbingDraft {
+  if (draft.climbs.length >= MAX_CLIMBS) {
+    return draft;
+  }
   return { ...draft, climbs: [...draft.climbs, climb], nextGrade: climb.grade };
 }
 

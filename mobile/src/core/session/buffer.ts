@@ -28,6 +28,12 @@ export interface BufferedSession {
   trackingMode?: BufferedTrackingMode;
   /** Sport draft of a timed session (JSON-serialisable). Absent for GPS sports. */
   draft?: unknown;
+  /**
+   * Last instant the session was known to be running (checkpoint written every few
+   * seconds). After a kill, the dead time since then counts as a pause: for a timed
+   * sport no GPS point bounds it otherwise. Absent on a session written before it existed.
+   */
+  lastActiveMs?: number;
 }
 
 export interface BufferedPoint extends GpsFix {
@@ -73,6 +79,9 @@ function db(): Promise<SQLite.SQLiteDatabase> {
     if (!names.has('draft_json')) {
       await database.execAsync('ALTER TABLE session ADD COLUMN draft_json TEXT');
     }
+    if (!names.has('last_active_ms')) {
+      await database.execAsync('ALTER TABLE session ADD COLUMN last_active_ms INTEGER');
+    }
     return database;
   });
   return dbPromise;
@@ -80,8 +89,8 @@ function db(): Promise<SQLite.SQLiteDatabase> {
 
 export async function saveSession(session: BufferedSession): Promise<void> {
   await (await db()).runAsync(
-    `INSERT OR REPLACE INTO session (id, activity_id, sport_type, started_at_ms, max_speed_kmh, paused_total_s, paused_at_ms, gps_mode, tracking_mode, draft_json)
-     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO session (id, activity_id, sport_type, started_at_ms, max_speed_kmh, paused_total_s, paused_at_ms, gps_mode, tracking_mode, draft_json, last_active_ms)
+     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     session.activityId,
     session.sportType,
     session.startedAtMs,
@@ -91,6 +100,7 @@ export async function saveSession(session: BufferedSession): Promise<void> {
     session.gpsMode ?? null,
     session.trackingMode ?? null,
     session.draft === undefined ? null : JSON.stringify(session.draft),
+    session.lastActiveMs ?? null,
   );
 }
 
@@ -105,6 +115,7 @@ export async function loadSession(): Promise<BufferedSession | null> {
     gps_mode: string | null;
     tracking_mode: string | null;
     draft_json: string | null;
+    last_active_ms: number | null;
   }>('SELECT * FROM session WHERE id = 1');
   if (row == null) {
     return null;
@@ -120,6 +131,7 @@ export async function loadSession(): Promise<BufferedSession | null> {
     ...(isGpsMode(row.gps_mode) ? { gpsMode: row.gps_mode } : {}),
     ...(isTrackingMode(row.tracking_mode) ? { trackingMode: row.tracking_mode } : {}),
     ...(draft !== undefined ? { draft } : {}),
+    ...(row.last_active_ms != null ? { lastActiveMs: row.last_active_ms } : {}),
   };
 }
 
@@ -150,6 +162,11 @@ export async function updatePauseState(pausedTotalS: number, pausedAtMs: number 
     pausedTotalS,
     pausedAtMs,
   );
+}
+
+/** Checkpoint: the session was running at this instant. */
+export async function updateLastActive(lastActiveMs: number): Promise<void> {
+  await (await db()).runAsync('UPDATE session SET last_active_ms = ? WHERE id = 1', lastActiveMs);
 }
 
 /** Persists the sport draft of a timed session (routes, sets, readings). */

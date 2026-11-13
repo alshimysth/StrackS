@@ -58,12 +58,13 @@ export function gradeFromOrdinal(ordinal: number, discipline: Discipline): strin
 }
 
 /**
- * The whole scale a picker offers, in climbing order. Below 6 the letterless grades
- * (4, 5, 5+) exist for boulders only; routes always carry a letter.
+ * The whole scale a picker offers, in climbing order, from 3 (what the parser accepts) to
+ * 9. Below 6 the letterless grades (3, 3+, 4, 4+, 5, 5+) exist for boulders only; routes
+ * always carry a letter.
  */
 export function gradeScale(discipline: Discipline): string[] {
   const grades: string[] = [];
-  for (let number = 4; number <= 9; number++) {
+  for (let number = 3; number <= 9; number++) {
     if (discipline === 'bouldering' && number < 6) {
       grades.push(gradeLabel({ number, letter: 0, plus: false }, discipline));
       grades.push(gradeLabel({ number, letter: 0, plus: true }, discipline));

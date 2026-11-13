@@ -26,6 +26,7 @@ import {
   loadSession,
   saveSession,
   updateDraft,
+  updateLastActive,
   updatePauseState,
   type BufferedTrackingMode,
 } from './buffer';
@@ -71,6 +72,11 @@ const TICK_MS = 1000;
 const FLUSH_MS = 10_000;
 /** Without an accepted fix for this long, the displayed speed drops back to zero. */
 const SPEED_STALE_MS = 5000;
+/**
+ * How often the buffer learns the session is still running. After a kill, the time since
+ * the last checkpoint is the most that can be wrongly counted as effort (#timer recovery).
+ */
+const CHECKPOINT_MS = 10_000;
 /** A GPS sport without a declared ceiling falls back to the running one. */
 const DEFAULT_MAX_SPEED_KMH = 25;
 
@@ -190,9 +196,15 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
   }
 
   function startTimers(): void {
+    let lastCheckpointMs = Date.now();
     tickTimer = setInterval(() => {
       if (get().status !== 'active') {
         return;
+      }
+      const now = Date.now();
+      if (now - lastCheckpointMs >= CHECKPOINT_MS) {
+        lastCheckpointMs = now;
+        void updateLastActive(now).catch(() => {});
       }
       if (acc == null) {
         set({ live: snapshot() });
@@ -333,6 +345,7 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
           gpsMode,
           trackingMode,
           ...(draft !== undefined ? { draft } : {}),
+          lastActiveMs: startedAtMs,
         });
         let background = false;
         if (isGps()) {
@@ -485,11 +498,14 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
         }
       }
       seq = points.length > 0 ? points[points.length - 1].seq + 1 : 0;
-      // App killed mid-session: the dead time counts as a pause, bounded by the last
-      // known point (for a timed sport, nothing bounds it better than now).
-      pausedAtMs =
-        session.pausedAtMs ??
-        (points.length > 0 ? points[points.length - 1].recordedAtMs : Date.now());
+      // App killed mid-session: the dead time counts as a pause, bounded by the latest
+      // sign of life (last GPS point or last checkpoint, whichever is later). A session
+      // written before checkpoints existed and without a point can only be bounded by now.
+      const lastPointMs = points.length > 0 ? points[points.length - 1].recordedAtMs : null;
+      const lastSeenMs = [lastPointMs, session.lastActiveMs ?? null]
+          .filter((ms): ms is number => ms != null)
+          .reduce<number | null>((latest, ms) => (latest == null || ms > latest ? ms : latest), null);
+      pausedAtMs = session.pausedAtMs ?? lastSeenMs ?? Date.now();
       await updatePauseState(pausedTotalS, pausedAtMs);
       startTimers();
       set({

@@ -54,7 +54,8 @@ export const indoorCyclingEntry = createMachineEntry({
   appearance: { ...appearance, label: 'Indoor' },
   tagline: 'Chrono · distance, puissance, cadence relevées',
   fields: [
-    distanceField(),
+    // Mirror of IndoorCyclingPlugin: a trainer session may go well past a treadmill's.
+    distanceField(500_000),
     { key: 'avgPowerW', label: 'Puissance moyenne', unit: 'W', min: 0, max: 2000 },
     { key: 'avgCadenceRpm', label: 'Cadence moyenne', unit: 'rpm', min: 0, max: 250 },
   ],

@@ -19,8 +19,8 @@ export interface MachineField {
   unit: string;
   /** Converts the typed value (display unit) to the SI value sent to the server. */
   toMetric?: (value: number, units: Formatter['units']) => number;
-  /** Display unit when it depends on the preference (km vs mi). */
-  displayUnit?: (format: Formatter) => string;
+  /** Display unit when it depends on the unit system the readings are typed in (km vs mi). */
+  displayUnit?: (units: Formatter['units']) => string;
   min: number;
   max: number;
 }
@@ -63,6 +63,11 @@ export const machineStatsTotals: StatsTotalDisplay[] = [
   },
 ];
 
+/** Has anything been typed yet? Decides whether the draft's unit system is already fixed. */
+export function hasReadings(draft: MachineDraft): boolean {
+  return Object.values(draft.readings).some((text) => text != null && text.trim().length > 0);
+}
+
 /** "12,5" → 12.5; anything else → undefined (the field is simply not reported). */
 export function parseReading(text: string | undefined): number | undefined {
   if (text == null) {
@@ -88,15 +93,16 @@ export function machineMetricsFromDraft(fields: MachineField[], draft: MachineDr
   return metrics;
 }
 
-export const distanceField = (): MachineField => ({
+/** @param max the backend plugin's own ceiling, in metres (200 km for a treadmill) */
+export const distanceField = (max = 200_000): MachineField => ({
   key: 'distanceM',
   label: 'Distance affichée',
   unit: 'km',
-  displayUnit: (format) => format.distanceUnit,
+  displayUnit: (units) => (units === 'imperial' ? 'mi' : 'km'),
   // The display shows km or miles according to the preference; the server stores metres.
   toMetric: (value, units) => (units === 'imperial' ? value * 1609.344 : value * 1000),
   min: 0,
-  max: 200_000,
+  max,
 });
 
 export function createMachineEntry(spec: MachineEntrySpec): MachineCatalogEntry {

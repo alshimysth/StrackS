@@ -314,7 +314,10 @@ export function sportHeadline(sport: SportStats, format: ReturnType<typeof useFo
     .filter((d) => sport.totals[d.key] != null)
     .map((d) => {
       const unit = d.unit?.(format);
-      return `${d.format(sport.totals[d.key], format)}${unit != null ? ` ${unit}` : ''}`;
+      const value = d.format(sport.totals[d.key], format);
+      // "12 blocs et voies" rather than a bare "12": a count without its unit needs
+      // its label to be read, where "107,50 km" carries its meaning in the unit.
+      return unit != null ? `${value} ${unit}` : `${value} ${d.label.toLowerCase()}`;
     });
   return parts.length > 0 ? parts.join(' · ') : null;
 }

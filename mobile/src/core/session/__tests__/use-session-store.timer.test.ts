@@ -151,11 +151,11 @@ describe('a timed session', () => {
     expect(await buffer.loadSession()).toBeNull();
   });
 
-  it('recovers the draft after a kill, paused, without replaying any track', async () => {
+  it('recovers the draft after a kill, paused at the last checkpoint, without replaying any track', async () => {
     await useSessionStore.getState().start(BOULDERING);
     const next = { ...BOULDERING.initialDraft, climbs: [{ grade: '6B', result: 'send', attempts: 3 }] };
     await useSessionStore.getState().setDraft(next);
-    await advance(60_000);
+    await advance(65_000); // last checkpoint at 60 s
 
     // The app is killed: a fresh module, the buffer still there.
     jest.resetModules();
@@ -170,6 +170,9 @@ describe('a timed session', () => {
     expect(state.trackingMode).toBe('timer');
     expect(state.draft).toEqual(next);
     expect(state.path).toEqual([]);
+    // The ten minutes the app was dead are a pause, not effort (PR #100 review): the
+    // timer stopped at the last checkpoint, 60 s after the start.
+    expect(state.live.elapsedS).toBe(60);
     expect(gps.startGpsWatch).not.toHaveBeenCalled();
   });
 

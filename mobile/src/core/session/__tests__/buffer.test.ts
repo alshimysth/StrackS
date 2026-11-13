@@ -70,6 +70,12 @@ describe.each(implementations)('buffer contract: %s', (_label, buffer) => {
       expect(loaded?.draft).toEqual({ location: 'indoor', climbs: [{ grade: '6A', result: 'flash', attempts: 1 }] });
     });
 
+    it('records the last-active checkpoint alone', async () => {
+      await buffer.saveSession({ ...session, lastActiveMs: T0 });
+      await buffer.updateLastActive(T0 + 30_000);
+      expect(await buffer.loadSession()).toEqual({ ...session, lastActiveMs: T0 + 30_000 });
+    });
+
     it('updates the draft alone, leaving the rest of the session untouched', async () => {
       await buffer.saveSession({ ...session, trackingMode: 'timer', draft: { sets: [] } });
       await buffer.updateDraft({ sets: [{ won: 6, lost: 4 }] });

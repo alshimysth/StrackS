@@ -12,6 +12,7 @@ import { Icon } from '../../design-system/components/Icon';
 import { radius, spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
 import {
+  MAX_CLIMBS,
   RESULTS,
   addClimb,
   climbingTotals,
@@ -102,8 +103,8 @@ export function ClimbingPanel({ discipline, draft, onChange }: Props) {
         </Pressable>
       </View>
 
-      <Button icon="action-add" onPress={add} fullWidth>
-        {`Ajouter ${draft.nextGrade}`}
+      <Button icon="action-add" onPress={add} fullWidth disabled={draft.climbs.length >= MAX_CLIMBS}>
+        {draft.climbs.length >= MAX_CLIMBS ? `Journal plein (${MAX_CLIMBS})` : `Ajouter ${draft.nextGrade}`}
       </Button>
 
       {draft.climbs.length > 0 && (

@@ -68,12 +68,13 @@ it('adds the tracking mode and draft columns, absent on a legacy session', async
   const sqlite = require('expo-sqlite');
   const db = await sqlite.openDatabaseAsync('stracks-session.db');
   const columns = await db.getAllAsync(
-    "SELECT name FROM pragma_table_info('session') WHERE name IN ('tracking_mode', 'draft_json')",
+    "SELECT name FROM pragma_table_info('session') WHERE name IN ('tracking_mode', 'draft_json', 'last_active_ms')",
   );
-  expect(columns).toHaveLength(2);
+  expect(columns).toHaveLength(3);
   const legacy = await buffer.loadSession();
   expect(legacy.trackingMode).toBeUndefined(); // → the store resumes in GPS mode
   expect(legacy.draft).toBeUndefined();
+  expect(legacy.lastActiveMs).toBeUndefined(); // → bounded by the last point, else now
 });
 
 it('writes and reads a timed session with its draft', async () => {

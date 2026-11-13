@@ -13,12 +13,21 @@ import { useTheme } from '../../design-system/use-theme';
 import type { Activity } from '../../types/api';
 import type { SportScreens } from '../types';
 import { SummaryRows } from './gps-screens';
-import { machineMetricsFromDraft, type MachineCatalogEntry, type MachineDraft } from './machine-catalog';
+import {
+  hasReadings,
+  machineMetricsFromDraft,
+  type MachineCatalogEntry,
+  type MachineDraft,
+} from './machine-catalog';
 
 export function createMachineScreens(entry: MachineCatalogEntry): SportScreens {
   function Panel({ draft, onChange }: { draft: MachineDraft; onChange: (next: MachineDraft) => void }) {
     const theme = useTheme();
     const format = useFormat();
+    // The unit system is fixed by the first reading and kept for the whole session: the
+    // labels, the later readings and the conversion at stop all follow it. Changing the
+    // preference mid-session must not reinterpret "5" (km) as five miles.
+    const units = hasReadings(draft) ? draft.units : format.units;
     return (
       <View style={styles.panel}>
         <Text style={[typography.caption, { color: theme.textSecondary }]}>
@@ -28,14 +37,10 @@ export function createMachineScreens(entry: MachineCatalogEntry): SportScreens {
           <Input
             key={field.key}
             testID={`reading-${field.key}`}
-            label={`${field.label} (${field.displayUnit ? field.displayUnit(format) : field.unit})`}
+            label={`${field.label} (${field.displayUnit ? field.displayUnit(units) : field.unit})`}
             keyboardType="decimal-pad"
             value={draft.readings[field.key] ?? ''}
-            // The unit system is captured with each edit: the readings are typed in the
-            // unit shown next to the field, whatever the preference at stop.
-            onChangeText={(text) =>
-              onChange({ units: format.units, readings: { ...draft.readings, [field.key]: text } })
-            }
+            onChangeText={(text) => onChange({ units, readings: { ...draft.readings, [field.key]: text } })}
           />
         ))}
       </View>

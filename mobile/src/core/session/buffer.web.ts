@@ -23,6 +23,7 @@ export interface BufferedSession {
   gpsMode?: GpsMode;
   trackingMode?: BufferedTrackingMode;
   draft?: unknown;
+  lastActiveMs?: number;
 }
 
 export interface BufferedPoint extends GpsFix {
@@ -69,6 +70,12 @@ export async function updatePauseState(
 ): Promise<void> {
   if (session != null) {
     session = { ...session, pausedTotalS, pausedAtMs };
+  }
+}
+
+export async function updateLastActive(lastActiveMs: number): Promise<void> {
+  if (session != null) {
+    session = { ...session, lastActiveMs };
   }
 }
 

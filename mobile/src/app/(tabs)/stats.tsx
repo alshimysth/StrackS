@@ -40,7 +40,8 @@ import { StatCard } from '../../design-system/components/StatCard';
 import { radius, shadows, spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
 import { useFormat } from '../../core/format/use-format';
-import type { StatsSummary } from '../../types/api';
+import { entryOf } from '../../core/activity/sport-presentation';
+import type { SportStats, StatsSummary } from '../../types/api';
 import { SafeScreen } from '../../design-system/components/SafeScreen';
 
 const PERIOD_OPTIONS: ChipOption<StatsPeriod>[] = [
@@ -231,11 +232,11 @@ function Body({ summary, timeline }: { summary: SummaryQuery; timeline: Timeline
                 {format.duration(sport.totalDurationS)}
               </Text>
             </View>
-            <Text style={[typography.bodyLg, { color: theme.textPrimary }]}>
-              {sport.totals.distanceM != null
-                ? `${format.distance(sport.totals.distanceM)} ${format.distanceUnit}`
-                : '—'}
-            </Text>
+            {sportHeadline(sport, format) != null && (
+              <Text style={[typography.bodyLg, styles.sportRhs, { color: theme.textPrimary }]}>
+                {sportHeadline(sport, format)}
+              </Text>
+            )}
           </View>
         ))}
       </View>
@@ -244,9 +245,9 @@ function Body({ summary, timeline }: { summary: SummaryQuery; timeline: Timeline
 }
 
 /**
- * The four totals. Sessions and duration always exist: they're the only quantities the
- * core knows. Distance and elevation only appear if a plugin declared them over the
- * period.
+ * The totals. Sessions, duration and calories always exist: they're the only quantities
+ * the core knows, valid for every sport present and future (#46). Distance and elevation
+ * only appear if a plugin declared them over the period.
  */
 function Totals({ data }: { data: StatsSummary }) {
   const format = useFormat();
@@ -255,15 +256,6 @@ function Totals({ data }: { data: StatsSummary }) {
 
   return (
     <View style={styles.grid}>
-      {distance != null && (
-        <StatCard
-          style={styles.gridCell}
-          label="Distance"
-          value={format.distance(distance)}
-          unit={format.distanceUnit}
-          delta={formatDelta(deltaPercent(distance, data.previous.totals.distanceM ?? 0))}
-        />
-      )}
       <StatCard
         style={styles.gridCell}
         label="Séances"
@@ -276,6 +268,27 @@ function Totals({ data }: { data: StatsSummary }) {
         value={format.duration(data.totalDurationS)}
         delta={formatDelta(deltaPercent(data.totalDurationS, data.previous.durationS))}
       />
+      {/* Calories need a known weight (#33): a period without any estimate shows no
+          card rather than a misleading zero. */}
+      {(data.totalCalories ?? 0) > 0 && (
+        <StatCard
+          style={styles.gridCell}
+          label="Calories"
+          value={String(data.totalCalories)}
+          unit="kcal"
+          testID="total-calories"
+          delta={formatDelta(deltaPercent(data.totalCalories, data.previous.calories ?? 0))}
+        />
+      )}
+      {distance != null && (
+        <StatCard
+          style={styles.gridCell}
+          label="Distance"
+          value={format.distance(distance)}
+          unit={format.distanceUnit}
+          delta={formatDelta(deltaPercent(distance, data.previous.totals.distanceM ?? 0))}
+        />
+      )}
       {elevation != null && (
         <StatCard
           style={styles.gridCell}
@@ -286,6 +299,27 @@ function Totals({ data }: { data: StatsSummary }) {
       )}
     </View>
   );
+}
+
+/**
+ * The right-hand side of a sport row: what the sport's module says its totals mean
+ * ("107,50 km · 980 m", "12 victoires"). The core never names a key: a sport without a
+ * module, or without any described total, shows nothing there, since the left-hand side
+ * already carries what every sport has (sessions, duration). Never a "—": it would read
+ * as a missing measurement (#46).
+ */
+export function sportHeadline(sport: SportStats, format: ReturnType<typeof useFormat>): string | null {
+  const displays = entryOf(sport.sportType)?.statsTotals ?? [];
+  const parts = displays
+    .filter((d) => sport.totals[d.key] != null)
+    .map((d) => {
+      const unit = d.unit?.(format);
+      const value = d.format(sport.totals[d.key], format);
+      // "12 blocs et voies" rather than a bare "12": a count without its unit needs
+      // its label to be read, where "107,50 km" carries its meaning in the unit.
+      return unit != null ? `${value} ${unit}` : `${value} ${d.label.toLowerCase()}`;
+    });
+  return parts.length > 0 ? parts.join(' · ') : null;
 }
 
 /**
@@ -330,5 +364,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: spacing.sm,
   },
-  sportLhs: { gap: 2 },
+  sportLhs: { gap: 2, flexShrink: 1 },
+  sportRhs: { textAlign: 'right', flexShrink: 1 },
 });

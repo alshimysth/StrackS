@@ -9,7 +9,9 @@
  * `allPoints()` into the GPS accumulator, and an out-of-order track would produce
  * backwards segments there, hence a wrong distance.
  */
-import type { GpsFix } from '../gps';
+import type { GpsFix, GpsMode } from '../gps';
+
+export type BufferedTrackingMode = 'gps' | 'timer';
 
 export interface BufferedSession {
   activityId: string;
@@ -18,6 +20,10 @@ export interface BufferedSession {
   maxSpeedKmh: number;
   pausedTotalS: number;
   pausedAtMs: number | null;
+  gpsMode?: GpsMode;
+  trackingMode?: BufferedTrackingMode;
+  draft?: unknown;
+  lastActiveMs?: number;
 }
 
 export interface BufferedPoint extends GpsFix {
@@ -37,20 +43,46 @@ function toPoint({ uploaded: _uploaded, ...point }: BufferedPoint & { uploaded: 
   return point;
 }
 
+/**
+ * Same round trip as SQLite: the draft is stored serialised, so a later mutation of the
+ * caller's object can't leak into the buffer.
+ */
+function cloneDraft(draft: unknown): unknown {
+  return JSON.parse(JSON.stringify(draft)) as unknown;
+}
+
+function withDraft(base: BufferedSession, draft: unknown): BufferedSession {
+  const { draft: _ignored, ...rest } = base;
+  return draft === undefined ? rest : { ...rest, draft: cloneDraft(draft) };
+}
+
 export async function saveSession(next: BufferedSession): Promise<void> {
-  session = { ...next };
+  session = withDraft(next, next.draft);
 }
 
 export async function loadSession(): Promise<BufferedSession | null> {
-  return session == null ? null : { ...session };
+  return session == null ? null : withDraft(session, session.draft);
 }
 
 export async function updatePauseState(
   pausedTotalS: number,
   pausedAtMs: number | null,
+  lastActiveMs?: number,
 ): Promise<void> {
   if (session != null) {
-    session = { ...session, pausedTotalS, pausedAtMs };
+    session = { ...session, pausedTotalS, pausedAtMs, ...(lastActiveMs != null ? { lastActiveMs } : {}) };
+  }
+}
+
+export async function updateLastActive(lastActiveMs: number): Promise<void> {
+  if (session != null) {
+    session = { ...session, lastActiveMs };
+  }
+}
+
+export async function updateDraft(draft: unknown): Promise<void> {
+  if (session != null) {
+    session = withDraft(session, draft);
   }
 }
 

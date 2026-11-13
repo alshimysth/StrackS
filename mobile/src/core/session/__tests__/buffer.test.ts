@@ -61,6 +61,42 @@ describe.each(implementations)('buffer contract: %s', (_label, buffer) => {
       expect(await buffer.loadSession()).toEqual(session);
     });
 
+    it('round-trips a timed session with its draft, by value', async () => {
+      const draft = { location: 'indoor', climbs: [{ grade: '6A', result: 'flash', attempts: 1 }] };
+      await buffer.saveSession({ ...session, trackingMode: 'timer', draft });
+      draft.climbs.push({ grade: '7A', result: 'attempt', attempts: 2 }); // a later mutation must not leak
+      const loaded = await buffer.loadSession();
+      expect(loaded?.trackingMode).toBe('timer');
+      expect(loaded?.draft).toEqual({ location: 'indoor', climbs: [{ grade: '6A', result: 'flash', attempts: 1 }] });
+    });
+
+    it('writes the resume instant with the pause state when asked', async () => {
+      await buffer.saveSession({ ...session, pausedAtMs: T0 + 10_000, lastActiveMs: T0 });
+      await buffer.updatePauseState(30, null, T0 + 40_000);
+      expect(await buffer.loadSession()).toEqual({
+        ...session,
+        pausedTotalS: 30,
+        pausedAtMs: null,
+        lastActiveMs: T0 + 40_000,
+      });
+    });
+
+    it('records the last-active checkpoint alone', async () => {
+      await buffer.saveSession({ ...session, lastActiveMs: T0 });
+      await buffer.updateLastActive(T0 + 30_000);
+      expect(await buffer.loadSession()).toEqual({ ...session, lastActiveMs: T0 + 30_000 });
+    });
+
+    it('updates the draft alone, leaving the rest of the session untouched', async () => {
+      await buffer.saveSession({ ...session, trackingMode: 'timer', draft: { sets: [] } });
+      await buffer.updateDraft({ sets: [{ won: 6, lost: 4 }] });
+      expect(await buffer.loadSession()).toEqual({
+        ...session,
+        trackingMode: 'timer',
+        draft: { sets: [{ won: 6, lost: 4 }] },
+      });
+    });
+
     it('returns no session when the buffer is empty', async () => {
       expect(await buffer.loadSession()).toBeNull();
     });

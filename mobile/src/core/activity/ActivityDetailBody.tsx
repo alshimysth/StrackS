@@ -7,7 +7,9 @@
  * carries the content, each screen its frame.
  *
  * The core knows no sport: discipline-specific metrics go exclusively through
- * `module.SummaryPanel`, never through an `if (sportType === …)`.
+ * `module.SummaryPanel`, never through an `if (sportType === …)`. What the core shows on
+ * its own is what every activity has: a duration, calories, and a distance **when the
+ * sport wrote one** (a climbing session has none, and shows no "—" for it).
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -33,7 +35,10 @@ export function ActivityDetailBody({ activity }: Props) {
   const theme = useTheme();
   const format = useFormat();
   const module = sportRegistry[activity.sportType];
-  const trackPoints = useTrackPoints(activity.id);
+  // Only a timed sport is known to have no track: an unknown module (newer backend)
+  // may have one, and hiding it would be the worse mistake.
+  const hasTrack = module?.trackingMode !== 'timer';
+  const trackPoints = useTrackPoints(hasTrack ? activity.id : undefined);
   const { preferences, data: loadedPreferences } = usePreferences();
   const path = React.useMemo(() => toPath(trackPoints.data ?? []), [trackPoints.data]);
   // #37: masking at display time only; the stored and exported track stays complete.
@@ -75,13 +80,18 @@ export function ActivityDetailBody({ activity }: Props) {
       )}
 
       <View style={styles.grid}>
-        <StatCard
-          label="Distance"
-          value={activity.distanceM != null ? format.distance(Number(activity.distanceM)) : '—'}
-          unit={format.distanceUnit}
-          emphasis="xl"
-          style={styles.gridCell}
-        />
+        {/* A distance card only for a sport that has one: "—" would read as a failed
+            measurement on a climbing session. A GPS session without a track (upload
+            failed) keeps the "—": there the figure is genuinely missing. */}
+        {(activity.distanceM != null || hasTrack) && (
+          <StatCard
+            label="Distance"
+            value={activity.distanceM != null ? format.distance(Number(activity.distanceM)) : '—'}
+            unit={format.distanceUnit}
+            emphasis="xl"
+            style={styles.gridCell}
+          />
+        )}
         <StatCard
           label="Durée"
           value={activity.durationS != null ? format.duration(activity.durationS) : '—'}

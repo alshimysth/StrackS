@@ -17,9 +17,21 @@ export interface AuthResponse {
   user: User;
 }
 
+/** Grouping of sports as the user sees them ("Course à pied" gathers road, trail, treadmill). */
+export interface SportFamily {
+  code: string;
+  label: string;
+}
+
+/** How a session is recorded: a GPS track, or a timer whose content the client reports. */
+export type TrackingMode = 'GPS' | 'TIMER';
+
 export interface SportTypeDescriptor {
   code: string;
   label: string;
+  family: SportFamily;
+  trackingMode: TrackingMode;
+  /** Kept by the server for older readers; equivalent to `trackingMode === 'GPS'`. */
   usesGps: boolean;
   schemaVersion: number;
 }
@@ -72,6 +84,8 @@ export interface SportStats {
   label: string;
   sessions: number;
   totalDurationS: number;
+  /** Sum of the sessions' calories, a core column: 0 when none could be estimated. */
+  calories: number;
   totals: Record<string, number>;
 }
 
@@ -79,6 +93,7 @@ export interface SportStats {
 export interface StatsTotals {
   sessions: number;
   durationS: number;
+  calories: number;
   totals: Record<string, number>;
 }
 
@@ -88,6 +103,7 @@ export interface StatsSummary {
   bySport: SportStats[];
   totalSessions: number;
   totalDurationS: number;
+  totalCalories: number;
   totals: Record<string, number>;
   /** Same window shifted by one period: the basis of the comparison. */
   previous: StatsTotals;

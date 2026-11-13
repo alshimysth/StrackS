@@ -9,12 +9,17 @@ import { activityTitle, derivedTitle, sportLabel } from '../title';
 const BASE = { sportType: 'running', startedAt: '2026-08-14T09:30:00.000Z' };
 
 describe('sportLabel', () => {
-  it('translates a sport known to the theme', () => {
-    expect(sportLabel('running')).toBe('Course');
+  it('translates a sport known to the catalog', () => {
+    expect(sportLabel('running')).toBe('Course à pied');
     expect(sportLabel('walking')).toBe('Marche');
   });
 
-  /** The backend may expose a sport the mobile theme doesn't know yet. */
+  /** A sport the catalog doesn't know but the theme table does (historical entry). */
+  it('falls back to the theme table before the raw code', () => {
+    expect(sportLabel('strength')).toBe('Musculation');
+  });
+
+  /** The backend may expose a sport the mobile app doesn't know yet. */
   it('falls back to the raw code for an unknown sport', () => {
     expect(sportLabel('kayak')).toBe('kayak');
   });
@@ -22,7 +27,7 @@ describe('sportLabel', () => {
 
 describe('derivedTitle', () => {
   it('combines the sport and the date', () => {
-    expect(derivedTitle('running', BASE.startedAt)).toBe('Course du 14 août');
+    expect(derivedTitle('running', BASE.startedAt)).toBe('Course à pied du 14 août');
   });
 });
 
@@ -32,7 +37,7 @@ describe('activityTitle', () => {
   });
 
   it('falls back to the derived label without a title', () => {
-    expect(activityTitle({ ...BASE, title: null })).toBe('Course du 14 août');
+    expect(activityTitle({ ...BASE, title: null })).toBe('Course à pied du 14 août');
   });
 
   /**
@@ -41,7 +46,7 @@ describe('activityTitle', () => {
    * display doesn't rely on it.
    */
   it('treats a whitespace title as absent', () => {
-    expect(activityTitle({ ...BASE, title: '   ' })).toBe('Course du 14 août');
+    expect(activityTitle({ ...BASE, title: '   ' })).toBe('Course à pied du 14 août');
   });
 
   it('trims the displayed title', () => {

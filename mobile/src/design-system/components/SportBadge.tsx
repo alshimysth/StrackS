@@ -1,25 +1,36 @@
 /**
  * SportBadge: RN port of components/badges/SportBadge.jsx (Claude Design).
- * Extensible: a new sport adds its entry to sportColors (theme.ts), no other component
- * changes.
+ *
+ * Extensible: a sport module declares its own appearance (label, colour, tint) and the
+ * core passes it in; `sportColors` (theme.ts) stays the fallback for the historical
+ * sports and the neutral grey covers whatever nobody described.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, fonts, radius, sportColors } from '../theme';
 
+export interface SportAppearance {
+  label: string;
+  color: string;
+  tint: string;
+}
+
 interface Props {
   sport: string;
+  /** Appearance resolved by the caller (usually from the sport module); overrides the theme table. */
+  appearance?: SportAppearance;
   variant?: 'filled' | 'outline';
   size?: 'md' | 'sm';
 }
 
-export function SportBadge({ sport, variant = 'filled', size = 'md' }: Props) {
-  const def = sportColors[sport] ?? {
-    label: sport,
-    color: colors.neutral600,
-    tint: colors.neutral100,
-  };
+export function SportBadge({ sport, appearance, variant = 'filled', size = 'md' }: Props) {
+  const def = appearance ??
+    sportColors[sport] ?? {
+      label: sport,
+      color: colors.neutral600,
+      tint: colors.neutral100,
+    };
   const small = size === 'sm';
 
   return (

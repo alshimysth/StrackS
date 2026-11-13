@@ -78,8 +78,9 @@ function weekStats(sessions: number): StatsSummary {
     bySport: [],
     totalSessions: sessions,
     totalDurationS: sessions * 1200,
+    totalCalories: 0,
     totals: { distanceM: sessions * 4000 },
-    previous: { sessions: 0, durationS: 0, totals: {} },
+    previous: { sessions: 0, durationS: 0, calories: 0, totals: {} },
   };
 }
 

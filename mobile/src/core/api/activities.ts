@@ -29,9 +29,14 @@ export function resumeActivity(id: string): Promise<Activity> {
   return api<Activity>(`/api/v1/activities/${id}/resume`, { method: 'POST' });
 }
 
+/**
+ * Closes the session. `metrics` is the client's report for a timed sport (routes, sets,
+ * distance read on a machine); a GPS sport sends none, the server recomputes everything
+ * from the uploaded track.
+ */
 export function stopActivity(
   id: string,
-  body: { endedAt: string; durationS: number; notes?: string },
+  body: { endedAt: string; durationS: number; notes?: string; metrics?: Record<string, unknown> },
 ): Promise<Activity> {
   return api<Activity>(`/api/v1/activities/${id}/stop`, { method: 'POST', body });
 }

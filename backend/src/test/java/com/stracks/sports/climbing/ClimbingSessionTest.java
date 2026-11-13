@@ -125,6 +125,33 @@ class ClimbingSessionTest {
                 .body("detail", containsString("metrics.climbs[0].result"));
     }
 
+    /**
+     * The schema and the parser agree (PR #101 review): a grade the pattern alone would
+     * let through but the parser can't rank would be counted as a send with no hardest
+     * grade. "6" has no letter, "5+" is a boulder notation.
+     */
+    @Test
+    void a_grade_the_parser_cannot_rank_is_refused_in_both_disciplines() {
+        String token = freshToken();
+        Instant start = Instant.now().minusSeconds(600);
+        String route = start(token, "rope_climbing", start);
+        for (String grade : List.of("6", "5+")) {
+            given().header("Authorization", "Bearer " + token).contentType("application/json")
+                    .body(Map.of("endedAt", start.plusSeconds(600).toString(), "metrics", Map.of(
+                            "climbs", List.of(Map.of("grade", grade, "result", "onsight")))))
+                    .when().post("/api/v1/activities/" + route + "/stop")
+                    .then().statusCode(422)
+                    .body("detail", containsString("metrics.climbs[0].grade"));
+        }
+        String boulder = start(token, "bouldering", start);
+        given().header("Authorization", "Bearer " + token).contentType("application/json")
+                .body(Map.of("endedAt", start.plusSeconds(600).toString(), "metrics", Map.of(
+                        "climbs", List.of(Map.of("grade", "6", "result", "flash")))))
+                .when().post("/api/v1/activities/" + boulder + "/stop")
+                .then().statusCode(422)
+                .body("detail", containsString("metrics.climbs[0].grade"));
+    }
+
     @Test
     void editing_the_climbs_after_the_fact_recomputes_the_totals() {
         String token = freshToken();

@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -109,17 +110,7 @@ public class ActivityService {
                         - activity.pausedTotalS);
         activity.notes = command.notes() != null ? command.notes() : activity.notes;
 
-        List<TrackPointEntity> track = trackOf(plugin, activity);
-        applyCompletion(plugin, activity, track);
-
-        // Calories: AFTER the distance, which the average speed depends on. The core
-        // only passes the athlete profile along; the sport module is the one that knows
-        // what its effort costs. Without a weight, nothing is written: no value is better
-        // than a made-up one (#33).
-        AthleteProfile athlete = preferences.athleteProfileOf(userId);
-        plugin.estimateCalories(activity, track, athlete)
-                .ifPresent(kcal -> activity.calories = kcal);
-
+        finish(plugin, activity, trackOf(plugin, activity), userId);
         activity.status = ActivityEntity.STATUS_COMPLETED;
         return activity;
     }
@@ -157,10 +148,10 @@ public class ActivityService {
             plugin.validateMetrics(command.metrics());
             activity.metrics = command.metrics();
             // Edited after the fact (a corrected score, a forgotten route): the derived
-            // figures are recomputed exactly as at stop, so an edit can never leave a
-            // total that contradicts its detail.
+            // figures and the calories are recomputed exactly as at stop, so an edit can
+            // never leave a total that contradicts its detail.
             if (activity.isCompleted()) {
-                applyCompletion(plugin, activity, trackOf(plugin, activity));
+                finish(plugin, activity, trackOf(plugin, activity), userId);
             }
         }
         return activity;
@@ -174,7 +165,18 @@ public class ActivityService {
         for (TrackPointEntity p : points) {
             p.activityId = activity.id;
         }
-        return trackPoints.insertIgnoringDuplicates(points);
+        int inserted = trackPoints.insertIgnoringDuplicates(points);
+        // A track arriving after the stop (offline session closed first, upload retried
+        // later): the completed activity must not keep showing no distance while its
+        // track exists. Only a batch that added something triggers the recomputation, so
+        // a replayed batch stays a no-op.
+        if (inserted > 0 && activity.isCompleted()) {
+            SportPlugin plugin = registry.require(activity.sportType);
+            if (plugin.descriptor().usesGps()) {
+                finish(plugin, activity, trackPoints.findByActivity(activity.id), userId);
+            }
+        }
+        return inserted;
     }
 
     public List<TrackPointEntity> trackPoints(UUID userId, UUID activityId) {
@@ -193,12 +195,24 @@ public class ActivityService {
         return plugin.descriptor().usesGps() ? trackPoints.findByActivity(activity.id) : List.of();
     }
 
-    /** The server's metrics are the source of truth: whatever the client sent is completed here. */
-    private static void applyCompletion(SportPlugin plugin, ActivityEntity activity, List<TrackPointEntity> track) {
+    /**
+     * The server's metrics are the source of truth: whatever the client sent is completed
+     * here, then the calories follow. The same path serves the stop, an edit after the
+     * fact and a late track upload, so the three can never disagree.
+     *
+     * <p>Calories come AFTER the distance, which the average speed depends on. The core
+     * only passes the athlete profile along; the sport module is the one that knows what
+     * its effort costs. Without an estimate, the previous value is cleared rather than
+     * kept: a stale figure is a made-up one (#33).
+     */
+    private void finish(SportPlugin plugin, ActivityEntity activity, List<TrackPointEntity> track, UUID userId) {
         FinalMetrics completion = plugin.complete(activity, track);
         activity.metrics = completion.metrics();
         activity.distanceM = completion.distanceM() == null
                 ? null
                 : BigDecimal.valueOf(completion.distanceM()).setScale(1, RoundingMode.HALF_UP);
+        AthleteProfile athlete = preferences.athleteProfileOf(userId);
+        OptionalInt calories = plugin.estimateCalories(activity, track, athlete);
+        activity.calories = calories.isPresent() ? calories.getAsInt() : null;
     }
 }

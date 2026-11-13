@@ -25,9 +25,9 @@ import java.util.regex.Pattern;
 public record FrenchGrade(int number, int letter, boolean plus) implements Comparable<FrenchGrade> {
 
     /** "6a", "6a+", "5c" or "4" (routes below 5 may omit the letter in some guides). */
-    static final Pattern ROUTE = Pattern.compile("^([3-9])([abc])?(\\+)?$");
+    private static final Pattern ROUTE = Pattern.compile("^([3-9])([abc])?(\\+)?$");
     /** "6A", "6A+", "7C" or "4", "5", "5+". */
-    static final Pattern BOULDER = Pattern.compile("^([3-9])([ABC])?(\\+)?$");
+    private static final Pattern BOULDER = Pattern.compile("^([3-9])([ABC])?(\\+)?$");
 
     /** Letter weight: a < b < c; 0 when the grade has no letter. */
     private static final String LETTERS = "abc";

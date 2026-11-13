@@ -100,6 +100,39 @@ class RunningFamilyTest {
                 .body("bySport.find { it.sportType == 'treadmill_running' }.totals", not(hasKey("elevationGainM")));
     }
 
+    /**
+     * Offline session closed before its track could be sent (PR #101 review): the late
+     * upload completes the activity (distance, metrics) instead of leaving a track next
+     * to an activity that claims none. A replayed batch changes nothing.
+     */
+    @Test
+    void a_track_uploaded_after_the_stop_completes_the_activity() {
+        String token = freshToken();
+        Instant start = Instant.now().minusSeconds(3600);
+        String id = start(token, "running", start);
+        given().header("Authorization", "Bearer " + token).contentType("application/json")
+                .body(Map.of("endedAt", start.plusSeconds(1200).toString(), "durationS", 1194))
+                .when().post("/api/v1/activities/" + id + "/stop").then().statusCode(200)
+                .body("distanceM", nullValue());
+
+        List<Map<String, Object>> track = climb(start, 200);
+        given().header("Authorization", "Bearer " + token).contentType("application/json")
+                .body(Map.of("points", track))
+                .when().post("/api/v1/activities/" + id + "/track-points").then().statusCode(201)
+                .body("inserted", equalTo(200));
+        given().header("Authorization", "Bearer " + token)
+                .when().get("/api/v1/activities/" + id).then().statusCode(200)
+                .body("status", equalTo("completed"))
+                .body("distanceM", greaterThan(2100f))
+                .body("metrics.avgPaceSecPerKm", greaterThan(0))
+                .body("metrics.splits", hasSize(2));
+
+        given().header("Authorization", "Bearer " + token).contentType("application/json")
+                .body(Map.of("points", track))
+                .when().post("/api/v1/activities/" + id + "/track-points").then().statusCode(201)
+                .body("inserted", equalTo(0));
+    }
+
     @Test
     void treadmill_refuses_a_track_shaped_report() {
         String token = freshToken();

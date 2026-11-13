@@ -126,6 +126,28 @@ class RacketSessionTest {
                 .body("detail", containsString("score"));
     }
 
+    /** An edit after the fact re-estimates the calories (PR #101 review): doubles cost less. */
+    @Test
+    void editing_the_format_after_the_fact_re_estimates_the_calories() {
+        String token = freshToken();
+        setWeight(token, 70);
+        Instant start = Instant.now().minusSeconds(3600);
+        String id = start(token, "tennis", start);
+        int singles = given().header("Authorization", "Bearer " + token).contentType("application/json")
+                .body(Map.of("endedAt", start.plusSeconds(3600).toString(), "durationS", 3600,
+                        "metrics", Map.of("format", "singles")))
+                .when().post("/api/v1/activities/" + id + "/stop")
+                .then().statusCode(200).extract().path("calories");
+
+        int doubles = given().header("Authorization", "Bearer " + token).contentType("application/json")
+                .body(Map.of("metrics", Map.of("format", "doubles")))
+                .when().patch("/api/v1/activities/" + id)
+                .then().statusCode(200).extract().path("calories");
+        // 8.0 MET singles vs 6.0 MET doubles, same weight and duration.
+        org.junit.jupiter.api.Assertions.assertEquals(588, singles);
+        org.junit.jupiter.api.Assertions.assertEquals(441, doubles);
+    }
+
     @Test
     void table_tennis_is_registered_and_closes_like_the_others() {
         String token = freshToken();

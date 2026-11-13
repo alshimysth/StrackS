@@ -97,6 +97,22 @@ class MetricsSchemaTest {
         assertTrue(detail(() -> MATCH.validate(json("{\"temperatureC\":80}"))).contains("-30"));
     }
 
+    /** A BigInteger past the long range narrows silently with asLong() (PR #101 review). */
+    @Test
+    void integers_beyond_the_int_range_are_refused_rather_than_narrowed() throws Exception {
+        assertTrue(detail(() -> MATCH.validate(json("{\"sets\":[{\"won\":18446744073709551617,\"lost\":4}]}")))
+                .contains("metrics.sets[0].won"));
+        assertTrue(detail(() -> MATCH.validate(json("{\"sets\":[{\"won\":3000000000,\"lost\":4}]}")))
+                .contains("entre 0 et 7"));
+    }
+
+    @Test
+    void text_predicates_validate_with_the_parser_the_plugin_will_use() throws Exception {
+        MetricsSchema schema = MetricsSchema.object().text("grade", g -> g.equals("6a"), "une cotation");
+        assertDoesNotThrow(() -> schema.validate(json("{\"grade\":\"6a\"}")));
+        assertTrue(detail(() -> schema.validate(json("{\"grade\":\"6\"}"))).contains("une cotation"));
+    }
+
     @Test
     void patterns_explain_what_a_valid_value_looks_like() throws Exception {
         String detail = detail(() -> MATCH.validate(json("{\"venue\":\"paris\"}")));

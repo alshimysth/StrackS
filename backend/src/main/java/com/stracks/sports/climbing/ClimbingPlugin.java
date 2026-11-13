@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -40,9 +39,11 @@ abstract class ClimbingPlugin extends TimerSportPlugin {
     static final int MAX_CLIMBS = 200;
     static final int MAX_ATTEMPTS = 100;
 
-    /** Grade pattern of the discipline, and the matching parser. */
-    protected abstract Pattern gradePattern();
-
+    /**
+     * Grade parser of the discipline. It is also what validates a reported grade: a grade
+     * the schema accepts must be one {@link #derive} can rank, otherwise a send could be
+     * counted without ever becoming the hardest one.
+     */
     protected abstract Function<String, Optional<FrenchGrade>> gradeParser();
 
     /** Label of a grade in the discipline's notation. */
@@ -65,7 +66,7 @@ abstract class ClimbingPlugin extends TimerSportPlugin {
             List<String> results = new java.util.ArrayList<>(sendResults());
             results.add("attempt");
             MetricsSchema climb = MetricsSchema.object()
-                    .pattern("grade", gradePattern(), gradeHint())
+                    .text("grade", text -> gradeParser().apply(text).isPresent(), gradeHint())
                     .enumeration("result", results.toArray(String[]::new))
                     .integer("attempts", 1, MAX_ATTEMPTS)
                     .required("grade", "result");

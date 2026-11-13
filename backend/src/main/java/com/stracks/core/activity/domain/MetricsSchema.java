@@ -7,6 +7,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -72,6 +73,11 @@ public final class MetricsSchema {
             if (!v.isIntegralNumber()) {
                 throw invalid(path + " doit être un entier.");
             }
+            // A BigInteger beyond the long range would silently narrow (asLong() of
+            // 2^64 + 1 is 1) and slip under the bounds: refuse it before converting.
+            if (!v.canConvertToInt()) {
+                throw invalid(path + " doit être compris entre " + min + " et " + max + ".");
+            }
             long l = v.asLong();
             if (l < min || l > max) {
                 throw invalid(path + " doit être compris entre " + min + " et " + max + ".");
@@ -93,8 +99,16 @@ public final class MetricsSchema {
 
     /** A string matching a pattern; {@code hint} says what a valid value looks like. */
     public MetricsSchema pattern(String key, Pattern pattern, String hint) {
+        return text(key, value -> pattern.matcher(value).matches(), hint);
+    }
+
+    /**
+     * A string accepted by a predicate, typically the parser the plugin will use on it:
+     * what the schema lets in, the plugin must be able to read.
+     */
+    public MetricsSchema text(String key, Predicate<String> accepts, String hint) {
         fields.put(key, (v, path) -> {
-            if (!v.isTextual() || !pattern.matcher(v.asText()).matches()) {
+            if (!v.isTextual() || !accepts.test(v.asText())) {
                 throw invalid(path + " doit être " + hint + ".");
             }
         });

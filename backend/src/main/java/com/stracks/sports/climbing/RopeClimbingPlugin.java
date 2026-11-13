@@ -3,7 +3,6 @@ package com.stracks.sports.climbing;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 
 import com.stracks.core.activity.domain.SportTypeDescriptor;
 import com.stracks.core.activity.domain.TrackingMode;
@@ -23,11 +22,6 @@ public class RopeClimbingPlugin extends ClimbingPlugin {
     @Override
     public SportTypeDescriptor descriptor() {
         return new SportTypeDescriptor("rope_climbing", "Voie", FAMILY, TrackingMode.TIMER, SCHEMA_VERSION);
-    }
-
-    @Override
-    protected Pattern gradePattern() {
-        return FrenchGrade.ROUTE;
     }
 
     @Override

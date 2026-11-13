@@ -67,9 +67,10 @@ export async function loadSession(): Promise<BufferedSession | null> {
 export async function updatePauseState(
   pausedTotalS: number,
   pausedAtMs: number | null,
+  lastActiveMs?: number,
 ): Promise<void> {
   if (session != null) {
-    session = { ...session, pausedTotalS, pausedAtMs };
+    session = { ...session, pausedTotalS, pausedAtMs, ...(lastActiveMs != null ? { lastActiveMs } : {}) };
   }
 }
 

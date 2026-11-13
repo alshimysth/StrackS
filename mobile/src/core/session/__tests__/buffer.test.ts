@@ -70,6 +70,17 @@ describe.each(implementations)('buffer contract: %s', (_label, buffer) => {
       expect(loaded?.draft).toEqual({ location: 'indoor', climbs: [{ grade: '6A', result: 'flash', attempts: 1 }] });
     });
 
+    it('writes the resume instant with the pause state when asked', async () => {
+      await buffer.saveSession({ ...session, pausedAtMs: T0 + 10_000, lastActiveMs: T0 });
+      await buffer.updatePauseState(30, null, T0 + 40_000);
+      expect(await buffer.loadSession()).toEqual({
+        ...session,
+        pausedTotalS: 30,
+        pausedAtMs: null,
+        lastActiveMs: T0 + 40_000,
+      });
+    });
+
     it('records the last-active checkpoint alone', async () => {
       await buffer.saveSession({ ...session, lastActiveMs: T0 });
       await buffer.updateLastActive(T0 + 30_000);

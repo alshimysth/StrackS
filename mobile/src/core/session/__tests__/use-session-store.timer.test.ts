@@ -71,6 +71,10 @@ beforeEach(() => {
   jest.resetModules();
   jest.useFakeTimers();
   jest.setSystemTime(T0);
+  // A kill test re-points '../buffer' at its own instance with doMock, and that
+  // registration survives resetModules: without this, the next test's store would write
+  // to the previous test's buffer while the test reads a fresh one.
+  jest.doMock('../buffer', () => require('../buffer.web'));
   useSessionStore = require('../use-session-store').useSessionStore;
   api = require('../../api/activities');
   gps = require('../../gps');
@@ -174,6 +178,28 @@ describe('a timed session', () => {
     // timer stopped at the last checkpoint, 60 s after the start.
     expect(state.live.elapsedS).toBe(60);
     expect(gps.startGpsWatch).not.toHaveBeenCalled();
+  });
+
+  /**
+   * PR #100 review: killed right after a resume, before the next checkpoint. The pause
+   * must be bounded at the resume instant, or the paused time would be subtracted twice
+   * (checkpoint before the pause minus the full pause → zero effort).
+   */
+  it('recovers the effort time when killed right after a resume', async () => {
+    await useSessionStore.getState().start(BOULDERING);
+    await advance(600_000); // 10 min of effort, checkpoint at 600 s
+    await useSessionStore.getState().pause();
+    await advance(3_600_000); // an hour of pause
+    await useSessionStore.getState().resume();
+    await advance(500); // killed before the first tick after the resume
+
+    jest.resetModules();
+    jest.doMock('../buffer', () => buffer);
+    const fresh: Store = require('../use-session-store').useSessionStore;
+    jest.setSystemTime(Date.now() + 1_800_000);
+
+    expect(await fresh.getState().recover()).toBe(true);
+    expect(fresh.getState().live.elapsedS).toBe(600);
   });
 
   it('ignores a draft for a GPS session', async () => {

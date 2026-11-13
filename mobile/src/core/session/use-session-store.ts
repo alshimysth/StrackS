@@ -256,12 +256,13 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
       watch?.remove(); // closed (or abandoned) while the GPS was being obtained
       return;
     }
+    const resumedAtMs = Date.now();
     const nextPausedTotalS =
-      pausedAtMs == null
-        ? pausedTotalS
-        : pausedTotalS + Math.round((Date.now() - pausedAtMs) / 1000);
+      pausedAtMs == null ? pausedTotalS : pausedTotalS + Math.round((resumedAtMs - pausedAtMs) / 1000);
     try {
-      await updatePauseState(nextPausedTotalS, null);
+      // The resume instant is also the checkpoint: a kill before the next tick must be
+      // bounded here, not at a checkpoint older than the pause.
+      await updatePauseState(nextPausedTotalS, null, resumedAtMs);
     } catch (error) {
       // Buffer unavailable: the resume isn't persisted, so it doesn't happen.
       watch?.remove();

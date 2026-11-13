@@ -156,11 +156,30 @@ function parseDraft(json: string | null): unknown {
   }
 }
 
-export async function updatePauseState(pausedTotalS: number, pausedAtMs: number | null): Promise<void> {
+/**
+ * @param lastActiveMs when given (a resume), written in the same statement: the resume
+ *        instant bounds a kill that would follow before the next checkpoint, otherwise the
+ *        recovery would bound the pause at a checkpoint older than the pause and subtract
+ *        the paused time twice (PR #100 review).
+ */
+export async function updatePauseState(
+  pausedTotalS: number,
+  pausedAtMs: number | null,
+  lastActiveMs?: number,
+): Promise<void> {
+  if (lastActiveMs == null) {
+    await (await db()).runAsync(
+      'UPDATE session SET paused_total_s = ?, paused_at_ms = ? WHERE id = 1',
+      pausedTotalS,
+      pausedAtMs,
+    );
+    return;
+  }
   await (await db()).runAsync(
-    'UPDATE session SET paused_total_s = ?, paused_at_ms = ? WHERE id = 1',
+    'UPDATE session SET paused_total_s = ?, paused_at_ms = ?, last_active_ms = ? WHERE id = 1',
     pausedTotalS,
     pausedAtMs,
+    lastActiveMs,
   );
 }
 

@@ -7,6 +7,7 @@ depuis SportTracker le 2026-07-17 — seuls les documents historiques gardent l'
 |---|---|---|
 | `backend/` | Java 25 / Quarkus 3.37 / PostgreSQL (JSONB) / Flyway | — (ce fichier fait foi) |
 | `mobile/` | Expo SDK 57 / React Native 0.86 (Expo Router) | `mobile/CLAUDE.md` → `AGENTS.md` |
+| `docs/` | `ARCHITECTURE.md` (couches, contrat plugin, ajouter un sport), runbook, store, juridique | — |
 | `deploy/` | docker-compose.prod.yml + `.env.example` pour le VPS | — (ce fichier fait foi) |
 | `StrackDoc/` | Vault Obsidian, gitignoré, contexte projet approfondi | `StrackDoc/CLAUDE.md` |
 
@@ -16,9 +17,15 @@ vault. Ne pas dupliquer ce contenu ici.
 
 ## Backend — conventions
 
-- **Pattern plugin** : `core/` ne connaît aucun sport ; `sports/*` (running, walking) dépend
-  de `core/`, jamais l'inverse, jamais d'un autre sport. Ajouter un sport = ajouter un package
-  sous `sports/`, zéro fichier de `core/` modifié.
+- **Clean architecture** sur le contexte activité : `core/activity/{domain,application,api,
+  infrastructure}`. Les dépendances pointent vers l'intérieur (api → application → domain ;
+  infrastructure implémente les ports de l'application). Détail et contrat plugin v2 dans
+  `docs/ARCHITECTURE.md`.
+- **Pattern plugin** : `core/` ne connaît aucun sport ; `sports/<famille>/` dépend de `core/`,
+  jamais l'inverse, jamais d'une autre famille (un package = une famille, les sports d'une
+  même famille peuvent partager du code). Ajouter un sport = une classe `@ApplicationScoped`
+  qui étend `GpsSportPlugin` ou `TimerSportPlugin`, zéro fichier de `core/` modifié.
+  Familles actuelles : running, walking, cycling, climbing, racket (14 sports).
 - **Modèle de données** : une seule table `activities` (champs communs + `metrics` JSONB
   propre à chaque sport, `schemaVersion`, lecture tolérante — jamais de migration SQL par
   sport) ; `track_points` en table dédiée pour les traces GPS.

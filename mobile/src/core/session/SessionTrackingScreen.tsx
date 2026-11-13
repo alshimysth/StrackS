@@ -16,7 +16,7 @@ import { useSessionStore } from './use-session-store';
 import type { LiveMetric, SessionState } from './types';
 import { Button } from '../../design-system/components/Button';
 import { HoldToFinish } from '../../design-system/components/HoldToFinish';
-import { SportBadge } from '../../design-system/components/SportBadge';
+import { SportBadge, type SportAppearance } from '../../design-system/components/SportBadge';
 import { Icon } from '../../design-system/components/Icon';
 import { StatCard } from '../../design-system/components/StatCard';
 import { darkTheme, radius, spacing, typography } from '../../design-system/theme';
@@ -25,6 +25,8 @@ import { LiveMap } from '../map/LiveMap';
 
 interface Props {
   sportCode: string;
+  /** Badge colours declared by the sport module; absent = theme table. */
+  appearance?: SportAppearance;
   hero: (session: SessionState) => LiveMetric;
   grid: (session: SessionState) => LiveMetric[];
 }
@@ -33,7 +35,7 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Erreur inattendue.';
 }
 
-export function SessionTrackingScreen({ sportCode, hero, grid }: Props) {
+export function SessionTrackingScreen({ sportCode, appearance, hero, grid }: Props) {
   useKeepAwake();
   const router = useRouter();
   const status = useSessionStore((s) => s.status);
@@ -90,7 +92,7 @@ export function SessionTrackingScreen({ sportCode, hero, grid }: Props) {
         <StatusBar style="light" />
         <View style={styles.screen}>
           <View style={styles.header}>
-            <SportBadge sport={sportCode} variant="outline" />
+            <SportBadge sport={sportCode} appearance={appearance} variant="outline" />
             <View
               style={styles.gps}
               accessible

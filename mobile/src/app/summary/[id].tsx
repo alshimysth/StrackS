@@ -13,6 +13,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActivityDetailBody } from '../../core/activity/ActivityDetailBody';
+import { sportAppearance } from '../../core/activity/sport-presentation';
 import { activityTitle, derivedTitle, sportLabel } from '../../core/activity/title';
 import { api } from '../../core/api/client';
 import { useActivity, useUpdateActivity } from '../../core/api/use-activity';
@@ -196,7 +197,7 @@ export default function SummaryScreen() {
               )
             )}
 
-            <SportBadge sport={activity.sportType} />
+            <SportBadge sport={activity.sportType} appearance={sportAppearance(activity.sportType)} />
             <Text testID="activity-title" style={[typography.h3, { color: theme.textPrimary }]}>
               {activityTitle(activity)}
             </Text>

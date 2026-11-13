@@ -1,12 +1,21 @@
 /**
  * Session engine (Epic 3), state machine idle → starting → active ⇄ paused → stopping.
- * Orchestration: GPS → SQLite buffer (crash-proof) → live accumulator → batched upload.
+ *
+ * The engine is sport-agnostic. What it always does: create the activity on the server,
+ * persist the session in the SQLite buffer (crash-proof), run the timer, pause/resume,
+ * and close the session with the locally measured duration. What depends on the
+ * **tracking mode** of the sport:
+ *  - `gps`: GPS fixes → buffer → live accumulator → batched upload; the track must be
+ *    fully uploaded before the stop, since the server recomputes the metrics from it;
+ *  - `timer`: no GPS at all; the sport module keeps a **draft** (routes, sets, machine
+ *    readings) that the engine persists in the buffer and that the module turns into the
+ *    `metrics` sent at stop.
+ *
  * DoD: network down for the whole session → full upload when it returns; app killed →
- * session recovered through recover().
+ * session recovered through recover(), draft included.
  *
  * Server-side pause/resume are best effort (offline tolerated): stop reconciles everything
- * through the locally measured durationS, and the server recomputes the metrics from the
- * raw track.
+ * through the locally measured durationS.
  */
 import { create } from 'zustand';
 
@@ -16,7 +25,10 @@ import {
   clearBuffer,
   loadSession,
   saveSession,
+  updateDraft,
+  updateLastActive,
   updatePauseState,
+  type BufferedTrackingMode,
 } from './buffer';
 import { GpsAccumulator, SIGNAL_LOST_MS, type LatLng } from './metrics';
 import { ZERO_SESSION_STATE, type SessionState } from './types';
@@ -41,17 +53,42 @@ import {
 
 export type SessionStatus = 'idle' | 'starting' | 'active' | 'paused' | 'stopping';
 
+/** What the engine needs to know about the sport being started: nothing more. */
+export interface SessionSportSpec {
+  sportType: string;
+  trackingMode: BufferedTrackingMode;
+  /** Required for a GPS sport (mirror of the backend's plausibility ceiling). */
+  maxGpsSpeedKmh?: number;
+  /** Timer sports: the draft the session starts with. */
+  initialDraft?: unknown;
+}
+
+export interface StopOptions {
+  /** Timer sports: the module's report, built from the draft. */
+  metrics?: Record<string, unknown>;
+}
+
 const TICK_MS = 1000;
 const FLUSH_MS = 10_000;
 /** Without an accepted fix for this long, the displayed speed drops back to zero. */
 const SPEED_STALE_MS = 5000;
+/**
+ * How often the buffer learns the session is still running. After a kill, the time since
+ * the last checkpoint is the most that can be wrongly counted as effort (#timer recovery).
+ */
+const CHECKPOINT_MS = 10_000;
+/** A GPS sport without a declared ceiling falls back to the running one. */
+const DEFAULT_MAX_SPEED_KMH = 25;
 
 interface SessionStore {
   status: SessionStatus;
   activityId: string | null;
   sportType: string | null;
+  trackingMode: BufferedTrackingMode | null;
   live: SessionState;
   path: LatLng[];
+  /** Sport draft of a timed session; `null` for a GPS sport or outside a session. */
+  draft: unknown;
   /** Accuracy of the last received fix (GPS signal indicator); null before the first. */
   gpsAccuracyM: number | null;
   /**
@@ -66,11 +103,13 @@ interface SessionStore {
   backgroundTracking: boolean;
 
   /** @param gpsMode preference #36; `balanced` = historical settings */
-  start(sportType: string, maxGpsSpeedKmh: number, gpsMode?: GpsMode): Promise<void>;
+  start(sport: SessionSportSpec, gpsMode?: GpsMode): Promise<void>;
   pause(): Promise<void>;
   resume(): Promise<void>;
+  /** Replaces the draft of a timed session and persists it. */
+  setDraft(draft: unknown): Promise<void>;
   /** Final flush + server stop. Resolves with the completed activity (server metrics). */
-  stop(): Promise<import('../../types/api').Activity>;
+  stop(options?: StopOptions): Promise<import('../../types/api').Activity>;
   /** Reloads an orphan session from the buffer (app killed). @returns true if recovered. */
   recover(): Promise<boolean>;
 }
@@ -85,6 +124,7 @@ let seq = 0;
 let startedAtMs = 0;
 let pausedTotalS = 0;
 let pausedAtMs: number | null = null;
+let trackingMode: BufferedTrackingMode = 'gps';
 /**
  * GPS mode of the current session (#36), reused on resume. Persisted in the buffer: a
  * session recovered after a kill resumes with its own settings (PR #80 review).
@@ -93,9 +133,18 @@ let gpsMode: GpsMode = 'balanced';
 /** Resume in progress: concurrent `resume()` calls share the same promise. */
 let resuming: Promise<void> | null = null;
 
+function isGps(): boolean {
+  return trackingMode === 'gps';
+}
+
 function elapsedS(now = Date.now()): number {
   const end = pausedAtMs ?? now;
   return Math.max(0, Math.round((end - startedAtMs) / 1000) - pausedTotalS);
+}
+
+/** Live snapshot: the accumulator's for a GPS sport, the timer alone otherwise. */
+function snapshot(): SessionState {
+  return acc != null ? acc.snapshot(elapsedS()) : { ...ZERO_SESSION_STATE, elapsedS: elapsedS() };
 }
 
 /**
@@ -116,7 +165,9 @@ function stopEngine(): void {
   gpsSub = null;
   // Otherwise the background task would outlive the session and keep writing to the
   // buffer, with an orphan persistent notification on Android.
-  void stopBackgroundUpdates();
+  if (isGps()) {
+    void stopBackgroundUpdates();
+  }
   if (tickTimer != null) {
     clearInterval(tickTimer);
     tickTimer = null;
@@ -145,26 +196,38 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
   }
 
   function startTimers(): void {
+    let lastCheckpointMs = Date.now();
     tickTimer = setInterval(() => {
-      if (get().status !== 'active' || acc == null) {
+      if (get().status !== 'active') {
+        return;
+      }
+      const now = Date.now();
+      if (now - lastCheckpointMs >= CHECKPOINT_MS) {
+        lastCheckpointMs = now;
+        void updateLastActive(now).catch(() => {});
+      }
+      if (acc == null) {
+        set({ live: snapshot() });
         return;
       }
       const sinceLastFixMs = acc.lastAcceptedMs == null ? null : Date.now() - acc.lastAcceptedMs;
       const stale = sinceLastFixMs == null || sinceLastFixMs > SPEED_STALE_MS;
-      const snapshot = acc.snapshot(elapsedS());
+      const live = acc.snapshot(elapsedS());
       // Signal loss is detected here rather than when a fix arrives: by definition, when
       // the signal is lost nothing arrives to listen to.
       set({
-        live: stale ? { ...snapshot, smoothedSpeedMs: 0 } : snapshot,
+        live: stale ? { ...live, smoothedSpeedMs: 0 } : live,
         signalLost: sinceLastFixMs != null && sinceLastFixMs >= SIGNAL_LOST_MS,
       });
     }, TICK_MS);
-    flushTimer = setInterval(() => {
-      const { status, activityId } = get();
-      if (status === 'active' && activityId != null) {
-        void flushTrackPoints(activityId).catch(() => {});
-      }
-    }, FLUSH_MS);
+    if (isGps()) {
+      flushTimer = setInterval(() => {
+        const { status, activityId } = get();
+        if (status === 'active' && activityId != null) {
+          void flushTrackPoints(activityId).catch(() => {});
+        }
+      }, FLUSH_MS);
+    }
   }
 
   /**
@@ -186,27 +249,28 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
      * as is.
      *
      * Until the watch is obtained, nothing moves: neither `pausedAtMs`, nor
-     * `pausedTotalS`, nor the buffer.
+     * `pausedTotalS`, nor the buffer. A timed sport has no watch to obtain.
      */
-    const watch = await startGpsWatch(handleFix, gpsMode);
+    const watch = isGps() ? await startGpsWatch(handleFix, gpsMode) : null;
     if (!stillPaused()) {
-      watch.remove(); // closed (or abandoned) while the GPS was being obtained
+      watch?.remove(); // closed (or abandoned) while the GPS was being obtained
       return;
     }
+    const resumedAtMs = Date.now();
     const nextPausedTotalS =
-      pausedAtMs == null
-        ? pausedTotalS
-        : pausedTotalS + Math.round((Date.now() - pausedAtMs) / 1000);
+      pausedAtMs == null ? pausedTotalS : pausedTotalS + Math.round((resumedAtMs - pausedAtMs) / 1000);
     try {
-      await updatePauseState(nextPausedTotalS, null);
+      // The resume instant is also the checkpoint: a kill before the next tick must be
+      // bounded here, not at a checkpoint older than the pause.
+      await updatePauseState(nextPausedTotalS, null, resumedAtMs);
     } catch (error) {
       // Buffer unavailable: the resume isn't persisted, so it doesn't happen.
-      watch.remove();
+      watch?.remove();
       throw error;
     }
     if (!stillPaused()) {
       // stop() completed during the write: it already purged the buffer, nothing to undo.
-      watch.remove();
+      watch?.remove();
       return;
     }
     gpsSub = watch;
@@ -226,12 +290,15 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
     pausedTotalS = 0;
     pausedAtMs = null;
     gpsMode = 'balanced';
+    trackingMode = 'gps';
     set({
       status: 'idle',
       activityId: null,
       sportType: null,
+      trackingMode: null,
       live: { ...ZERO_SESSION_STATE },
       path: [],
+      draft: null,
       gpsAccuracyM: null,
       signalLost: false,
       backgroundTracking: false,
@@ -242,53 +309,65 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
     status: 'idle',
     activityId: null,
     sportType: null,
+    trackingMode: null,
     live: { ...ZERO_SESSION_STATE },
     path: [],
+    draft: null,
     gpsAccuracyM: null,
     signalLost: false,
     backgroundTracking: false,
 
-    async start(sportType, maxGpsSpeedKmh, mode = 'balanced') {
+    async start(sport, mode = 'balanced') {
       if (get().status !== 'idle') {
         throw new Error('Une séance est déjà en cours.');
       }
       set({ status: 'starting' });
       let created: string | null = null;
       try {
-        const activity = await startActivity(sportType);
+        const activity = await startActivity(sport.sportType);
         created = activity.id;
         startedAtMs = Date.parse(activity.startedAt);
         pausedTotalS = 0;
         pausedAtMs = null;
         seq = 0;
-        acc = new GpsAccumulator(maxGpsSpeedKmh);
+        trackingMode = sport.trackingMode;
+        const maxSpeedKmh = sport.maxGpsSpeedKmh ?? DEFAULT_MAX_SPEED_KMH;
+        acc = isGps() ? new GpsAccumulator(maxSpeedKmh) : null;
+        const draft = isGps() ? undefined : (sport.initialDraft ?? null);
         await clearBuffer();
         gpsMode = mode;
         await saveSession({
           activityId: activity.id,
-          sportType,
+          sportType: sport.sportType,
           startedAtMs,
-          maxSpeedKmh: maxGpsSpeedKmh,
+          maxSpeedKmh,
           pausedTotalS: 0,
           pausedAtMs: null,
           gpsMode,
+          trackingMode,
+          ...(draft !== undefined ? { draft } : {}),
+          lastActiveMs: startedAtMs,
         });
-        gpsSub = await startGpsWatch(handleFix, gpsMode);
-        // Requested AFTER the start, never at app launch: out of context, iOS flatly
-        // refuses it. A denial doesn't interrupt the session: we stay in the foreground,
-        // which the tracking screen reports (degradation, not failure).
-        const background = await startBackgroundUpdates(gpsMode).catch(() => false);
-        set({ backgroundTracking: background });
+        let background = false;
+        if (isGps()) {
+          gpsSub = await startGpsWatch(handleFix, gpsMode);
+          // Requested AFTER the start, never at app launch: out of context, iOS flatly
+          // refuses it. A denial doesn't interrupt the session: we stay in the foreground,
+          // which the tracking screen reports (degradation, not failure).
+          background = await startBackgroundUpdates(gpsMode).catch(() => false);
+        }
         startTimers();
         set({
           status: 'active',
           activityId: activity.id,
-          sportType,
+          sportType: sport.sportType,
+          trackingMode,
           live: { ...ZERO_SESSION_STATE },
           path: [],
+          draft: draft ?? null,
           gpsAccuracyM: null,
           signalLost: false,
-          backgroundTracking: false,
+          backgroundTracking: background,
         });
       } catch (error) {
         // GPS denied or buffer unavailable: cancel the created activity
@@ -330,7 +409,18 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
       return resuming;
     },
 
-    async stop() {
+    async setDraft(draft) {
+      const { status } = get();
+      if (status === 'idle' || status === 'stopping' || isGps()) {
+        return;
+      }
+      // Published first, persisted second: the screen must follow the tap at once, and a
+      // buffer failure only costs the recovery of this edit after a kill, not the edit.
+      set({ draft });
+      await updateDraft(draft);
+    },
+
+    async stop(options = {}) {
       const { status, activityId } = get();
       if (activityId == null || status === 'idle' || status === 'stopping') {
         throw new Error('Aucune séance en cours.');
@@ -341,13 +431,16 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
       const durationS = elapsedS(endMs);
       let activity: import('../../types/api').Activity;
       try {
-        const flushed = await flushTrackPoints(activityId);
-        if (!flushed) {
-          throw new Error('Tracé GPS pas encore envoyé — vérifie ta connexion puis réessaie.');
+        if (isGps()) {
+          const flushed = await flushTrackPoints(activityId);
+          if (!flushed) {
+            throw new Error('Tracé GPS pas encore envoyé — vérifie ta connexion puis réessaie.');
+          }
         }
         activity = await stopActivity(activityId, {
           endedAt: new Date(endMs).toISOString(),
           durationS,
+          ...(options.metrics != null ? { metrics: options.metrics } : {}),
         });
       } catch (error) {
         if (error instanceof ApiError && error.status === 404) {
@@ -393,28 +486,37 @@ export const useSessionStore = create<SessionStore>()((set, get) => {
       if (session == null) {
         return false;
       }
-      const points = await allPoints();
       startedAtMs = session.startedAtMs;
       pausedTotalS = session.pausedTotalS;
       gpsMode = session.gpsMode ?? 'balanced';
-      acc = new GpsAccumulator(session.maxSpeedKmh);
-      for (const p of points) {
-        acc.add(p);
+      // A session written before timed sports existed can only be a GPS one.
+      trackingMode = session.trackingMode ?? 'gps';
+      const points = isGps() ? await allPoints() : [];
+      if (isGps()) {
+        acc = new GpsAccumulator(session.maxSpeedKmh);
+        for (const p of points) {
+          acc.add(p);
+        }
       }
       seq = points.length > 0 ? points[points.length - 1].seq + 1 : 0;
-      // App killed mid-session: the dead time counts as a pause, bounded by the last
-      // known point.
-      pausedAtMs =
-        session.pausedAtMs ??
-        (points.length > 0 ? points[points.length - 1].recordedAtMs : Date.now());
+      // App killed mid-session: the dead time counts as a pause, bounded by the latest
+      // sign of life (last GPS point or last checkpoint, whichever is later). A session
+      // written before checkpoints existed and without a point can only be bounded by now.
+      const lastPointMs = points.length > 0 ? points[points.length - 1].recordedAtMs : null;
+      const lastSeenMs = [lastPointMs, session.lastActiveMs ?? null]
+          .filter((ms): ms is number => ms != null)
+          .reduce<number | null>((latest, ms) => (latest == null || ms > latest ? ms : latest), null);
+      pausedAtMs = session.pausedAtMs ?? lastSeenMs ?? Date.now();
       await updatePauseState(pausedTotalS, pausedAtMs);
       startTimers();
       set({
         status: 'paused',
         activityId: session.activityId,
         sportType: session.sportType,
-        live: acc.snapshot(elapsedS()),
-        path: [...acc.path],
+        trackingMode,
+        live: snapshot(),
+        path: acc != null ? [...acc.path] : [],
+        draft: isGps() ? null : (session.draft ?? null),
         gpsAccuracyM: null,
         signalLost: false,
         backgroundTracking: false,

@@ -2,11 +2,16 @@
  * Home: starting a session. The list of sports comes from the BACKEND (GET /sport-types)
  * matched against the local registry: never a hard-coded list. The Démarrer button opens
  * the tracking route, which runs the countdown then starts the session.
+ *
+ * With fourteen sports a flat list of cards no longer scales (#12): the screen shows a
+ * row of **families** (course, vélo, escalade…) and the cards of the chosen family. The
+ * preferred sport (#34) still wins: its family opens first, and it's preselected.
  */
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { groupByFamily, sportAppearance } from '../../core/activity/sport-presentation';
 import { useSportTypes } from '../../core/api/use-sport-types';
 import { usePreferences } from '../../core/preferences/use-preferences';
 import { initialSelection, orderSports } from '../../core/preferences/sport-order';
@@ -17,13 +22,14 @@ import { GoalProgressCard } from '../../design-system/components/GoalProgressCar
 import { useAuthStore } from '../../core/auth/use-auth-store';
 import { useSessionStore } from '../../core/session/use-session-store';
 import { Button } from '../../design-system/components/Button';
+import { FilterChips } from '../../design-system/components/FilterChips';
 import { Icon } from '../../design-system/components/Icon';
 import { ErrorState } from '../../design-system/components/ErrorState';
 import { LoadingState } from '../../design-system/components/LoadingState';
 import { SportBadge } from '../../design-system/components/SportBadge';
 import { colors, radius, shadows, spacing, typography } from '../../design-system/theme';
 import { useTheme } from '../../design-system/use-theme';
-import { sportRegistry } from '../../sports/registry';
+import { sportCatalog } from '../../sports/catalog';
 import { SafeScreen } from '../../design-system/components/SafeScreen';
 
 export default function HomeScreen() {
@@ -43,11 +49,13 @@ export default function HomeScreen() {
    * "Démarrer", then doing nothing on tap: a dead end.
    */
   const sports = React.useMemo(
-    () => orderSports((sportTypes.data ?? []).filter((s) => sportRegistry[s.code] != null), defaultSport),
+    () => orderSports((sportTypes.data ?? []).filter((s) => sportCatalog[s.code] != null), defaultSport),
     [sportTypes.data, defaultSport],
   );
+  const families = React.useMemo(() => groupByFamily(sports), [sports]);
 
   const [selected, setSelected] = React.useState<string | null>(null);
+  const [family, setFamily] = React.useState<string | null>(null);
   const [touched, setTouched] = React.useState(false);
 
   // Preselection as soon as sports and preferences are known, but never after an explicit
@@ -55,13 +63,27 @@ export default function HomeScreen() {
   // refresh.
   React.useEffect(() => {
     if (!touched) {
-      setSelected(initialSelection(sports, defaultSport));
+      const initial = initialSelection(sports, defaultSport);
+      setSelected(initial);
+      setFamily(
+        initial != null
+          ? (families.find((f) => f.sports.some((s) => s.code === initial))?.code ?? null)
+          : (families[0]?.code ?? null),
+      );
     }
-  }, [sports, defaultSport, touched]);
+  }, [sports, families, defaultSport, touched]);
 
   const choose = (code: string) => {
     setTouched(true);
     setSelected(code);
+  };
+
+  const chooseFamily = (code: string) => {
+    setTouched(true);
+    setFamily(code);
+    // One sport in the family: it's the choice. Several: the user picks a card.
+    const group = families.find((f) => f.code === code);
+    setSelected(group != null && group.sports.length === 1 ? group.sports[0].code : null);
   };
 
   /**
@@ -76,12 +98,14 @@ export default function HomeScreen() {
    * the end of the countdown.
    */
   const handleStart = () => {
-    const module = selected != null ? sportRegistry[selected] : undefined;
-    if (module == null) {
+    const entry = selected != null ? sportCatalog[selected] : undefined;
+    if (entry == null) {
       return;
     }
-    router.push({ pathname: '/tracking', params: { sport: module.code } });
+    router.push({ pathname: '/tracking', params: { sport: entry.code } });
   };
+
+  const visibleSports = families.find((f) => f.code === family)?.sports ?? [];
 
   return (
     <SafeScreen edges={['top']}>
@@ -103,9 +127,21 @@ export default function HomeScreen() {
           <ErrorState error={sportTypes.error} onRetry={() => void sportTypes.refetch()} />
         )}
 
+        {families.length > 1 && family != null && (
+          <View style={styles.families} testID="sport-families">
+            <FilterChips
+              options={families.map((f) => ({ value: f.code, label: f.label }))}
+              value={family}
+              onChange={chooseFamily}
+              accessibilityLabel="Choisir une famille de sports"
+            />
+          </View>
+        )}
+
         <View style={styles.sportList}>
-          {sports.map((sport) => {
+          {visibleSports.map((sport) => {
             const isSelected = selected === sport.code;
+            const module = sportCatalog[sport.code];
             return (
               <Pressable
                 key={sport.code}
@@ -126,17 +162,17 @@ export default function HomeScreen() {
                 testID={`sport-${sport.code}`}
               >
                 <View style={styles.sportHeader}>
-                  {sportRegistry[sport.code]?.icon != null && (
+                  {module?.icon != null && (
                     <Icon
-                      name={sportRegistry[sport.code]?.icon ?? 'state-empty'}
+                      name={module.icon}
                       color={isSelected ? colors.primary500 : theme.textSecondary}
                     />
                   )}
-                  <SportBadge sport={sport.code} />
+                  <SportBadge sport={sport.code} appearance={sportAppearance(sport.code)} />
                 </View>
                 <Text style={[typography.h3, { color: theme.textPrimary }]}>{sport.label}</Text>
                 <Text style={[typography.caption, { color: theme.textSecondary }]}>
-                  {sport.usesGps ? 'GPS · carte · allure' : 'Saisie manuelle'}
+                  {module?.tagline ?? (sport.usesGps ? 'GPS · carte' : 'Chrono')}
                 </Text>
               </Pressable>
             );
@@ -208,7 +244,8 @@ function WeeklyGoal() {
 const styles = StyleSheet.create({
   goals: { gap: spacing.md, marginTop: spacing.base },
   container: { padding: spacing.layoutGutter, gap: spacing.sm },
-  sportList: { gap: spacing.md, marginTop: spacing.lg },
+  families: { marginTop: spacing.lg },
+  sportList: { gap: spacing.md, marginTop: spacing.md },
   sportHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   sportCard: {
     borderWidth: 2,

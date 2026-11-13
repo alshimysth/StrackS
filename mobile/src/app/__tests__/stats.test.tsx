@@ -35,6 +35,7 @@ function summary(overrides: Partial<StatsSummary> = {}): StatsSummary {
         label: 'Course à pied',
         sessions: 18,
         totalDurationS: 41_400,
+        calories: 0,
         totals: { distanceM: 107_500, elevationGainM: 980 },
       },
       {
@@ -42,13 +43,15 @@ function summary(overrides: Partial<StatsSummary> = {}): StatsSummary {
         label: 'Marche',
         sessions: 8,
         totalDurationS: 8_040,
+        calories: 0,
         totals: { distanceM: 30_300, elevationGainM: 304 },
       },
     ],
     totalSessions: 26,
     totalDurationS: 49_440,
+    totalCalories: 0,
     totals: { distanceM: 137_800, elevationGainM: 1284 },
-    previous: { sessions: 23, durationS: 41_200, totals: { distanceM: 123_000 } },
+    previous: { sessions: 23, durationS: 41_200, calories: 0, totals: { distanceM: 123_000 } },
     ...overrides,
   };
 }
@@ -80,8 +83,8 @@ function timeline(overrides: Partial<StatsTimeline> = {}): StatsTimeline {
 }
 
 const SPORTS: SportTypeDescriptor[] = [
-  { code: 'running', label: 'Course à pied', usesGps: true, schemaVersion: 1 },
-  { code: 'walking', label: 'Marche', usesGps: true, schemaVersion: 1 },
+  { code: 'running', label: 'Course à pied', family: { code: 'running', label: 'Course à pied' }, trackingMode: 'GPS', usesGps: true, schemaVersion: 1 },
+  { code: 'walking', label: 'Marche', family: { code: 'walking', label: 'Marche' }, trackingMode: 'GPS', usesGps: true, schemaVersion: 1 },
 ];
 
 /** Routes by URL: the screen makes three calls (sports, summary and bucketing). */
@@ -148,7 +151,7 @@ describe('Statistics: DoD #24', () => {
    * forbids showing a made-up number.
    */
   it('shows no trend when the previous period is empty', async () => {
-    respondOk(summary({ previous: { sessions: 0, durationS: 0, totals: {} } }));
+    respondOk(summary({ previous: { sessions: 0, durationS: 0, calories: 0, totals: {} } }));
     await renderScreen();
 
     await waitFor(() => expect(screen.getByText('137,80')).toBeOnTheScreen());
@@ -185,13 +188,15 @@ describe('Statistics: DoD #24', () => {
             label: 'Musculation',
             sessions: 4,
             totalDurationS: 7200,
+            calories: 0,
             totals: {},
           },
         ],
         totalSessions: 4,
         totalDurationS: 7200,
+        totalCalories: 0,
         totals: {},
-        previous: { sessions: 2, durationS: 3600, totals: {} },
+        previous: { sessions: 2, durationS: 3600, calories: 0, totals: {} },
       }),
       timeline({ buckets: [] }),
     );
@@ -204,7 +209,11 @@ describe('Statistics: DoD #24', () => {
     expect(screen.queryByText('Dénivelé +')).toBeNull();
   });
 
-  it('marks a sport without distance with a dash in the per-sport detail', async () => {
+  /**
+   * #46: a sport without distance shows no misleading "—" nor a zero. The core doesn't
+   * know what its totals mean, so the row only carries what every sport has.
+   */
+  it('shows neither a dash nor a zero for a sport whose totals it cannot describe', async () => {
     respondOk(
       summary({
         bySport: [
@@ -213,11 +222,13 @@ describe('Statistics: DoD #24', () => {
             label: 'Musculation',
             sessions: 4,
             totalDurationS: 7200,
+            calories: 0,
             totals: {},
           },
         ],
         totalSessions: 4,
         totalDurationS: 7200,
+        totalCalories: 0,
         totals: {},
       }),
       timeline({ buckets: [] }),
@@ -225,7 +236,8 @@ describe('Statistics: DoD #24', () => {
     await renderScreen();
 
     await waitFor(() => expect(screen.getByTestId('sport-row-strength')).toBeOnTheScreen());
-    expect(screen.getByText('—')).toBeOnTheScreen();
+    expect(screen.queryByText('—')).toBeNull();
+    expect(screen.getByTestId('sport-row-strength')).toHaveTextContent(/^Musculation4 séances · 2:00:00$/);
   });
 
   // ------------------------------------------------------------------

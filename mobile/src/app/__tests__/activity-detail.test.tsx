@@ -152,7 +152,7 @@ describe('Activity detail (#6)', () => {
     await renderScreen();
 
     await waitFor(() =>
-      expect(screen.getByTestId('activity-title')).toHaveTextContent('Course du 14 août'),
+      expect(screen.getByTestId('activity-title')).toHaveTextContent('Course à pied du 14 août'),
     );
   });
 

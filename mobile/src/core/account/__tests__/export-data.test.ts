@@ -8,6 +8,8 @@ const mockApi = jest.fn();
 const mockShare = jest.fn();
 const mockAvailable = jest.fn();
 let mockWriteFails = false;
+/** Set by a test to hold the write open; the SDK 58 write is asynchronous. */
+let mockWriteGate: Promise<void> | null = null;
 const mockFiles: { uri: string; content?: string; exists: boolean; deleted: boolean }[] = [];
 
 jest.mock('../../api/client', () => ({ api: (...args: unknown[]) => mockApi(...args) }));
@@ -34,7 +36,9 @@ jest.mock('expo-file-system', () => ({
     create() {
       this.record.exists = true;
     }
-    write(content: string) {
+    // Asynchronous since SDK 58: the content only lands once the promise settles.
+    async write(content: string) {
+      await mockWriteGate;
       if (mockWriteFails) {
         this.record.content = content.slice(0, 5); // partial write, then failure
         throw new Error('ENOSPC');
@@ -50,6 +54,7 @@ jest.mock('expo-file-system', () => ({
 
 beforeEach(() => {
   mockWriteFails = false;
+  mockWriteGate = null;
   mockFiles.length = 0;
   mockApi.mockResolvedValue('{"formatVersion":1}');
   mockAvailable.mockResolvedValue(true);
@@ -93,4 +98,23 @@ it('leaves no partial file when writing fails', async () => {
   await expect(exportPersonalData()).rejects.toThrow('ENOSPC');
   expect(mockFiles[0].exists).toBe(false);
   expect(mockShare).not.toHaveBeenCalled();
+});
+
+it('waits for the write to finish before sharing', async () => {
+  let finishWrite!: () => void;
+  mockWriteGate = new Promise<void>((resolve) => {
+    finishWrite = resolve;
+  });
+
+  const exporting = exportPersonalData();
+  for (let i = 0; i < 10; i++) {
+    await Promise.resolve();
+  }
+  expect(mockFiles).toHaveLength(1); // the write has started…
+  expect(mockShare).not.toHaveBeenCalled(); // …and sharing waits for it
+
+  finishWrite();
+  await exporting;
+  expect(mockShare).toHaveBeenCalledTimes(1);
+  expect(mockFiles[0].content).toBe('{"formatVersion":1}');
 });

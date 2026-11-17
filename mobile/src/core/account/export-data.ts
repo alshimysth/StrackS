@@ -36,7 +36,8 @@ export async function exportPersonalData(): Promise<void> {
       file.delete();
     }
     file.create();
-    file.write(json);
+    // Async since SDK 58: without the await, sharing could start on a half-written file.
+    await file.write(json);
     await Sharing.shareAsync(file.uri, {
       mimeType: 'application/json',
       UTI: 'public.json',

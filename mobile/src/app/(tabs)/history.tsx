@@ -234,7 +234,7 @@ function Body({
         />
       )}
       ListFooterComponent={
-        history.isFetchingNextPage ? <LoadingState title="" testID="loading-next-page" /> : null
+        history.isFetchingNextPage ? <LoadingState title="" testID="loading-next-page" /> : undefined
       }
     />
   );

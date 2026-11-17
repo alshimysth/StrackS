@@ -26,14 +26,14 @@ jobs:
         working-directory: mobile
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Node 22 LTS: supported by Expo SDK 54 (the project doesn't pin engines).
       # Moved from 20 to 22 when tests arrived (#40): Node 20 has been end-of-life since
       # April 2026, and better-sqlite3, used by the buffer tests to run real SQL, no longer
       # publishes a prebuilt binary for Node 20's ABI, which would force a node-gyp build.
       - name: Set up Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm

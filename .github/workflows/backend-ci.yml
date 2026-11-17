@@ -23,12 +23,12 @@ jobs:
         working-directory: backend
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # The pom targets maven.compiler.release=25 and Dockerfile.jvm uses openjdk-25:
       # CI MUST use JDK 25, not 21 (otherwise compilation fails).
       - name: Set up JDK 25 (Temurin)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "25"

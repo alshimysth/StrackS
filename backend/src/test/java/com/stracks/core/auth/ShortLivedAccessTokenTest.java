@@ -35,8 +35,7 @@ class ShortLivedAccessTokenTest {
             // "not set": hence lot D's failure with `clock.skew=0`, worked around back then by
             // waiting over a minute. 1 s is the smallest effective tolerance.
             return Map.of("stracks.jwt.ttl-seconds", "2",
-                    "mp.jwt.verify.clock.skew", "1",
-                    "smallrye.jwt.expiration.grace", "1");
+                    "mp.jwt.verify.clock.skew", "1");
         }
     }
 
